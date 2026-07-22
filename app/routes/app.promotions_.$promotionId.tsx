@@ -20,7 +20,7 @@ import { authenticate } from "../shopify.server";
 
 import { getDiscounts } from "../modules/promotions/services/discounts.server";
 
-import { mapDiscountsToPromotions } from "../modules/promotions/services/promotionMapper";
+import { mapDiscountsToPromotions } from "../modules/promotions/mappers/promotionMapper";
 
 import {
   attachPromotionSettings,

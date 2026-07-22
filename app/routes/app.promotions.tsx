@@ -2,8 +2,11 @@ import type { LoaderFunctionArgs } from "react-router";
 import { useLoaderData } from "react-router";
 
 import { authenticate } from "../shopify.server";
+
 import { getDiscounts } from "../modules/promotions/services/discounts.server";
-import { mapDiscountsToPromotions } from "../modules/promotions/services/promotionMapper";
+
+import { mapDiscountsToPromotions } from "../modules/promotions/mappers/promotionMapper";
+
 import { attachPromotionSettings } from "../modules/promotions/services/promotionSettings.server";
 
 export async function loader({
@@ -12,21 +15,24 @@ export async function loader({
   const { admin, session } =
     await authenticate.admin(request);
 
-  const discountNodes = await getDiscounts(admin);
+  const discountNodes =
+    await getDiscounts(admin);
 
   const mappedPromotions =
     mapDiscountsToPromotions(discountNodes);
 
-  const promotions = await attachPromotionSettings(
-    session.shop,
-    mappedPromotions,
-  );
+  const promotions =
+    await attachPromotionSettings(
+      session.shop,
+      mappedPromotions,
+    );
 
   return { promotions };
 }
 
 export default function PromotionsPage() {
-  const { promotions } = useLoaderData<typeof loader>();
+  const { promotions } =
+    useLoaderData<typeof loader>();
 
   return (
     <s-page heading="Promotions">
@@ -44,62 +50,75 @@ export default function PromotionsPage() {
             </s-paragraph>
           </s-section>
         ) : (
-            <s-section padding="none">
-              <s-table>
-                <s-table-header-row>
-                  <s-table-header listSlot="primary">
-                    Promotion
-                  </s-table-header>
+          <s-section padding="none">
+            <s-table>
+              <s-table-header-row>
+                <s-table-header listSlot="primary">
+                  Promotion
+                </s-table-header>
 
-                  <s-table-header listSlot="inline">
-                    Status
-                  </s-table-header>
+                <s-table-header listSlot="inline">
+                  Status
+                </s-table-header>
 
-                  <s-table-header listSlot="labeled">
-                    Method
-                  </s-table-header>
+                <s-table-header listSlot="labeled">
+                  Method
+                </s-table-header>
 
-                  <s-table-header listSlot="labeled">
-                    Type
-                  </s-table-header>
+                <s-table-header listSlot="labeled">
+                  Type
+                </s-table-header>
 
-                  <s-table-header listSlot="labeled">
-                    Value
-                  </s-table-header>
+                <s-table-header listSlot="labeled">
+                  Value
+                </s-table-header>
 
-                  <s-table-header listSlot="secondary">
-                    Applies to
-                  </s-table-header>
+                <s-table-header listSlot="secondary">
+                  Applies to
+                </s-table-header>
 
-                  <s-table-header listSlot="labeled">
-                    Created by
-                  </s-table-header>
+                <s-table-header listSlot="labeled">
+                  Created by
+                </s-table-header>
 
-                  <s-table-header listSlot="inline">
-                    Sync
-                  </s-table-header>
-                </s-table-header-row>
+                <s-table-header listSlot="inline">
+                  Sync
+                </s-table-header>
+              </s-table-header-row>
 
-                <s-table-body>
-                  {promotions.map((promotion) => (
+              <s-table-body>
+                {promotions.map((promotion) => {
+                  const general =
+                    promotion.shopify.general;
+
+                  const products =
+                    promotion.shopify.products;
+
+                  const conditions =
+                    promotion.shopify.conditions;
+
+                  return (
                     <s-table-row key={promotion.id}>
                       <s-table-cell>
-                        <s-stack direction="block" gap="small">
+                        <s-stack
+                          direction="block"
+                          gap="small"
+                        >
                           <s-link
                             href={`/app/promotions/${promotion.routeId}`}
                           >
                             <s-text fontWeight="semibold">
-                              {promotion.title}
+                              {general.title}
                             </s-text>
                           </s-link>
 
                           <s-text tone="subdued">
-                            {promotion.summary}
+                            {general.summary}
                           </s-text>
 
-                          {promotion.code && (
+                          {general.code && (
                             <s-text tone="subdued">
-                              Code: {promotion.code}
+                              Code: {general.code}
                             </s-text>
                           )}
                         </s-stack>
@@ -108,45 +127,56 @@ export default function PromotionsPage() {
                       <s-table-cell>
                         <s-badge
                           tone={
-                            promotion.status === "ACTIVE"
+                            general.status === "ACTIVE"
                               ? "success"
-                              : promotion.status === "SCHEDULED"
+                              : general.status ===
+                                "SCHEDULED"
                                 ? "info"
-                                : promotion.status === "EXPIRED"
+                                : general.status ===
+                                  "EXPIRED"
                                   ? "critical"
                                   : "neutral"
                           }
                         >
-                          {promotion.status}
+                          {general.status}
                         </s-badge>
                       </s-table-cell>
 
                       <s-table-cell>
-                        {promotion.method}
+                        {general.method}
                       </s-table-cell>
 
                       <s-table-cell>
-                        {promotion.type}
+                        {general.type}
                       </s-table-cell>
 
                       <s-table-cell>
-                        {promotion.value}
+                        {general.value}
                       </s-table-cell>
 
                       <s-table-cell>
-                        <s-stack direction="block" gap="small">
-                          <s-text>{promotion.appliesTo}</s-text>
+                        <s-stack
+                          direction="block"
+                          gap="small"
+                        >
+                          <s-text>
+                            {products.appliesTo}
+                          </s-text>
 
-                          {promotion.minimumRequirement !== "None" && (
-                            <s-text tone="subdued">
-                              Minimum: {promotion.minimumRequirement}
-                            </s-text>
-                          )}
+                          {conditions.minimumRequirement !==
+                            "None" && (
+                              <s-text tone="subdued">
+                                Minimum:{" "}
+                                {
+                                  conditions.minimumRequirement
+                                }
+                              </s-text>
+                            )}
                         </s-stack>
                       </s-table-cell>
 
                       <s-table-cell>
-                        {promotion.createdBy}
+                        {general.createdBy}
                       </s-table-cell>
 
                       <s-table-cell>
@@ -163,10 +193,11 @@ export default function PromotionsPage() {
                         </s-badge>
                       </s-table-cell>
                     </s-table-row>
-                  ))}
-                </s-table-body>
-              </s-table>
-            </s-section>
+                  );
+                })}
+              </s-table-body>
+            </s-table>
+          </s-section>
         )}
       </s-stack>
     </s-page>
