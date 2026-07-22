@@ -67,6 +67,7 @@ export function mapDiscountToPromotion(
 ): Promotion {
   return {
     id: node.id,
+    routeId: getRouteId(node.id),
 
     title: node.discount.title ?? "Untitled promotion",
     summary: node.discount.summary ?? "No summary available",
@@ -118,4 +119,8 @@ export function mapDiscountsToPromotions(
   nodes: ShopifyDiscountNode[],
 ): Promotion[] {
   return nodes.map(mapDiscountToPromotion);
+}
+
+function getRouteId(shopifyId: string): string {
+  return shopifyId.split("/").pop() ?? shopifyId;
 }

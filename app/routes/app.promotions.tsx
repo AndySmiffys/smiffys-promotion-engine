@@ -85,9 +85,13 @@ export default function PromotionsPage() {
                     <s-table-row key={promotion.id}>
                       <s-table-cell>
                         <s-stack direction="block" gap="small">
-                          <s-text fontWeight="semibold">
-                            {promotion.title}
-                          </s-text>
+                          <s-link
+                            href={`/app/promotions/${promotion.routeId}`}
+                          >
+                            <s-text fontWeight="semibold">
+                              {promotion.title}
+                            </s-text>
+                          </s-link>
 
                           <s-text tone="subdued">
                             {promotion.summary}

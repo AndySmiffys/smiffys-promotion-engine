@@ -38,6 +38,8 @@ export type PromotionWebsiteSettings = {
 
   lastSyncedAt: string | null;
   lastSyncError: string | null;
+
+  routeId: string;
 };
 
 export type Promotion = {
