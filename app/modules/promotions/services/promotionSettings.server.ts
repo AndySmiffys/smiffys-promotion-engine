@@ -100,3 +100,54 @@ export async function attachPromotionSettings(
     };
   });
 }
+
+export type UpdatePromotionWebsiteSettingsInput = {
+  included: boolean;
+  websiteEnabled: boolean;
+
+  showProductPage: boolean;
+  showCollectionPage: boolean;
+  showProductBadge: boolean;
+  showCountdown: boolean;
+  showHeaderBanner: boolean;
+};
+
+export async function updatePromotionWebsiteSettings(
+  shop: string,
+  shopifyDiscountId: string,
+  input: UpdatePromotionWebsiteSettingsInput,
+): Promise<void> {
+  await db.promotionSettings.upsert({
+    where: {
+      shop_shopifyDiscountId: {
+        shop,
+        shopifyDiscountId,
+      },
+    },
+
+    create: {
+      shop,
+      shopifyDiscountId,
+
+      included: input.included,
+      websiteEnabled: input.websiteEnabled,
+
+      showProductPage: input.showProductPage,
+      showCollectionPage: input.showCollectionPage,
+      showProductBadge: input.showProductBadge,
+      showCountdown: input.showCountdown,
+      showHeaderBanner: input.showHeaderBanner,
+    },
+
+    update: {
+      included: input.included,
+      websiteEnabled: input.websiteEnabled,
+
+      showProductPage: input.showProductPage,
+      showCollectionPage: input.showCollectionPage,
+      showProductBadge: input.showProductBadge,
+      showCountdown: input.showCountdown,
+      showHeaderBanner: input.showHeaderBanner,
+    },
+  });
+}
