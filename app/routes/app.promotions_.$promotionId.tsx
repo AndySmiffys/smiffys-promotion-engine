@@ -23,6 +23,21 @@ import { getDiscounts } from "../modules/promotions/services/discounts.server";
 import { mapDiscountsToPromotions } from "../modules/promotions/mappers/promotionMapper";
 
 import {
+  PromotionTabs,
+  type PromotionTab,
+} from "../modules/promotions/components/PromotionTabs";
+
+import { PromotionGeneralTab } from "../modules/promotions/components/PromotionGeneralTab";
+
+import { PromotionProductsTab } from "../modules/promotions/components/PromotionProductsTab";
+
+import { PromotionCustomersTab } from "../modules/promotions/components/PromotionCustomersTab";
+
+import { PromotionConditionsTab } from "../modules/promotions/components/PromotionConditionsTab";
+
+import { PromotionScheduleTab } from "../modules/promotions/components/PromotionScheduleTab";
+
+import {
   attachPromotionSettings,
   updatePromotionWebsiteSettings,
 } from "../modules/promotions/services/promotionSettings.server";
@@ -209,25 +224,6 @@ export async function action({
   }
 }
 
-function formatDate(
-  value: string | null,
-): string {
-  if (!value) {
-    return "Not set";
-  }
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return "Invalid date";
-  }
-
-  return new Intl.DateTimeFormat("en-GB", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(date);
-}
-
 type WebsiteSettingsState = {
   included: boolean;
   websiteEnabled: boolean;
@@ -238,14 +234,11 @@ type WebsiteSettingsState = {
   showHeaderBanner: boolean;
 };
 
-type PromotionTab =
-  | "general"
-  | "website"
-  | "messages";
-
 export default function PromotionDetailsPage() {
   const { promotion } =
     useLoaderData<typeof loader>();
+
+  const general = promotion.shopify.general;
 
   const actionData =
     useActionData<typeof action>();
@@ -454,124 +447,15 @@ export default function PromotionDetailsPage() {
 
   return (
     <s-page
-      heading={promotion.title}
+      heading={general.title}
       backAction="/app/promotions"
     >
       <s-stack direction="block" gap="large">
 
-        <s-section heading="Promotion overview">
-          <s-stack direction="block" gap="base">
-            <s-paragraph>
-              {promotion.summary}
-            </s-paragraph>
-
-            <s-stack
-              direction="inline"
-              gap="base"
-            >
-              <s-badge
-                tone={
-                  promotion.status === "ACTIVE"
-                    ? "success"
-                    : promotion.status ===
-                      "SCHEDULED"
-                      ? "info"
-                      : promotion.status ===
-                        "EXPIRED"
-                        ? "critical"
-                        : "neutral"
-                }
-              >
-                {promotion.status}
-              </s-badge>
-
-              <s-badge>
-                {promotion.method}
-              </s-badge>
-
-              <s-badge>
-                {promotion.type}
-              </s-badge>
-            </s-stack>
-          </s-stack>
-        </s-section>
-
-        <s-section heading="Shopify discount">
-          <s-stack direction="block" gap="base">
-            <s-paragraph>
-              Value: {promotion.value}
-            </s-paragraph>
-
-            {promotion.code && (
-              <s-paragraph>
-                Code: {promotion.code}
-              </s-paragraph>
-            )}
-
-            <s-paragraph>
-              Applies to: {promotion.appliesTo}
-            </s-paragraph>
-
-            <s-paragraph>
-              Minimum requirement:{" "}
-              {promotion.minimumRequirement}
-            </s-paragraph>
-
-            <s-paragraph>
-              Created by: {promotion.createdBy}
-            </s-paragraph>
-
-            <s-paragraph>
-              Starts:{" "}
-              {formatDate(promotion.startsAt)}
-            </s-paragraph>
-
-            <s-paragraph>
-              Ends:{" "}
-              {formatDate(promotion.endsAt)}
-            </s-paragraph>
-          </s-stack>
-        </s-section>
-
-        <s-section>
-          <s-stack direction="inline" gap="base">
-            <s-button
-              type="button"
-              variant={
-                activeTab === "general"
-                  ? "primary"
-                  : "secondary"
-              }
-              onClick={() => setActiveTab("general")}
-            >
-              General
-            </s-button>
-
-            <s-button
-              type="button"
-              variant={
-                activeTab === "website"
-                  ? "primary"
-                  : "secondary"
-              }
-              onClick={() => setActiveTab("website")}
-            >
-              Website
-            </s-button>
-
-            <s-button
-              type="button"
-              variant={
-                activeTab === "messages"
-                  ? "primary"
-                  : "secondary"
-              }
-              onClick={() => setActiveTab("messages")}
-            >
-              Messages
-            </s-button>
-          </s-stack>
-        </s-section>
+        <PromotionTabs
+          activeTab={activeTab}
+          onChange={setActiveTab}
+        />
 
         <Form method="post">
           <input
@@ -589,80 +473,55 @@ export default function PromotionDetailsPage() {
                   : "none",
             }}
           >
-            <s-stack direction="block" gap="large">
-              <s-section heading="Promotion overview">
-                <s-stack direction="block" gap="base">
-                  <s-paragraph>
-                    {promotion.summary}
-                  </s-paragraph>
+            <PromotionGeneralTab promotion={promotion} />
+          </div>
 
-                  <s-stack
-                    direction="inline"
-                    gap="base"
-                  >
-                    <s-badge
-                      tone={
-                        promotion.status === "ACTIVE"
-                          ? "success"
-                          : promotion.status ===
-                            "SCHEDULED"
-                            ? "info"
-                            : promotion.status ===
-                              "EXPIRED"
-                              ? "critical"
-                              : "neutral"
-                      }
-                    >
-                      {promotion.status}
-                    </s-badge>
+          {/* Products tab */}
+          <div
+            style={{
+              display:
+                activeTab === "products"
+                  ? "block"
+                  : "none",
+            }}
+          >
+            <PromotionProductsTab promotion={promotion} />
+          </div>
 
-                    <s-badge>
-                      {promotion.method}
-                    </s-badge>
+          {/* Customers tab */}
+          <div
+            style={{
+              display:
+                activeTab === "customers"
+                  ? "block"
+                  : "none",
+            }}
+          >
+            <PromotionCustomersTab promotion={promotion} />
+          </div>
 
-                    <s-badge>
-                      {promotion.type}
-                    </s-badge>
-                  </s-stack>
-                </s-stack>
-              </s-section>
+          {/* Conditions tab */}
+          <div
+            style={{
+              display:
+                activeTab === "conditions"
+                  ? "block"
+                  : "none",
+            }}
+          >
+            <PromotionConditionsTab promotion={promotion} />
+          </div>
 
-              <s-section heading="Shopify discount">
-                <s-stack direction="block" gap="base">
-                  <s-paragraph>
-                    Value: {promotion.value}
-                  </s-paragraph>
-
-                  {promotion.code && (
-                    <s-paragraph>
-                      Code: {promotion.code}
-                    </s-paragraph>
-                  )}
-
-                  <s-paragraph>
-                    Applies to: {promotion.appliesTo}
-                  </s-paragraph>
-
-                  <s-paragraph>
-                    Minimum requirement:{" "}
-                    {promotion.minimumRequirement}
-                  </s-paragraph>
-
-                  <s-paragraph>
-                    Created by: {promotion.createdBy}
-                  </s-paragraph>
-
-                  <s-paragraph>
-                    Starts:{" "}
-                    {formatDate(promotion.startsAt)}
-                  </s-paragraph>
-
-                  <s-paragraph>
-                    Ends: {formatDate(promotion.endsAt)}
-                  </s-paragraph>
-                </s-stack>
-              </s-section>
-            </s-stack>
+          {/* Schedule tab */}
+          <div
+            style={{
+              display:
+                activeTab === "schedule"
+                  ? "block"
+                  : "none",
+            }}
+          >
+            <PromotionScheduleTab promotion={promotion} />
           </div>
 
           {/* Website tab */}
@@ -1013,7 +872,7 @@ export default function PromotionDetailsPage() {
           </div>
         </Form>
 
-    
+
       </s-stack>
     </s-page>
   );
