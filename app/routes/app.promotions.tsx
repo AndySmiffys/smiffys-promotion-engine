@@ -4,12 +4,23 @@ import { useLoaderData } from "react-router";
 import { authenticate } from "../shopify.server";
 import { getDiscounts } from "../modules/promotions/services/discounts.server";
 import { mapDiscountsToPromotions } from "../modules/promotions/services/promotionMapper";
+import { attachPromotionSettings } from "../modules/promotions/services/promotionSettings.server";
 
-export async function loader({ request }: LoaderFunctionArgs) {
-  const { admin } = await authenticate.admin(request);
+export async function loader({
+  request,
+}: LoaderFunctionArgs) {
+  const { admin, session } =
+    await authenticate.admin(request);
 
   const discountNodes = await getDiscounts(admin);
-  const promotions = mapDiscountsToPromotions(discountNodes);
+
+  const mappedPromotions =
+    mapDiscountsToPromotions(discountNodes);
+
+  const promotions = await attachPromotionSettings(
+    session.shop,
+    mappedPromotions,
+  );
 
   return { promotions };
 }

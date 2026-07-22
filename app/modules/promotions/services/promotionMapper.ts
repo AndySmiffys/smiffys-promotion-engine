@@ -67,6 +67,7 @@ export function mapDiscountToPromotion(
 ): Promotion {
   return {
     id: node.id,
+
     title: node.discount.title ?? "Untitled promotion",
     summary: node.discount.summary ?? "No summary available",
 
@@ -80,10 +81,36 @@ export function mapDiscountToPromotion(
     minimumRequirement: getMinimumRequirement(node),
 
     createdBy: getDiscountCreator(node),
-    includedInSync: shouldSyncDiscount(node),
 
     startsAt: node.discount.startsAt ?? null,
     endsAt: node.discount.endsAt ?? null,
+
+    website: {
+      included: shouldSyncDiscount(node),
+      websiteEnabled: false,
+
+      showProductPage: false,
+      showCollectionPage: false,
+      showProductBadge: false,
+      showCountdown: false,
+      showHeaderBanner: false,
+
+      headline: null,
+      body: null,
+      badgeText: null,
+      countdownText: null,
+      buttonText: null,
+      buttonUrl: null,
+
+      backgroundColour: null,
+      textColour: null,
+      badgeColour: null,
+
+      priority: 0,
+
+      lastSyncedAt: null,
+      lastSyncError: null,
+    },
   };
 }
 

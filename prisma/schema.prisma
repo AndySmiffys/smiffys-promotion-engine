@@ -32,3 +32,41 @@ model Session {
   refreshToken        String?
   refreshTokenExpires DateTime?
 }
+
+model PromotionSettings {
+  id                 Int      @id @default(autoincrement())
+
+  shop               String
+  shopifyDiscountId  String
+
+  included           Boolean  @default(true)
+  websiteEnabled     Boolean  @default(false)
+
+  showProductPage    Boolean  @default(false)
+  showCollectionPage Boolean  @default(false)
+  showProductBadge   Boolean  @default(false)
+  showCountdown      Boolean  @default(false)
+  showHeaderBanner   Boolean  @default(false)
+
+  headline           String?
+  body               String?
+  badgeText          String?
+  countdownText      String?
+  buttonText         String?
+  buttonUrl          String?
+
+  backgroundColour   String?
+  textColour         String?
+  badgeColour        String?
+
+  priority           Int      @default(0)
+
+  lastSyncedAt       DateTime?
+  lastSyncError      String?
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@unique([shop, shopifyDiscountId])
+  @@index([shop])
+}
