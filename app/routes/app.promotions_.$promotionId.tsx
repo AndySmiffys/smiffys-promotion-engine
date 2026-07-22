@@ -61,6 +61,39 @@ export async function loader({
   return { promotion };
 }
 
+function getOptionalString(
+  formData: FormData,
+  name: string,
+): string | null {
+  const value = formData.get(name);
+
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const trimmedValue = value.trim();
+
+  return trimmedValue.length > 0
+    ? trimmedValue
+    : null;
+}
+
+function getPriority(formData: FormData): number {
+  const value = formData.get("priority");
+
+  if (typeof value !== "string") {
+    return 0;
+  }
+
+  const parsedValue = Number.parseInt(value, 10);
+
+  if (!Number.isFinite(parsedValue)) {
+    return 0;
+  }
+
+  return Math.max(0, parsedValue);
+}
+
 export async function action({
   request,
   params,
@@ -116,6 +149,41 @@ export async function action({
 
         showHeaderBanner:
           formData.has("showHeaderBanner"),
+
+        headline:
+          getOptionalString(formData, "headline"),
+
+        body:
+          getOptionalString(formData, "body"),
+
+        badgeText:
+          getOptionalString(formData, "badgeText"),
+
+        countdownText:
+          getOptionalString(
+            formData,
+            "countdownText",
+          ),
+
+        buttonText:
+          getOptionalString(formData, "buttonText"),
+
+        buttonUrl:
+          getOptionalString(formData, "buttonUrl"),
+
+        backgroundColour:
+          getOptionalString(
+            formData,
+            "backgroundColour",
+          ),
+
+        textColour:
+          getOptionalString(formData, "textColour"),
+
+        badgeColour:
+          getOptionalString(formData, "badgeColour"),
+
+        priority: getPriority(formData),
       },
     );
 
@@ -440,6 +508,111 @@ export default function PromotionDetailsPage() {
                 }
               />
 
+              <s-section heading="Messages">
+                <s-stack direction="block" gap="base">
+                  <s-text-field
+                    name="headline"
+                    label="Headline"
+                    details="Main promotion message displayed to customers."
+                    placeholder="Save 20% today"
+                    defaultValue={
+                      promotion.settings.headline ?? ""
+                    }
+                    maxLength={120}
+                  />
+
+                  <s-text-area
+                    name="body"
+                    label="Body"
+                    details="Supporting promotion text."
+                    placeholder="Promotion applies to selected products while stocks last."
+                    defaultValue={
+                      promotion.settings.body ?? ""
+                    }
+                    maxLength={500}
+                    rows={4}
+                  />
+
+                  <s-text-field
+                    name="badgeText"
+                    label="Badge text"
+                    placeholder="20% OFF"
+                    defaultValue={
+                      promotion.settings.badgeText ?? ""
+                    }
+                    maxLength={40}
+                  />
+
+                  <s-text-field
+                    name="countdownText"
+                    label="Countdown text"
+                    placeholder="Offer ends in"
+                    defaultValue={
+                      promotion.settings.countdownText ?? ""
+                    }
+                    maxLength={80}
+                  />
+
+                  <s-text-field
+                    name="buttonText"
+                    label="Button text"
+                    placeholder="Shop now"
+                    defaultValue={
+                      promotion.settings.buttonText ?? ""
+                    }
+                    maxLength={60}
+                  />
+
+                  <s-url-field
+                    name="buttonUrl"
+                    label="Button URL"
+                    placeholder="https://www.example.com/collections/sale"
+                    defaultValue={
+                      promotion.settings.buttonUrl ?? ""
+                    }
+                  />
+
+                  <s-number-field
+                    name="priority"
+                    label="Priority"
+                    details="Higher-priority promotions can be shown before lower-priority promotions."
+                    min={0}
+                    step={1}
+                    inputMode="numeric"
+                    defaultValue={String(
+                      promotion.settings.priority,
+                    )}
+                  />
+
+                  <s-color-field
+                    name="backgroundColour"
+                    label="Background colour"
+                    defaultValue={
+                      promotion.settings.backgroundColour ??
+                      "#ffffff"
+                    }
+                  />
+
+                  <s-color-field
+                    name="textColour"
+                    label="Text colour"
+                    defaultValue={
+                      promotion.settings.textColour ??
+                      "#000000"
+                    }
+                  />
+
+                  <s-color-field
+                    name="badgeColour"
+                    label="Badge colour"
+                    defaultValue={
+                      promotion.settings.badgeColour ??
+                      "#d72c0d"
+                    }
+                  />
+                </s-stack>
+              </s-section>
+
               <s-stack
                 direction="inline"
                 gap="base"
@@ -459,45 +632,7 @@ export default function PromotionDetailsPage() {
           </s-section>
         </Form>
 
-        <s-section heading="Messages">
-          <s-stack direction="block" gap="base">
-            <s-paragraph>
-              Headline:{" "}
-              {promotion.settings.headline ??
-                "Not set"}
-            </s-paragraph>
-
-            <s-paragraph>
-              Body:{" "}
-              {promotion.settings.body ??
-                "Not set"}
-            </s-paragraph>
-
-            <s-paragraph>
-              Badge text:{" "}
-              {promotion.settings.badgeText ??
-                "Not set"}
-            </s-paragraph>
-
-            <s-paragraph>
-              Countdown text:{" "}
-              {promotion.settings.countdownText ??
-                "Not set"}
-            </s-paragraph>
-
-            <s-paragraph>
-              Button text:{" "}
-              {promotion.settings.buttonText ??
-                "Not set"}
-            </s-paragraph>
-
-            <s-paragraph>
-              Button URL:{" "}
-              {promotion.settings.buttonUrl ??
-                "Not set"}
-            </s-paragraph>
-          </s-stack>
-        </s-section>
+    
       </s-stack>
     </s-page>
   );

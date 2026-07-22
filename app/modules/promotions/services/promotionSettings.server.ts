@@ -110,6 +110,19 @@ export type UpdatePromotionWebsiteSettingsInput = {
   showProductBadge: boolean;
   showCountdown: boolean;
   showHeaderBanner: boolean;
+
+  headline: string | null;
+  body: string | null;
+  badgeText: string | null;
+  countdownText: string | null;
+  buttonText: string | null;
+  buttonUrl: string | null;
+
+  backgroundColour: string | null;
+  textColour: string | null;
+  badgeColour: string | null;
+
+  priority: number;
 };
 
 export async function updatePromotionWebsiteSettings(
@@ -137,6 +150,19 @@ export async function updatePromotionWebsiteSettings(
       showProductBadge: input.showProductBadge,
       showCountdown: input.showCountdown,
       showHeaderBanner: input.showHeaderBanner,
+
+      headline: input.headline,
+      body: input.body,
+      badgeText: input.badgeText,
+      countdownText: input.countdownText,
+      buttonText: input.buttonText,
+      buttonUrl: input.buttonUrl,
+
+      backgroundColour: input.backgroundColour,
+      textColour: input.textColour,
+      badgeColour: input.badgeColour,
+
+      priority: input.priority,
     },
 
     update: {
@@ -148,6 +174,19 @@ export async function updatePromotionWebsiteSettings(
       showProductBadge: input.showProductBadge,
       showCountdown: input.showCountdown,
       showHeaderBanner: input.showHeaderBanner,
+
+      headline: input.headline,
+      body: input.body,
+      badgeText: input.badgeText,
+      countdownText: input.countdownText,
+      buttonText: input.buttonText,
+      buttonUrl: input.buttonUrl,
+
+      backgroundColour: input.backgroundColour,
+      textColour: input.textColour,
+      badgeColour: input.badgeColour,
+
+      priority: input.priority,
     },
   });
 }
