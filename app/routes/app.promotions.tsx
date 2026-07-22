@@ -148,12 +148,12 @@ export default function PromotionsPage() {
                       <s-table-cell>
                         <s-badge
                           tone={
-                            promotion.includedInSync
+                            promotion.settings.included
                               ? "success"
                               : "warning"
                           }
                         >
-                          {promotion.includedInSync
+                          {promotion.settings.included
                             ? "Included"
                             : "Excluded"}
                         </s-badge>

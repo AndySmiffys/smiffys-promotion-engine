@@ -85,7 +85,7 @@ export function mapDiscountToPromotion(
     startsAt: node.discount.startsAt ?? null,
     endsAt: node.discount.endsAt ?? null,
 
-    website: {
+    settings: {
       included: shouldSyncDiscount(node),
       websiteEnabled: false,
 
