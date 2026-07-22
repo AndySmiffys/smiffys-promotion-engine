@@ -1,4 +1,8 @@
-import { useEffect, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 import type {
   ActionFunctionArgs,
@@ -234,6 +238,11 @@ type WebsiteSettingsState = {
   showHeaderBanner: boolean;
 };
 
+type PromotionTab =
+  | "general"
+  | "website"
+  | "messages";
+
 export default function PromotionDetailsPage() {
   const { promotion } =
     useLoaderData<typeof loader>();
@@ -270,6 +279,33 @@ export default function PromotionDetailsPage() {
         promotion.settings.showHeaderBanner,
     });
 
+  const [messages, setMessages] = useState({
+    headline: promotion.settings.headline ?? "",
+    body: promotion.settings.body ?? "",
+    badgeText: promotion.settings.badgeText ?? "",
+    countdownText:
+      promotion.settings.countdownText ?? "",
+    buttonText:
+      promotion.settings.buttonText ?? "",
+    buttonUrl:
+      promotion.settings.buttonUrl ?? "",
+    backgroundColour:
+      promotion.settings.backgroundColour ??
+      "#ffffff",
+    textColour:
+      promotion.settings.textColour ??
+      "#000000",
+    badgeColour:
+      promotion.settings.badgeColour ??
+      "#d72c0d",
+    priority: String(
+      promotion.settings.priority ?? 0,
+    ),
+  });
+
+  const [activeTab, setActiveTab] =
+    useState<PromotionTab>("general");
+
   useEffect(() => {
     setSettings({
       included:
@@ -293,6 +329,31 @@ export default function PromotionDetailsPage() {
       showHeaderBanner:
         promotion.settings.showHeaderBanner,
     });
+
+    setMessages({
+      headline: promotion.settings.headline ?? "",
+      body: promotion.settings.body ?? "",
+      badgeText: promotion.settings.badgeText ?? "",
+      countdownText:
+        promotion.settings.countdownText ?? "",
+      buttonText:
+        promotion.settings.buttonText ?? "",
+      buttonUrl:
+        promotion.settings.buttonUrl ?? "",
+      backgroundColour:
+        promotion.settings.backgroundColour ??
+        "#ffffff",
+      textColour:
+        promotion.settings.textColour ??
+        "#000000",
+      badgeColour:
+        promotion.settings.badgeColour ??
+        "#d72c0d",
+      priority: String(
+        promotion.settings.priority ?? 0,
+      ),
+    });
+
   }, [
     promotion.id,
     promotion.settings.included,
@@ -302,6 +363,16 @@ export default function PromotionDetailsPage() {
     promotion.settings.showProductBadge,
     promotion.settings.showCountdown,
     promotion.settings.showHeaderBanner,
+    promotion.settings.headline,
+    promotion.settings.body,
+    promotion.settings.badgeText,
+    promotion.settings.countdownText,
+    promotion.settings.buttonText,
+    promotion.settings.buttonUrl,
+    promotion.settings.backgroundColour,
+    promotion.settings.textColour,
+    promotion.settings.badgeColour,
+    promotion.settings.priority,
   ]);
 
   function updateSetting(
@@ -314,23 +385,79 @@ export default function PromotionDetailsPage() {
     }));
   }
 
+  function updateMessage(
+    name: keyof typeof messages,
+    value: string,
+  ) {
+    setMessages((current) => ({
+      ...current,
+      [name]: value,
+    }));
+  }
+
+  const hasUnsavedChanges = useMemo(() => {
+    const savedSettings = {
+      included:
+        promotion.settings.included,
+      websiteEnabled:
+        promotion.settings.websiteEnabled,
+      showProductPage:
+        promotion.settings.showProductPage,
+      showCollectionPage:
+        promotion.settings.showCollectionPage,
+      showProductBadge:
+        promotion.settings.showProductBadge,
+      showCountdown:
+        promotion.settings.showCountdown,
+      showHeaderBanner:
+        promotion.settings.showHeaderBanner,
+    };
+
+    const savedMessages = {
+      headline:
+        promotion.settings.headline ?? "",
+      body:
+        promotion.settings.body ?? "",
+      badgeText:
+        promotion.settings.badgeText ?? "",
+      countdownText:
+        promotion.settings.countdownText ?? "",
+      buttonText:
+        promotion.settings.buttonText ?? "",
+      buttonUrl:
+        promotion.settings.buttonUrl ?? "",
+      backgroundColour:
+        promotion.settings.backgroundColour ??
+        "#ffffff",
+      textColour:
+        promotion.settings.textColour ??
+        "#000000",
+      badgeColour:
+        promotion.settings.badgeColour ??
+        "#d72c0d",
+      priority: String(
+        promotion.settings.priority ?? 0,
+      ),
+    };
+
+    return (
+      JSON.stringify(settings) !==
+      JSON.stringify(savedSettings) ||
+      JSON.stringify(messages) !==
+      JSON.stringify(savedMessages)
+    );
+  }, [
+    settings,
+    messages,
+    promotion.settings,
+  ]);
+
   return (
     <s-page
       heading={promotion.title}
       backAction="/app/promotions"
     >
       <s-stack direction="block" gap="large">
-        {actionData?.success && (
-          <s-banner tone="success">
-            Promotion settings saved.
-          </s-banner>
-        )}
-
-        {actionData?.error && (
-          <s-banner tone="critical">
-            {actionData.error}
-          </s-banner>
-        )}
 
         <s-section heading="Promotion overview">
           <s-stack direction="block" gap="base">
@@ -406,6 +533,46 @@ export default function PromotionDetailsPage() {
           </s-stack>
         </s-section>
 
+        <s-section>
+          <s-stack direction="inline" gap="base">
+            <s-button
+              type="button"
+              variant={
+                activeTab === "general"
+                  ? "primary"
+                  : "secondary"
+              }
+              onClick={() => setActiveTab("general")}
+            >
+              General
+            </s-button>
+
+            <s-button
+              type="button"
+              variant={
+                activeTab === "website"
+                  ? "primary"
+                  : "secondary"
+              }
+              onClick={() => setActiveTab("website")}
+            >
+              Website
+            </s-button>
+
+            <s-button
+              type="button"
+              variant={
+                activeTab === "messages"
+                  ? "primary"
+                  : "secondary"
+              }
+              onClick={() => setActiveTab("messages")}
+            >
+              Messages
+            </s-button>
+          </s-stack>
+        </s-section>
+
         <Form method="post">
           <input
             type="hidden"
@@ -413,223 +580,437 @@ export default function PromotionDetailsPage() {
             value={promotion.id}
           />
 
-          <s-section heading="Website settings">
-            <s-stack direction="block" gap="base">
-              <s-checkbox
-                name="included"
-                value="true"
-                label="Include in promotion sync"
-                details="Allow this promotion to be processed by the website promotion sync."
-                checked={settings.included ? true : undefined}
-                onChange={(event) =>
-                  updateSetting(
-                    "included",
-                    event.currentTarget.checked,
-                  )
-                }
-              />
-
-              <s-checkbox
-                name="websiteEnabled"
-                value="true"
-                label="Enable website promotion"
-                details="Allow promotional messaging for this promotion to appear on the website."
-                checked={settings.websiteEnabled ? true : undefined}
-                onChange={(event) =>
-                  updateSetting(
-                    "websiteEnabled",
-                    event.currentTarget.checked,
-                  )
-                }
-              />
-
-              <s-checkbox
-                name="showProductPage"
-                value="true"
-                label="Show on product pages"
-                checked={settings.showProductPage ? true : undefined}
-                onChange={(event) =>
-                  updateSetting(
-                    "showProductPage",
-                    event.currentTarget.checked,
-                  )
-                }
-              />
-
-              <s-checkbox
-                name="showCollectionPage"
-                value="true"
-                label="Show on collection pages"
-                checked={settings.showCollectionPage ? true : undefined}
-                onChange={(event) =>
-                  updateSetting(
-                    "showCollectionPage",
-                    event.currentTarget.checked,
-                  )
-                }
-              />
-
-              <s-checkbox
-                name="showProductBadge"
-                value="true"
-                label="Show product badge"
-                checked={settings.showProductBadge ? true : undefined}
-                onChange={(event) =>
-                  updateSetting(
-                    "showProductBadge",
-                    event.currentTarget.checked,
-                  )
-                }
-              />
-
-              <s-checkbox
-                name="showCountdown"
-                value="true"
-                label="Show countdown"
-                checked={settings.showCountdown ? true : undefined}
-                onChange={(event) =>
-                  updateSetting(
-                    "showCountdown",
-                    event.currentTarget.checked,
-                  )
-                }
-              />
-
-              <s-checkbox
-                name="showHeaderBanner"
-                value="true"
-                label="Show header banner"
-                checked={settings.showHeaderBanner ? true : undefined}
-                onChange={(event) =>
-                  updateSetting(
-                    "showHeaderBanner",
-                    event.currentTarget.checked,
-                  )
-                }
-              />
-
-              <s-section heading="Messages">
+          {/* General tab */}
+          <div
+            style={{
+              display:
+                activeTab === "general"
+                  ? "block"
+                  : "none",
+            }}
+          >
+            <s-stack direction="block" gap="large">
+              <s-section heading="Promotion overview">
                 <s-stack direction="block" gap="base">
-                  <s-text-field
-                    name="headline"
-                    label="Headline"
-                    details="Main promotion message displayed to customers."
-                    placeholder="Save 20% today"
-                    defaultValue={
-                      promotion.settings.headline ?? ""
-                    }
-                    maxLength={120}
-                  />
+                  <s-paragraph>
+                    {promotion.summary}
+                  </s-paragraph>
 
-                  <s-text-area
-                    name="body"
-                    label="Body"
-                    details="Supporting promotion text."
-                    placeholder="Promotion applies to selected products while stocks last."
-                    defaultValue={
-                      promotion.settings.body ?? ""
-                    }
-                    maxLength={500}
-                    rows={4}
-                  />
+                  <s-stack
+                    direction="inline"
+                    gap="base"
+                  >
+                    <s-badge
+                      tone={
+                        promotion.status === "ACTIVE"
+                          ? "success"
+                          : promotion.status ===
+                            "SCHEDULED"
+                            ? "info"
+                            : promotion.status ===
+                              "EXPIRED"
+                              ? "critical"
+                              : "neutral"
+                      }
+                    >
+                      {promotion.status}
+                    </s-badge>
 
-                  <s-text-field
-                    name="badgeText"
-                    label="Badge text"
-                    placeholder="20% OFF"
-                    defaultValue={
-                      promotion.settings.badgeText ?? ""
-                    }
-                    maxLength={40}
-                  />
+                    <s-badge>
+                      {promotion.method}
+                    </s-badge>
 
-                  <s-text-field
-                    name="countdownText"
-                    label="Countdown text"
-                    placeholder="Offer ends in"
-                    defaultValue={
-                      promotion.settings.countdownText ?? ""
-                    }
-                    maxLength={80}
-                  />
-
-                  <s-text-field
-                    name="buttonText"
-                    label="Button text"
-                    placeholder="Shop now"
-                    defaultValue={
-                      promotion.settings.buttonText ?? ""
-                    }
-                    maxLength={60}
-                  />
-
-                  <s-url-field
-                    name="buttonUrl"
-                    label="Button URL"
-                    placeholder="https://www.example.com/collections/sale"
-                    defaultValue={
-                      promotion.settings.buttonUrl ?? ""
-                    }
-                  />
-
-                  <s-number-field
-                    name="priority"
-                    label="Priority"
-                    details="Higher-priority promotions can be shown before lower-priority promotions."
-                    min={0}
-                    step={1}
-                    inputMode="numeric"
-                    defaultValue={String(
-                      promotion.settings.priority,
-                    )}
-                  />
-
-                  <s-color-field
-                    name="backgroundColour"
-                    label="Background colour"
-                    defaultValue={
-                      promotion.settings.backgroundColour ??
-                      "#ffffff"
-                    }
-                  />
-
-                  <s-color-field
-                    name="textColour"
-                    label="Text colour"
-                    defaultValue={
-                      promotion.settings.textColour ??
-                      "#000000"
-                    }
-                  />
-
-                  <s-color-field
-                    name="badgeColour"
-                    label="Badge colour"
-                    defaultValue={
-                      promotion.settings.badgeColour ??
-                      "#d72c0d"
-                    }
-                  />
+                    <s-badge>
+                      {promotion.type}
+                    </s-badge>
+                  </s-stack>
                 </s-stack>
               </s-section>
 
-              <s-stack
-                direction="inline"
-                gap="base"
-              >
-                <s-button
-                  type="submit"
-                  variant="primary"
-                  loading={isSaving}
-                  disabled={isSaving}
-                >
-                  {isSaving
-                    ? "Saving"
-                    : "Save settings"}
-                </s-button>
-              </s-stack>
+              <s-section heading="Shopify discount">
+                <s-stack direction="block" gap="base">
+                  <s-paragraph>
+                    Value: {promotion.value}
+                  </s-paragraph>
+
+                  {promotion.code && (
+                    <s-paragraph>
+                      Code: {promotion.code}
+                    </s-paragraph>
+                  )}
+
+                  <s-paragraph>
+                    Applies to: {promotion.appliesTo}
+                  </s-paragraph>
+
+                  <s-paragraph>
+                    Minimum requirement:{" "}
+                    {promotion.minimumRequirement}
+                  </s-paragraph>
+
+                  <s-paragraph>
+                    Created by: {promotion.createdBy}
+                  </s-paragraph>
+
+                  <s-paragraph>
+                    Starts:{" "}
+                    {formatDate(promotion.startsAt)}
+                  </s-paragraph>
+
+                  <s-paragraph>
+                    Ends: {formatDate(promotion.endsAt)}
+                  </s-paragraph>
+                </s-stack>
+              </s-section>
             </s-stack>
-          </s-section>
+          </div>
+
+          {/* Website tab */}
+          <div
+            style={{
+              display:
+                activeTab === "website"
+                  ? "block"
+                  : "none",
+            }}
+          >
+            <s-section heading="Website settings">
+              <s-stack direction="block" gap="base">
+                <s-checkbox
+                  name="included"
+                  value="true"
+                  label="Include in promotion sync"
+                  details="Allow this promotion to be processed by the website promotion sync."
+                  checked={
+                    settings.included
+                      ? true
+                      : undefined
+                  }
+                  onChange={(event) =>
+                    updateSetting(
+                      "included",
+                      event.currentTarget.checked,
+                    )
+                  }
+                />
+
+                <s-checkbox
+                  name="websiteEnabled"
+                  value="true"
+                  label="Enable website promotion"
+                  details="Allow promotional messaging for this promotion to appear on the website."
+                  checked={
+                    settings.websiteEnabled
+                      ? true
+                      : undefined
+                  }
+                  onChange={(event) =>
+                    updateSetting(
+                      "websiteEnabled",
+                      event.currentTarget.checked,
+                    )
+                  }
+                />
+
+                <s-checkbox
+                  name="showProductPage"
+                  value="true"
+                  label="Show on product pages"
+                  checked={
+                    settings.showProductPage
+                      ? true
+                      : undefined
+                  }
+                  onChange={(event) =>
+                    updateSetting(
+                      "showProductPage",
+                      event.currentTarget.checked,
+                    )
+                  }
+                />
+
+                <s-checkbox
+                  name="showCollectionPage"
+                  value="true"
+                  label="Show on collection pages"
+                  checked={
+                    settings.showCollectionPage
+                      ? true
+                      : undefined
+                  }
+                  onChange={(event) =>
+                    updateSetting(
+                      "showCollectionPage",
+                      event.currentTarget.checked,
+                    )
+                  }
+                />
+
+                <s-checkbox
+                  name="showProductBadge"
+                  value="true"
+                  label="Show product badge"
+                  checked={
+                    settings.showProductBadge
+                      ? true
+                      : undefined
+                  }
+                  onChange={(event) =>
+                    updateSetting(
+                      "showProductBadge",
+                      event.currentTarget.checked,
+                    )
+                  }
+                />
+
+                <s-checkbox
+                  name="showCountdown"
+                  value="true"
+                  label="Show countdown"
+                  checked={
+                    settings.showCountdown
+                      ? true
+                      : undefined
+                  }
+                  onChange={(event) =>
+                    updateSetting(
+                      "showCountdown",
+                      event.currentTarget.checked,
+                    )
+                  }
+                />
+
+                <s-checkbox
+                  name="showHeaderBanner"
+                  value="true"
+                  label="Show header banner"
+                  checked={
+                    settings.showHeaderBanner
+                      ? true
+                      : undefined
+                  }
+                  onChange={(event) =>
+                    updateSetting(
+                      "showHeaderBanner",
+                      event.currentTarget.checked,
+                    )
+                  }
+                />
+              </s-stack>
+            </s-section>
+          </div>
+
+          {/* Messages tab */}
+          <div
+            style={{
+              display:
+                activeTab === "messages"
+                  ? "block"
+                  : "none",
+            }}
+          >
+            <s-section heading="Promotion messages">
+              <s-stack direction="block" gap="base">
+                <s-text-field
+                  name="headline"
+                  label="Headline"
+                  details="Main promotion message displayed to customers."
+                  placeholder="Save 20% today"
+                  value={messages.headline}
+                  maxLength={120}
+                  onInput={(event) =>
+                    updateMessage(
+                      "headline",
+                      event.currentTarget.value,
+                    )
+                  }
+                />
+
+                <s-text-area
+                  name="body"
+                  label="Body"
+                  details="Supporting promotion text."
+                  placeholder="Promotion applies to selected products while stocks last."
+                  value={messages.body}
+                  maxLength={500}
+                  rows={4}
+                  onInput={(event) =>
+                    updateMessage(
+                      "body",
+                      event.currentTarget.value,
+                    )
+                  }
+                />
+
+                <s-text-field
+                  name="badgeText"
+                  label="Badge text"
+                  placeholder="20% OFF"
+                  value={messages.badgeText}
+                  maxLength={40}
+                  onInput={(event) =>
+                    updateMessage(
+                      "badgeText",
+                      event.currentTarget.value,
+                    )
+                  }
+                />
+
+                <s-text-field
+                  name="countdownText"
+                  label="Countdown text"
+                  placeholder="Offer ends in"
+                  value={messages.countdownText}
+                  maxLength={80}
+                  onInput={(event) =>
+                    updateMessage(
+                      "countdownText",
+                      event.currentTarget.value,
+                    )
+                  }
+                />
+
+                <s-text-field
+                  name="buttonText"
+                  label="Button text"
+                  placeholder="Shop now"
+                  value={messages.buttonText}
+                  maxLength={60}
+                  onInput={(event) =>
+                    updateMessage(
+                      "buttonText",
+                      event.currentTarget.value,
+                    )
+                  }
+                />
+
+                <s-url-field
+                  name="buttonUrl"
+                  label="Button URL"
+                  placeholder="https://www.example.com/collections/sale"
+                  value={messages.buttonUrl}
+                  onInput={(event) =>
+                    updateMessage(
+                      "buttonUrl",
+                      event.currentTarget.value,
+                    )
+                  }
+                />
+
+                <s-number-field
+                  name="priority"
+                  label="Priority"
+                  details="Higher-priority promotions can be displayed before lower-priority promotions."
+                  min={0}
+                  step={1}
+                  inputMode="numeric"
+                  value={messages.priority}
+                  onInput={(event) =>
+                    updateMessage(
+                      "priority",
+                      event.currentTarget.value,
+                    )
+                  }
+                />
+
+                <s-color-field
+                  name="backgroundColour"
+                  label="Background colour"
+                  value={messages.backgroundColour}
+                  onInput={(event) =>
+                    updateMessage(
+                      "backgroundColour",
+                      event.currentTarget.value,
+                    )
+                  }
+                />
+
+                <s-color-field
+                  name="textColour"
+                  label="Text colour"
+                  value={messages.textColour}
+                  onInput={(event) =>
+                    updateMessage(
+                      "textColour",
+                      event.currentTarget.value,
+                    )
+                  }
+                />
+
+                <s-color-field
+                  name="badgeColour"
+                  label="Badge colour"
+                  value={messages.badgeColour}
+                  onInput={(event) =>
+                    updateMessage(
+                      "badgeColour",
+                      event.currentTarget.value,
+                    )
+                  }
+                />
+              </s-stack>
+            </s-section>
+          </div>
+
+          {/* Sticky save area */}
+          <div
+            style={{
+              position: "sticky",
+              bottom: "16px",
+              zIndex: 20,
+              marginTop: "24px",
+              paddingBottom: "8px",
+            }}
+          >
+            <div
+              style={{
+                backgroundColor: "#ffffff",
+                border: "1px solid #d9d9d9",
+                borderRadius: "12px",
+                boxShadow:
+                  "0 1px 2px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.06)",
+                padding: "16px",
+              }}
+            >
+              <s-stack direction="block" gap="base">
+                {actionData?.success && (
+                  <s-banner tone="success">
+                    Promotion settings saved.
+                  </s-banner>
+                )}
+
+                {actionData?.error && (
+                  <s-banner tone="critical">
+                    {actionData.error}
+                  </s-banner>
+                )}
+
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: "16px",
+                  }}
+                >
+                  <s-paragraph>
+                    {hasUnsavedChanges
+                      ? "You have unsaved changes."
+                      : "All changes saved."}
+                  </s-paragraph>
+
+                  <s-button
+                    type="submit"
+                    variant="primary"
+                    loading={isSaving}
+                    disabled={isSaving || !hasUnsavedChanges}
+                  >
+                    {isSaving ? "Saving..." : "Save promotion"}
+                  </s-button>
+                </div>
+              </s-stack>
+            </div>
+          </div>
         </Form>
 
     
