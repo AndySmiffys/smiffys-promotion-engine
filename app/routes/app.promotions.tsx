@@ -33,66 +33,125 @@ export default function PromotionsPage() {
             </s-paragraph>
           </s-section>
         ) : (
-          <s-stack direction="block" gap="base">
-            {promotions.map((promotion) => (
-              <s-box
-                key={promotion.id}
-                padding="base"
-                borderWidth="base"
-                borderRadius="base"
-              >
-                <s-stack direction="block" gap="small">
-                  <s-heading>{promotion.title}</s-heading>
+            <s-section padding="none">
+              <s-table>
+                <s-table-header-row>
+                  <s-table-header listSlot="primary">
+                    Promotion
+                  </s-table-header>
 
-                  <s-paragraph>
-                    {promotion.summary}
-                  </s-paragraph>
+                  <s-table-header listSlot="inline">
+                    Status
+                  </s-table-header>
 
-                  <s-paragraph>
-                    Status: {promotion.status}
-                  </s-paragraph>
+                  <s-table-header listSlot="labeled">
+                    Method
+                  </s-table-header>
 
-                  <s-paragraph>
-                    Method: {promotion.method}
-                  </s-paragraph>
+                  <s-table-header listSlot="labeled">
+                    Type
+                  </s-table-header>
 
-                  <s-paragraph>
-                    Type: {promotion.type}
-                  </s-paragraph>
+                  <s-table-header listSlot="labeled">
+                    Value
+                  </s-table-header>
 
-                  <s-paragraph>
-                    Value: {promotion.value}
-                  </s-paragraph>
+                  <s-table-header listSlot="secondary">
+                    Applies to
+                  </s-table-header>
 
-                  {promotion.code && (
-                    <s-paragraph>
-                      Code: {promotion.code}
-                    </s-paragraph>
-                  )}
+                  <s-table-header listSlot="labeled">
+                    Created by
+                  </s-table-header>
 
-                  <s-paragraph>
-                    Applies to: {promotion.appliesTo}
-                  </s-paragraph>
+                  <s-table-header listSlot="inline">
+                    Sync
+                  </s-table-header>
+                </s-table-header-row>
 
-                  <s-paragraph>
-                    Minimum requirement:{" "}
-                    {promotion.minimumRequirement}
-                  </s-paragraph>
+                <s-table-body>
+                  {promotions.map((promotion) => (
+                    <s-table-row key={promotion.id}>
+                      <s-table-cell>
+                        <s-stack direction="block" gap="small">
+                          <s-text fontWeight="semibold">
+                            {promotion.title}
+                          </s-text>
 
-                  <s-paragraph>
-                    Created by: {promotion.createdBy}
-                  </s-paragraph>
+                          <s-text tone="subdued">
+                            {promotion.summary}
+                          </s-text>
 
-                  <s-paragraph>
-                    Promotion sync:{" "}
-                    {promotion.includedInSync
-                      ? "Included"
-                      : "Excluded"}
-                  </s-paragraph>
-                </s-stack>
-              </s-box>
-            ))}
-          </s-stack>
+                          {promotion.code && (
+                            <s-text tone="subdued">
+                              Code: {promotion.code}
+                            </s-text>
+                          )}
+                        </s-stack>
+                      </s-table-cell>
+
+                      <s-table-cell>
+                        <s-badge
+                          tone={
+                            promotion.status === "ACTIVE"
+                              ? "success"
+                              : promotion.status === "SCHEDULED"
+                                ? "info"
+                                : promotion.status === "EXPIRED"
+                                  ? "critical"
+                                  : "neutral"
+                          }
+                        >
+                          {promotion.status}
+                        </s-badge>
+                      </s-table-cell>
+
+                      <s-table-cell>
+                        {promotion.method}
+                      </s-table-cell>
+
+                      <s-table-cell>
+                        {promotion.type}
+                      </s-table-cell>
+
+                      <s-table-cell>
+                        {promotion.value}
+                      </s-table-cell>
+
+                      <s-table-cell>
+                        <s-stack direction="block" gap="small">
+                          <s-text>{promotion.appliesTo}</s-text>
+
+                          {promotion.minimumRequirement !== "None" && (
+                            <s-text tone="subdued">
+                              Minimum: {promotion.minimumRequirement}
+                            </s-text>
+                          )}
+                        </s-stack>
+                      </s-table-cell>
+
+                      <s-table-cell>
+                        {promotion.createdBy}
+                      </s-table-cell>
+
+                      <s-table-cell>
+                        <s-badge
+                          tone={
+                            promotion.includedInSync
+                              ? "success"
+                              : "warning"
+                          }
+                        >
+                          {promotion.includedInSync
+                            ? "Included"
+                            : "Excluded"}
+                        </s-badge>
+                      </s-table-cell>
+                    </s-table-row>
+                  ))}
+                </s-table-body>
+              </s-table>
+            </s-section>
         )}
       </s-stack>
     </s-page>
