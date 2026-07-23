@@ -19,9 +19,9 @@ export default function DashboardPage() {
             borderRadius="base"
             padding="base"
           >
-            <s-text variant="headingLg">
+            <h2 style={{ margin: 0 }}>
               Promotions
-            </s-text>
+            </h2>
 
             <s-text>
               View and synchronise Shopify promotions.
@@ -39,9 +39,10 @@ export default function DashboardPage() {
             borderRadius="base"
             padding="base"
           >
-            <s-text variant="headingLg">
+
+            <h2 style={{ margin: 0 }}>
               Product Tools
-            </s-text>
+            </h2>
 
             <s-text>
               Coming soon
@@ -54,9 +55,10 @@ export default function DashboardPage() {
             borderRadius="base"
             padding="base"
           >
-            <s-text variant="headingLg">
+
+            <h2 style={{ margin: 0 }}>
               Reports
-            </s-text>
+            </h2>
 
             <s-text>
               Coming soon

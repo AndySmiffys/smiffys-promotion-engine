@@ -1,66 +1,30 @@
-export type PromotionMethod = "Code" | "Automatic";
+/**
+ * Temporary compatibility exports.
+ *
+ * New code should import promotion models directly from:
+ *
+ * - ../models/promotion
+ * - ../models/shopify
+ * - ../models/website
+ *
+ * The `Promotion` alias remains temporarily so older files can
+ * continue compiling while they are migrated to `PromotionRecord`.
+ */
 
-export type PromotionType =
-  | "Product"
-  | "Order"
-  | "Shipping"
-  | "Buy X get Y"
-  | "Unknown";
+export type {
+  PromotionMethod,
+  PromotionStatus,
+  PromotionType,
+} from "../models/shopify";
 
-export type PromotionStatus =
-  | "ACTIVE"
-  | "SCHEDULED"
-  | "EXPIRED"
-  | "UNKNOWN";
+export type {
+  PromotionWebsiteSettings,
+} from "../models/website";
 
-export type PromotionWebsiteSettings = {
-  included: boolean;
-  websiteEnabled: boolean;
+export type {
+  PromotionRecord,
+} from "../models/promotion";
 
-  showProductPage: boolean;
-  showCollectionPage: boolean;
-  showProductBadge: boolean;
-  showCountdown: boolean;
-  showHeaderBanner: boolean;
-
-  headline: string | null;
-  body: string | null;
-  badgeText: string | null;
-  countdownText: string | null;
-  buttonText: string | null;
-  buttonUrl: string | null;
-
-  backgroundColour: string | null;
-  textColour: string | null;
-  badgeColour: string | null;
-
-  priority: number;
-
-  lastSyncedAt: string | null;
-  lastSyncError: string | null;
-
-  routeId: string;
-};
-
-export type Promotion = {
-  id: string;
-  title: string;
-  summary: string;
-
-  method: PromotionMethod;
-  type: PromotionType;
-  status: PromotionStatus;
-
-  value: string;
-  code: string | null;
-  appliesTo: string;
-  minimumRequirement: string;
-
-  createdBy: string;
-  includedInSync: boolean;
-
-  startsAt: string | null;
-  endsAt: string | null;
-
-  settings: PromotionWebsiteSettings;
-};
+export type {
+  PromotionRecord as Promotion,
+} from "../models/promotion";

@@ -107,17 +107,17 @@ export default function PromotionsPage() {
                           <s-link
                             href={`/app/promotions/${promotion.routeId}`}
                           >
-                            <s-text fontWeight="semibold">
-                              {general.title}
+                            <s-text>
+                              <strong>{general.title}</strong>
                             </s-text>
                           </s-link>
 
-                          <s-text tone="subdued">
+                          <s-text tone="neutral">
                             {general.summary}
                           </s-text>
 
                           {general.code && (
-                            <s-text tone="subdued">
+                            <s-text tone="neutral">
                               Code: {general.code}
                             </s-text>
                           )}
@@ -165,7 +165,7 @@ export default function PromotionsPage() {
 
                           {conditions.minimumRequirement !==
                             "None" && (
-                              <s-text tone="subdued">
+                              <s-text tone="neutral">
                                 Minimum:{" "}
                                 {
                                   conditions.minimumRequirement

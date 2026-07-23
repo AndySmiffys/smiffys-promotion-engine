@@ -1,8 +1,10 @@
 import db from "../../../db.server";
+
+import type { PromotionRecord } from "../models/promotion";
+
 import type {
-  Promotion,
   PromotionWebsiteSettings,
-} from "../types/promotion";
+} from "../models/website";
 
 type StoredPromotionSettings = {
   included: boolean;
@@ -66,14 +68,21 @@ function mapStoredSettings(
 
 export async function attachPromotionSettings(
   shop: string,
-  promotions: Promotion[],
-): Promise<Promotion[]> {
+  promotions: PromotionRecord[],
+): Promise<PromotionRecord[]> {
+  if (promotions.length === 0) {
+    return [];
+  }
+
   const storedSettings =
     await db.promotionSettings.findMany({
       where: {
         shop,
+
         shopifyDiscountId: {
-          in: promotions.map((promotion) => promotion.id),
+          in: promotions.map(
+            (promotion) => promotion.id,
+          ),
         },
       },
     });
@@ -86,9 +95,8 @@ export async function attachPromotionSettings(
   );
 
   return promotions.map((promotion) => {
-    const stored = settingsByDiscountId.get(
-      promotion.id,
-    );
+    const stored =
+      settingsByDiscountId.get(promotion.id);
 
     if (!stored) {
       return promotion;
@@ -96,6 +104,7 @@ export async function attachPromotionSettings(
 
     return {
       ...promotion,
+
       settings: mapStoredSettings(stored),
     };
   });
@@ -146,10 +155,13 @@ export async function updatePromotionWebsiteSettings(
       websiteEnabled: input.websiteEnabled,
 
       showProductPage: input.showProductPage,
-      showCollectionPage: input.showCollectionPage,
-      showProductBadge: input.showProductBadge,
+      showCollectionPage:
+        input.showCollectionPage,
+      showProductBadge:
+        input.showProductBadge,
       showCountdown: input.showCountdown,
-      showHeaderBanner: input.showHeaderBanner,
+      showHeaderBanner:
+        input.showHeaderBanner,
 
       headline: input.headline,
       body: input.body,
@@ -158,7 +170,8 @@ export async function updatePromotionWebsiteSettings(
       buttonText: input.buttonText,
       buttonUrl: input.buttonUrl,
 
-      backgroundColour: input.backgroundColour,
+      backgroundColour:
+        input.backgroundColour,
       textColour: input.textColour,
       badgeColour: input.badgeColour,
 
@@ -170,10 +183,13 @@ export async function updatePromotionWebsiteSettings(
       websiteEnabled: input.websiteEnabled,
 
       showProductPage: input.showProductPage,
-      showCollectionPage: input.showCollectionPage,
-      showProductBadge: input.showProductBadge,
+      showCollectionPage:
+        input.showCollectionPage,
+      showProductBadge:
+        input.showProductBadge,
       showCountdown: input.showCountdown,
-      showHeaderBanner: input.showHeaderBanner,
+      showHeaderBanner:
+        input.showHeaderBanner,
 
       headline: input.headline,
       body: input.body,
@@ -182,7 +198,8 @@ export async function updatePromotionWebsiteSettings(
       buttonText: input.buttonText,
       buttonUrl: input.buttonUrl,
 
-      backgroundColour: input.backgroundColour,
+      backgroundColour:
+        input.backgroundColour,
       textColour: input.textColour,
       badgeColour: input.badgeColour,
 

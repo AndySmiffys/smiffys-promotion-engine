@@ -18,9 +18,14 @@ import {
 
 import { authenticate } from "../shopify.server";
 
-import { getDiscounts } from "../modules/promotions/services/discounts.server";
+import {
+  getDiscount,
+  getDiscountNodeId,
+} from "../modules/promotions/services/discount.server";
 
-import { mapDiscountsToPromotions } from "../modules/promotions/mappers/promotionMapper";
+import { mapDiscountToPromotion } from "../modules/promotions/mappers/promotionMapper";
+
+import { getPromotionCoverage } from "../modules/promotions/coverage/coverage.server";
 
 import {
   PromotionTabs,
@@ -52,34 +57,62 @@ export async function loader({
   const promotionId = params.promotionId;
 
   if (!promotionId) {
-    throw new Response("Promotion ID is required", {
-      status: 400,
-    });
+    throw new Response(
+      "Promotion ID is required",
+      {
+        status: 400,
+      },
+    );
   }
 
-  const discountNodes = await getDiscounts(admin);
-
-  const mappedPromotions =
-    mapDiscountsToPromotions(discountNodes);
-
-  const promotions = await attachPromotionSettings(
-    session.shop,
-    mappedPromotions,
+  const discountNode = await getDiscount(
+    admin,
+    getDiscountNodeId(promotionId),
   );
 
-  const promotion = promotions.find(
-    (item) => item.routeId === promotionId,
-  );
+  if (!discountNode) {
+    throw new Response(
+      "Promotion not found",
+      {
+        status: 404,
+      },
+    );
+  }
+
+  const mappedPromotion =
+    mapDiscountToPromotion(discountNode);
+
+  const [promotion] =
+    await attachPromotionSettings(
+      session.shop,
+      [mappedPromotion],
+    );
 
   if (!promotion) {
-    throw new Response("Promotion not found", {
-      status: 404,
-    });
+    throw new Response(
+      "Promotion could not be loaded",
+      {
+        status: 500,
+      },
+    );
   }
 
-  return { promotion };
-}
+  const selectedCollections =
+    promotion.shopify.products.collections;
 
+  const coverage =
+    selectedCollections.length > 0
+      ? await getPromotionCoverage(
+        admin,
+        selectedCollections,
+      )
+      : null;
+
+  return {
+    promotion,
+    coverage,
+  };
+}
 function getOptionalString(
   formData: FormData,
   name: string,
@@ -235,7 +268,7 @@ type WebsiteSettingsState = {
 };
 
 export default function PromotionDetailsPage() {
-  const { promotion } =
+  const { promotion, coverage } =
     useLoaderData<typeof loader>();
 
   const general = promotion.shopify.general;
@@ -446,11 +479,19 @@ export default function PromotionDetailsPage() {
   ]);
 
   return (
-    <s-page
-      heading={general.title}
-      backAction="/app/promotions"
-    >
-      <s-stack direction="block" gap="large">
+    <s-page heading={general.title}>
+      <s-stack
+        direction="block"
+        gap="large"
+      >
+        <s-stack direction="inline">
+          <s-button
+            href="/app/promotions"
+            variant="secondary"
+          >
+            Back to promotions
+          </s-button>
+        </s-stack>
 
         <PromotionTabs
           activeTab={activeTab}
@@ -485,7 +526,10 @@ export default function PromotionDetailsPage() {
                   : "none",
             }}
           >
-            <PromotionProductsTab promotion={promotion} />
+            <PromotionProductsTab
+              promotion={promotion}
+              coverage={coverage}
+            />
           </div>
 
           {/* Customers tab */}

@@ -30,54 +30,7 @@ export const GET_DISCOUNTS = `#graphql
             discountClasses
 
             customerGets {
-              value {
-                __typename
-
-                ... on DiscountPercentage {
-                  percentage
-                }
-
-                ... on DiscountAmount {
-                  amount {
-                    amount
-                    currencyCode
-                  }
-                  appliesOnEachItem
-                }
-              }
-
-              items {
-                __typename
-
-                ... on AllDiscountItems {
-                  allItems
-                }
-
-                ... on DiscountProducts {
-                  products(first: 10) {
-                    nodes {
-                      id
-                      title
-                    }
-                  }
-
-                  productVariants(first: 10) {
-                    nodes {
-                      id
-                      title
-                    }
-                  }
-                }
-
-                ... on DiscountCollections {
-                  collections(first: 10) {
-                    nodes {
-                      id
-                      title
-                    }
-                  }
-                }
-              }
+              ...CustomerGetsFields
             }
 
             minimumRequirement {
@@ -111,54 +64,7 @@ export const GET_DISCOUNTS = `#graphql
             }
 
             customerGets {
-              value {
-                __typename
-
-                ... on DiscountPercentage {
-                  percentage
-                }
-
-                ... on DiscountAmount {
-                  amount {
-                    amount
-                    currencyCode
-                  }
-                  appliesOnEachItem
-                }
-              }
-
-              items {
-                __typename
-
-                ... on AllDiscountItems {
-                  allItems
-                }
-
-                ... on DiscountProducts {
-                  products(first: 10) {
-                    nodes {
-                      id
-                      title
-                    }
-                  }
-
-                  productVariants(first: 10) {
-                    nodes {
-                      id
-                      title
-                    }
-                  }
-                }
-
-                ... on DiscountCollections {
-                  collections(first: 10) {
-                    nodes {
-                      id
-                      title
-                    }
-                  }
-                }
-              }
+              ...CustomerGetsFields
             }
 
             minimumRequirement {
@@ -184,6 +90,10 @@ export const GET_DISCOUNTS = `#graphql
             startsAt
             endsAt
             discountClasses
+
+            customerGets {
+              ...CustomerGetsFields
+            }
           }
 
           ... on DiscountCodeBxgy {
@@ -199,6 +109,62 @@ export const GET_DISCOUNTS = `#graphql
                 code
               }
             }
+
+            customerGets {
+              ...CustomerGetsFields
+            }
+          }
+        }
+      }
+    }
+  }
+
+  fragment CustomerGetsFields on DiscountCustomerGets {
+    value {
+      __typename
+
+      ... on DiscountPercentage {
+        percentage
+      }
+
+      ... on DiscountAmount {
+        amount {
+          amount
+          currencyCode
+        }
+
+        appliesOnEachItem
+      }
+    }
+
+    items {
+      __typename
+
+      ... on AllDiscountItems {
+        allItems
+      }
+
+      ... on DiscountProducts {
+        products(first: 50) {
+          nodes {
+            id
+            title
+          }
+        }
+
+        productVariants(first: 50) {
+          nodes {
+            id
+            title
+          }
+        }
+      }
+
+      ... on DiscountCollections {
+        collections(first: 50) {
+          nodes {
+            id
+            title
           }
         }
       }
