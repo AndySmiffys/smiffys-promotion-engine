@@ -3,17 +3,15 @@ import {
   getDiscountType,
   type ShopifyDiscountNode,
 } from "../../../types/discount";
-import type {
-  PromotionTypeData,
-  ShopifyPromotionProvider,
-} from "../types";
+import type { PromotionTypeData } from "../types";
+import { PromotionProvider } from "./PromotionProvider";
 import { mapEmptyProducts, mapShipping } from "./shared";
 
 /**
  * Owns shipping-promotion mapping and capabilities.
  * Does not own Shopify queries, UI rendering, or common promotion mapping.
  */
-export class ShippingProvider implements ShopifyPromotionProvider {
+export class ShippingProvider extends PromotionProvider {
   readonly type = "Shipping" as const;
 
   readonly capabilities: PromotionCapabilities = {
@@ -33,7 +31,7 @@ export class ShippingProvider implements ShopifyPromotionProvider {
     return getDiscountType(node) === this.type;
   }
 
-  mapTypeData(node: ShopifyDiscountNode): PromotionTypeData {
+  map(node: ShopifyDiscountNode): PromotionTypeData {
     return {
       products: mapEmptyProducts(),
       shipping: mapShipping(node),
