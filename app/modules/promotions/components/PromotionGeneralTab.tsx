@@ -12,13 +12,10 @@ function getStatusTone(
   switch (status) {
     case "ACTIVE":
       return "success";
-
     case "SCHEDULED":
       return "info";
-
     case "EXPIRED":
       return "critical";
-
     default:
       return "neutral";
   }
@@ -46,9 +43,7 @@ function getScopeSummary(promotion: PromotionRecord): string {
   if (products.collections.length > 0) {
     scopeParts.push(
       `${products.collections.length} ${
-        products.collections.length === 1
-          ? "collection"
-          : "collections"
+        products.collections.length === 1 ? "collection" : "collections"
       }`,
     );
   }
@@ -56,9 +51,7 @@ function getScopeSummary(promotion: PromotionRecord): string {
   if (products.products.length > 0) {
     scopeParts.push(
       `${products.products.length} ${
-        products.products.length === 1
-          ? "product"
-          : "products"
+        products.products.length === 1 ? "product" : "products"
       }`,
     );
   }
@@ -66,16 +59,112 @@ function getScopeSummary(promotion: PromotionRecord): string {
   if (products.variants.length > 0) {
     scopeParts.push(
       `${products.variants.length} ${
-        products.variants.length === 1
-          ? "variant"
-          : "variants"
+        products.variants.length === 1 ? "variant" : "variants"
       }`,
     );
   }
 
-  return scopeParts.length > 0
-    ? scopeParts.join(" · ")
-    : products.appliesTo;
+  return scopeParts.length > 0 ? scopeParts.join(" · ") : products.appliesTo;
+}
+
+function getValueBadge(promotion: PromotionRecord): string | null {
+  const bxgy = promotion.shopify.bxgy;
+
+  if (bxgy) {
+    if (bxgy.get.rewardType === "FREE") {
+      return "Free reward";
+    }
+
+    if (
+      bxgy.get.rewardType === "PERCENTAGE" &&
+      bxgy.get.rewardValue !== null
+    ) {
+      return `${bxgy.get.rewardValue.toLocaleString("en-GB", {
+        maximumFractionDigits: 2,
+      })}% off`;
+    }
+
+    if (
+      bxgy.get.rewardType === "FIXED_AMOUNT" &&
+      bxgy.get.rewardValue !== null &&
+      bxgy.get.rewardCurrencyCode
+    ) {
+      return `${new Intl.NumberFormat("en-GB", {
+        style: "currency",
+        currency: bxgy.get.rewardCurrencyCode,
+      }).format(bxgy.get.rewardValue)} off`;
+    }
+  }
+
+  return promotion.shopify.general.value === "Unknown"
+    ? null
+    : promotion.shopify.general.value;
+}
+
+const infoStyles = {
+  purple: { background: "#f2eafe", colour: "#7c3aed" },
+  blue: { background: "#eaf2ff", colour: "#2563eb" },
+  pink: { background: "#fdebf3", colour: "#c0266d" },
+  green: { background: "#e7f7ec", colour: "#15803d" },
+} as const;
+
+function SummaryItem({
+  label,
+  value,
+  icon,
+  accent,
+}: {
+  label: string;
+  value: string;
+  icon: string;
+  accent: keyof typeof infoStyles;
+}) {
+  const style = infoStyles[accent];
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        minWidth: 0,
+        gap: "12px",
+        padding: "4px 0",
+      }}
+    >
+      <div
+        aria-hidden="true"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flex: "0 0 42px",
+          width: "42px",
+          height: "42px",
+          borderRadius: "12px",
+          background: style.background,
+          color: style.colour,
+          fontSize: "20px",
+          fontWeight: 700,
+        }}
+      >
+        {icon}
+      </div>
+
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: "13px", fontWeight: 650 }}>{label}</div>
+        <div
+          style={{
+            marginTop: "3px",
+            color: "#616161",
+            fontSize: "14px",
+            overflowWrap: "anywhere",
+          }}
+        >
+          {value}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function PromotionGeneralTab({
@@ -83,8 +172,8 @@ export function PromotionGeneralTab({
 }: PromotionGeneralTabProps) {
   const general = promotion.shopify.general;
   const schedule = promotion.shopify.schedule;
-  const editInShopifyUrl =
-    `shopify:admin/discounts/${promotion.routeId}`;
+  const valueBadge = getValueBadge(promotion);
+  const editInShopifyUrl = `shopify:admin/discounts/${promotion.routeId}`;
 
   return (
     <s-stack direction="block" gap="large">
@@ -92,10 +181,10 @@ export function PromotionGeneralTab({
         aria-label="Promotion quick summary"
         style={{
           border: "1px solid #dedede",
-          borderRadius: "14px",
+          borderRadius: "16px",
           background: "#ffffff",
-          boxShadow: "0 1px 3px rgba(0, 0, 0, 0.08)",
-          padding: "20px",
+          boxShadow: "0 1px 3px rgba(0, 0, 0, 0.06)",
+          padding: "22px",
         }}
       >
         <s-stack direction="block" gap="large">
@@ -104,19 +193,67 @@ export function PromotionGeneralTab({
               display: "flex",
               alignItems: "flex-start",
               justifyContent: "space-between",
-              gap: "16px",
+              gap: "20px",
               flexWrap: "wrap",
             }}
           >
-            <s-stack direction="block" gap="small">
-              <s-text fontWeight="semibold">
-                {general.title}
-              </s-text>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "flex-start",
+                minWidth: 0,
+                gap: "16px",
+              }}
+            >
+              <div
+                aria-hidden="true"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flex: "0 0 64px",
+                  width: "64px",
+                  height: "64px",
+                  borderRadius: "18px",
+                  background: "#e7f7ec",
+                  color: "#15803d",
+                  fontSize: "31px",
+                  fontWeight: 700,
+                }}
+              >
+                ◇
+              </div>
 
-              <s-text tone="subdued">
-                {general.summary}
-              </s-text>
-            </s-stack>
+              <s-stack direction="block" gap="small">
+                <div
+                  style={{
+                    color: "#202223",
+                    fontSize: "24px",
+                    fontWeight: 700,
+                    letterSpacing: "-0.02em",
+                    lineHeight: 1.2,
+                  }}
+                >
+                  {general.title}
+                </div>
+
+                <s-text tone="subdued">{general.summary}</s-text>
+
+                <s-stack direction="inline" gap="base">
+                  <s-badge tone={getStatusTone(general.status)}>
+                    {general.status}
+                  </s-badge>
+                  <s-badge>{general.type}</s-badge>
+                  <s-badge>{general.method}</s-badge>
+                  {valueBadge && <s-badge tone="info">{valueBadge}</s-badge>}
+                  <s-badge>
+                    {promotion.settings.websiteEnabled
+                      ? "Website enabled"
+                      : "Website disabled"}
+                  </s-badge>
+                </s-stack>
+              </s-stack>
+            </div>
 
             <s-button
               href={editInShopifyUrl}
@@ -127,52 +264,38 @@ export function PromotionGeneralTab({
             </s-button>
           </div>
 
-          <s-stack direction="inline" gap="base">
-            <s-badge tone={getStatusTone(general.status)}>
-              {general.status}
-            </s-badge>
-
-            <s-badge>{general.type}</s-badge>
-
-            <s-badge>{general.method}</s-badge>
-
-            <s-badge>{general.value}</s-badge>
-
-            <s-badge>
-              {promotion.settings.websiteEnabled
-                ? "Website enabled"
-                : "Website disabled"}
-            </s-badge>
-          </s-stack>
-
           <div
             style={{
               display: "grid",
-              gridTemplateColumns:
-                "repeat(auto-fit, minmax(150px, 1fr))",
-              gap: "12px",
-              paddingTop: "16px",
+              gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+              gap: "18px",
+              paddingTop: "20px",
               borderTop: "1px solid #ebebeb",
             }}
           >
             <SummaryItem
               label="Scope"
               value={getScopeSummary(promotion)}
+              icon="◇"
+              accent="purple"
             />
-
             <SummaryItem
               label="Starts"
               value={formatDate(schedule.startsAt)}
+              icon="□"
+              accent="blue"
             />
-
             <SummaryItem
               label="Ends"
               value={formatDate(schedule.endsAt)}
+              icon="□"
+              accent="pink"
             />
-
             <SummaryItem
               label="Created by"
               value={general.createdBy}
+              icon="○"
+              accent="green"
             />
           </div>
         </s-stack>
@@ -181,49 +304,6 @@ export function PromotionGeneralTab({
       {promotion.shopify.bxgy && (
         <PromotionBxgyTab promotion={promotion} />
       )}
-
-      <s-section heading="Shopify discount">
-        <s-stack direction="block" gap="base">
-          <s-paragraph>
-            Value: {general.value}
-          </s-paragraph>
-
-          {general.code && (
-            <s-paragraph>
-              Code: {general.code}
-            </s-paragraph>
-          )}
-
-          <s-paragraph>
-            Applies to: {promotion.shopify.products.appliesTo}
-          </s-paragraph>
-
-          <s-paragraph>
-            Minimum requirement:{" "}
-            {
-              promotion.shopify.conditions
-                .minimumRequirement
-            }
-          </s-paragraph>
-        </s-stack>
-      </s-section>
-    </s-stack>
-  );
-}
-
-type SummaryItemProps = {
-  label: string;
-  value: string;
-};
-
-function SummaryItem({
-  label,
-  value,
-}: SummaryItemProps) {
-  return (
-    <s-stack direction="block" gap="small">
-      <s-text tone="subdued">{label}</s-text>
-      <s-text fontWeight="semibold">{value}</s-text>
     </s-stack>
   );
 }
