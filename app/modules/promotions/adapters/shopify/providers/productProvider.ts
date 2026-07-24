@@ -6,16 +6,14 @@ import {
   getDiscountType,
   type ShopifyDiscountNode,
 } from "../../../types/discount";
-import type {
-  PromotionTypeData,
-  ShopifyPromotionProvider,
-} from "../types";
+import type { PromotionTypeData } from "../types";
+import { PromotionProvider } from "./PromotionProvider";
 
 /**
  * Owns product-promotion mapping and capabilities.
  * Does not own Shopify queries, UI rendering, or common promotion mapping.
  */
-export class ProductProvider implements ShopifyPromotionProvider {
+export class ProductProvider extends PromotionProvider {
   readonly type = "Product" as const;
 
   readonly capabilities: PromotionCapabilities = {
