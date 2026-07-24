@@ -50,6 +50,15 @@ const detailSummaryStyle = {
   padding: "4px 0",
 } as const;
 
+const featurePanelStyle = {
+  minWidth: 0,
+  padding: "20px",
+  border: "1px solid #dedede",
+  borderRadius: "14px",
+  backgroundColor: "#ffffff",
+  boxShadow: "0 1px 2px rgba(0, 0, 0, 0.05)",
+} as const;
+
 export function PromotionProductsTab({
   promotion,
   coverage,
@@ -83,14 +92,26 @@ export function PromotionProductsTab({
   const healthScore =
     hasCollectionCoverage ? getHealthScore(coverage) : null;
 
+  const displayedCollectionCount = appliesToEverything
+    ? "All"
+    : hasCollectionCoverage
+      ? formatNumber(coverage.selectedCollections)
+      : formatNumber(collectionCount);
+
+  const displayedProductCount = appliesToEverything
+    ? "All"
+    : hasCollectionCoverage
+      ? formatNumber(coverage.uniqueProducts)
+      : formatNumber(productCount);
+
   return (
     <s-stack direction="block" gap="large">
-      <s-section heading="Product dashboard">
+      <s-section heading="Products">
         <s-stack direction="block" gap="base">
           <div>
             <div
               style={{
-                fontSize: "20px",
+                fontSize: "22px",
                 fontWeight: 650,
                 lineHeight: 1.3,
                 marginBottom: "6px",
@@ -114,60 +135,165 @@ export function PromotionProductsTab({
                 ? isOrderDiscount
                   ? "This order discount applies across the full catalogue without product restrictions."
                   : "Every product and variant in the catalogue is eligible for this promotion."
-                : hasSpecificTargets
-                  ? `The promotion targets ${products.appliesTo.toLowerCase()}.`
-                  : "Shopify has not returned product, collection or variant targeting information for this promotion."}
+                : hasCollectionCoverage
+                  ? `This promotion targets ${formatNumber(coverage.selectedCollections)} ${coverage.selectedCollections === 1 ? "collection" : "collections"} containing ${formatNumber(coverage.uniqueProducts)} unique ${coverage.uniqueProducts === 1 ? "product" : "products"}.`
+                  : hasSpecificTargets
+                    ? `The promotion targets ${products.appliesTo.toLowerCase()}.`
+                    : "Shopify has not returned product, collection or variant targeting information for this promotion."}
             </div>
           </div>
 
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
+              gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+              gap: "12px",
+            }}
+          >
+            <div style={featurePanelStyle}>
+              <s-stack direction="block" gap="small">
+                <div
+                  style={{
+                    color: "#616161",
+                    fontSize: "12px",
+                    fontWeight: 700,
+                    letterSpacing: "0.06em",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Promotion scope
+                </div>
+
+                <div
+                  style={{
+                    fontSize: "26px",
+                    fontWeight: 700,
+                    lineHeight: 1.2,
+                  }}
+                >
+                  {appliesToEverything ? "All products" : "Selected catalogue"}
+                </div>
+
+                <div
+                  style={{
+                    color: "#616161",
+                    fontSize: "14px",
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {appliesToEverything
+                    ? "No collection, product or variant restrictions are configured."
+                    : "Only specifically configured catalogue items are eligible."}
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: "8px",
+                    paddingTop: "4px",
+                  }}
+                >
+                  <s-badge>{displayedCollectionCount} collections</s-badge>
+                  <s-badge>{displayedProductCount} products</s-badge>
+                </div>
+              </s-stack>
+            </div>
+
+            <div style={featurePanelStyle}>
+              <s-stack direction="block" gap="small">
+                <div
+                  style={{
+                    color: "#616161",
+                    fontSize: "12px",
+                    fontWeight: 700,
+                    letterSpacing: "0.06em",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Product health
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "baseline",
+                    flexWrap: "wrap",
+                    gap: "8px",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: "30px",
+                      fontWeight: 700,
+                      lineHeight: 1.1,
+                    }}
+                  >
+                    {healthScore === null ? "Unavailable" : `${healthScore}%`}
+                  </div>
+
+                  {healthScore !== null && (
+                    <s-badge tone={hasHealthIssues ? "warning" : "success"}>
+                      {getHealthLabel(healthScore)}
+                    </s-badge>
+                  )}
+                </div>
+
+                <div
+                  style={{
+                    color: "#616161",
+                    fontSize: "14px",
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {hasCollectionCoverage
+                    ? hasHealthIssues
+                      ? "Some covered products may need attention."
+                      : "No product status or inventory issues were found."
+                    : "Health is available when detailed collection coverage has been loaded."}
+                </div>
+
+                {hasCollectionCoverage && (
+                  <div
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: "8px",
+                      paddingTop: "4px",
+                    }}
+                  >
+                    <s-badge tone="success">
+                      {formatNumber(coverage.activeProducts)} active
+                    </s-badge>
+                    {coverage.outOfStockProducts > 0 && (
+                      <s-badge tone="warning">
+                        {formatNumber(coverage.outOfStockProducts)} out of stock
+                      </s-badge>
+                    )}
+                  </div>
+                )}
+              </s-stack>
+            </div>
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
               gap: "12px",
             }}
           >
             <SummaryCard
-              label="Promotion scope"
-              value={appliesToEverything ? "All products" : "Selected"}
-              description={
-                appliesToEverything
-                  ? "No product restrictions are configured."
-                  : "Only configured catalogue items are eligible."
-              }
-            />
-
-            <SummaryCard
               label="Collections"
-              value={
-                appliesToEverything
-                  ? "All"
-                  : hasCollectionCoverage
-                    ? formatNumber(coverage.selectedCollections)
-                    : formatNumber(collectionCount)
-              }
-              description="Collections included in the promotion."
+              value={displayedCollectionCount}
+              description="Collections currently included in the promotion."
             />
 
             <SummaryCard
               label="Covered products"
-              value={
-                appliesToEverything
-                  ? "All"
-                  : hasCollectionCoverage
-                    ? formatNumber(coverage.uniqueProducts)
-                    : formatNumber(productCount)
-              }
-              description="Unique products currently covered."
+              value={displayedProductCount}
+              description="Unique products currently covered by the promotion."
             />
-
-            {hasCollectionCoverage && (
-              <SummaryCard
-                label="Product health"
-                value={`${healthScore}%`}
-                description={`${getHealthLabel(healthScore)} catalogue status.`}
-              />
-            )}
           </div>
         </s-stack>
       </s-section>
