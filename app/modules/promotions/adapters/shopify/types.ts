@@ -1,4 +1,5 @@
 import type {
+  PromotionBxgy,
   PromotionCapabilities,
   PromotionProducts,
   PromotionShipping,
@@ -8,6 +9,7 @@ import type { ShopifyDiscountNode } from "../../types/discount";
 
 export type PromotionTypeData = {
   products: PromotionProducts;
+  bxgy: PromotionBxgy | null;
   shipping: PromotionShipping | null;
 };
 
