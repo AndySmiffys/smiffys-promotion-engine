@@ -130,6 +130,7 @@ export function adaptShopifyDiscount(
       general: adaptGeneral(node, provider),
       capabilities: provider.capabilities,
       products: typeData.products,
+      bxgy: typeData.bxgy,
       shipping: typeData.shipping,
       customers: adaptCustomers(),
       conditions: adaptConditions(node),
