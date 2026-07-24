@@ -1,86 +1,24 @@
 import type {
+  PromotionCapabilities,
   PromotionProducts,
 } from "../../../models/shopify";
 import {
   getDiscountType,
   type ShopifyDiscountNode,
 } from "../../../types/discount";
-import type { ShopifyPromotionProvider } from "../types";
+import type {
+  PromotionTypeData,
+  ShopifyPromotionProvider,
+} from "../types";
 
-function getProductAppliesTo(
-  node: ShopifyDiscountNode,
-): string {
-  const items = node.discount.customerGets?.items;
+/**
+ * Owns product-promotion mapping and capabilities.
+ * Does not own Shopify queries, UI rendering, or common promotion mapping.
+ */
+export class ProductProvider implements ShopifyPromotionProvider {
+  readonly type = "Product" as const;
 
-  if (!items) {
-    return "Not yet supported";
-  }
-
-  if (items.__typename === "AllDiscountItems") {
-    return "All products";
-  }
-
-  if (items.__typename === "DiscountCollections") {
-    const count = items.collections?.nodes.length ?? 0;
-
-    return `${count} selected ${count === 1 ? "collection" : "collections"}`;
-  }
-
-  if (items.__typename === "DiscountProducts") {
-    const productCount = items.products?.nodes.length ?? 0;
-    const variantCount = items.productVariants?.nodes.length ?? 0;
-
-    if (variantCount > 0) {
-      return `${productCount} products and ${variantCount} variants`;
-    }
-
-    return `${productCount} selected ${productCount === 1 ? "product" : "products"}`;
-  }
-
-  return "Unknown";
-}
-
-function mapProducts(
-  node: ShopifyDiscountNode,
-): PromotionProducts {
-  const items = node.discount.customerGets?.items;
-
-  if (!items) {
-    return {
-      appliesTo: getProductAppliesTo(node),
-      allProducts: false,
-      products: [],
-      variants: [],
-      collections: [],
-    };
-  }
-
-  return {
-    appliesTo: getProductAppliesTo(node),
-    allProducts:
-      items.__typename === "AllDiscountItems" &&
-      items.allItems === true,
-    products:
-      items.products?.nodes.map((product) => ({
-        id: product.id,
-        title: product.title,
-      })) ?? [],
-    variants:
-      items.productVariants?.nodes.map((variant) => ({
-        id: variant.id,
-        title: variant.title,
-      })) ?? [],
-    collections:
-      items.collections?.nodes.map((collection) => ({
-        id: collection.id,
-        title: collection.title,
-      })) ?? [],
-  };
-}
-
-export const productProvider: ShopifyPromotionProvider = {
-  type: "Product",
-  capabilities: {
+  readonly capabilities: PromotionCapabilities = {
     supportsProducts: true,
     supportsShipping: false,
     supportsCustomers: true,
@@ -91,16 +29,85 @@ export const productProvider: ShopifyPromotionProvider = {
     supportsLandingPage: true,
     supportsAnalytics: true,
     supportsHealthChecks: true,
-  },
+  };
 
-  supports(node) {
-    return getDiscountType(node) === "Product";
-  },
+  supports(node: ShopifyDiscountNode): boolean {
+    return getDiscountType(node) === this.type;
+  }
 
-  mapTypeData(node) {
+  mapTypeData(node: ShopifyDiscountNode): PromotionTypeData {
     return {
-      products: mapProducts(node),
+      products: this.mapProducts(node),
       shipping: null,
     };
-  },
-};
+  }
+
+  private getAppliesTo(node: ShopifyDiscountNode): string {
+    const items = node.discount.customerGets?.items;
+
+    if (!items) {
+      return "Not yet supported";
+    }
+
+    if (items.__typename === "AllDiscountItems") {
+      return "All products";
+    }
+
+    if (items.__typename === "DiscountCollections") {
+      const count = items.collections?.nodes.length ?? 0;
+
+      return `${count} selected ${count === 1 ? "collection" : "collections"}`;
+    }
+
+    if (items.__typename === "DiscountProducts") {
+      const productCount = items.products?.nodes.length ?? 0;
+      const variantCount = items.productVariants?.nodes.length ?? 0;
+
+      if (variantCount > 0) {
+        return `${productCount} products and ${variantCount} variants`;
+      }
+
+      return `${productCount} selected ${productCount === 1 ? "product" : "products"}`;
+    }
+
+    return "Unknown";
+  }
+
+  private mapProducts(node: ShopifyDiscountNode): PromotionProducts {
+    const items = node.discount.customerGets?.items;
+
+    if (!items) {
+      return {
+        appliesTo: this.getAppliesTo(node),
+        allProducts: false,
+        products: [],
+        variants: [],
+        collections: [],
+      };
+    }
+
+    return {
+      appliesTo: this.getAppliesTo(node),
+      allProducts:
+        items.__typename === "AllDiscountItems" &&
+        items.allItems === true,
+      products:
+        items.products?.nodes.map((product) => ({
+          id: product.id,
+          title: product.title,
+        })) ?? [],
+      variants:
+        items.productVariants?.nodes.map((variant) => ({
+          id: variant.id,
+          title: variant.title,
+        })) ?? [],
+      collections:
+        items.collections?.nodes.map((collection) => ({
+          id: collection.id,
+          title: collection.title,
+        })) ?? [],
+    };
+  }
+}
+
+export const productProvider = new ProductProvider();
