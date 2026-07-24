@@ -34,6 +34,7 @@ export class OrderProvider extends PromotionProvider {
   map(node: ShopifyDiscountNode): PromotionTypeData {
     return {
       products: mapDiscountProducts(node),
+      bxgy: null,
       shipping: null,
     };
   }
