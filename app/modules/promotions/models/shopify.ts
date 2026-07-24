@@ -54,6 +54,20 @@ export type PromotionProducts = {
   collections: PromotionCollectionReference[];
 };
 
+export type PromotionShipping = {
+  appliesTo: string;
+  allCountries: boolean;
+  countries: string[];
+
+  maximumShippingPrice: {
+    amount: string;
+    currencyCode: string;
+  } | null;
+
+  appliesOnOneTimePurchase: boolean;
+  appliesOnSubscription: boolean;
+};
+
 export type PromotionCustomers = {
   appliesToAllCustomers: boolean;
 
@@ -96,6 +110,7 @@ export type PromotionCombinations = {
 export type ShopifyPromotion = {
   general: PromotionGeneral;
   products: PromotionProducts;
+  shipping: PromotionShipping | null;
   customers: PromotionCustomers;
   conditions: PromotionConditions;
   schedule: PromotionSchedule;
