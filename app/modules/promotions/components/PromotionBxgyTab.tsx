@@ -47,9 +47,7 @@ function getScopeSummary(products: PromotionProducts): string {
   if (products.collections.length > 0) {
     parts.push(
       `${products.collections.length} ${
-        products.collections.length === 1
-          ? "collection"
-          : "collections"
+        products.collections.length === 1 ? "collection" : "collections"
       }`,
     );
   }
@@ -57,9 +55,7 @@ function getScopeSummary(products: PromotionProducts): string {
   if (products.products.length > 0) {
     parts.push(
       `${products.products.length} ${
-        products.products.length === 1
-          ? "product"
-          : "products"
+        products.products.length === 1 ? "product" : "products"
       }`,
     );
   }
@@ -67,16 +63,12 @@ function getScopeSummary(products: PromotionProducts): string {
   if (products.variants.length > 0) {
     parts.push(
       `${products.variants.length} ${
-        products.variants.length === 1
-          ? "variant"
-          : "variants"
+        products.variants.length === 1 ? "variant" : "variants"
       }`,
     );
   }
 
-  return parts.length > 0
-    ? parts.join(" · ")
-    : products.appliesTo;
+  return parts.length > 0 ? parts.join(" · ") : products.appliesTo;
 }
 
 function getBuyLabel(bxgy: PromotionBxgy): string {
@@ -99,23 +91,102 @@ function getRewardLabel(bxgy: PromotionBxgy): string {
   switch (bxgy.get.rewardType) {
     case "FREE":
       return `${formatNumber(quantity)} FREE`;
-
     case "PERCENTAGE":
       return `${formatNumber(quantity)} at ${formatNumber(
         bxgy.get.rewardValue ?? 0,
       )}% off`;
-
     case "FIXED_AMOUNT":
       return `${formatNumber(quantity)} with ${formatMoney(
         bxgy.get.rewardValue ?? 0,
         bxgy.get.rewardCurrencyCode,
       )} off`;
-
     default:
       return `${formatNumber(quantity)} reward ${
         quantity === 1 ? "item" : "items"
       }`;
   }
+}
+
+function ScopeGroup({
+  title,
+  emptyText,
+  icon,
+  accent,
+  items,
+  typeLabel,
+}: {
+  title: string;
+  emptyText: string;
+  icon: string;
+  accent: "purple" | "amber" | "teal";
+  items: Array<{ id: string; title: string }>;
+  typeLabel: string;
+}) {
+  return (
+    <div>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "12px",
+          padding: "12px 0",
+          borderBottom: "1px solid #eeeeee",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <div
+            aria-hidden="true"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: "34px",
+              height: "34px",
+              borderRadius: "10px",
+              background:
+                accent === "purple"
+                  ? "#f2eafe"
+                  : accent === "amber"
+                    ? "#fff5df"
+                    : "#e5f6f7",
+              color:
+                accent === "purple"
+                  ? "#7c3aed"
+                  : accent === "amber"
+                    ? "#c77800"
+                    : "#087f8c",
+              fontWeight: 700,
+            }}
+          >
+            {icon}
+          </div>
+
+          <div>
+            <div style={{ fontWeight: 650 }}>{title}</div>
+            {items.length === 0 && (
+              <div style={{ color: "#616161", fontSize: "13px" }}>
+                {emptyText}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <s-badge>{items.length}</s-badge>
+      </div>
+
+      {items.map((item, index) => (
+        <ReferenceRow
+          key={item.id}
+          title={item.title}
+          typeLabel={typeLabel}
+          icon={icon}
+          accent={accent}
+          isLast={index === items.length - 1}
+        />
+      ))}
+    </div>
+  );
 }
 
 function ScopePanel({
@@ -134,10 +205,11 @@ function ScopePanel({
       aria-label={heading}
       style={{
         minWidth: 0,
-        flex: "1 1 360px",
+        flex: "1 1 390px",
         border: "1px solid #dedede",
-        borderRadius: "14px",
+        borderRadius: "16px",
         background: "#ffffff",
+        boxShadow: "0 1px 3px rgba(0, 0, 0, 0.06)",
         padding: "20px",
       }}
     >
@@ -153,61 +225,42 @@ function ScopePanel({
             : "Shopify did not return any targeting information."}
         </s-banner>
 
-        {products.collections.length > 0 && (
+        {products.allProducts ? (
+          <s-paragraph>Every product in the catalogue is included.</s-paragraph>
+        ) : (
           <div>
-            <s-text fontWeight="semibold">Collections</s-text>
-            {products.collections.map((collection, index) => (
-              <ReferenceRow
-                key={collection.id}
-                title={collection.title}
-                typeLabel="Collection"
-                isLast={index === products.collections.length - 1}
-              />
-            ))}
+            <ScopeGroup
+              title="Products"
+              emptyText="No products"
+              icon="◇"
+              accent="purple"
+              items={products.products}
+              typeLabel="Product"
+            />
+            <ScopeGroup
+              title="Collections"
+              emptyText="No collections"
+              icon="□"
+              accent="amber"
+              items={products.collections}
+              typeLabel="Collection"
+            />
+            <ScopeGroup
+              title="Variants"
+              emptyText="No variants"
+              icon="Ⅱ"
+              accent="teal"
+              items={products.variants}
+              typeLabel="Variant"
+            />
           </div>
-        )}
-
-        {products.products.length > 0 && (
-          <div>
-            <s-text fontWeight="semibold">Products</s-text>
-            {products.products.map((product, index) => (
-              <ReferenceRow
-                key={product.id}
-                title={product.title}
-                typeLabel="Product"
-                isLast={index === products.products.length - 1}
-              />
-            ))}
-          </div>
-        )}
-
-        {products.variants.length > 0 && (
-          <div>
-            <s-text fontWeight="semibold">Variants</s-text>
-            {products.variants.map((variant, index) => (
-              <ReferenceRow
-                key={variant.id}
-                title={variant.title}
-                typeLabel="Variant"
-                isLast={index === products.variants.length - 1}
-              />
-            ))}
-          </div>
-        )}
-
-        {products.allProducts && (
-          <s-paragraph>
-            Every product in the catalogue is included.
-          </s-paragraph>
         )}
       </s-stack>
     </section>
   );
 }
 
-export function PromotionBxgyTab({
-  promotion,
-}: PromotionBxgyTabProps) {
+export function PromotionBxgyTab({ promotion }: PromotionBxgyTabProps) {
   const bxgy = promotion.shopify.bxgy;
 
   if (!bxgy) {
@@ -219,22 +272,30 @@ export function PromotionBxgyTab({
   }
 
   const buyHasTargets =
-    bxgy.buy.products.allProducts ||
-    getScopeCount(bxgy.buy.products) > 0;
+    bxgy.buy.products.allProducts || getScopeCount(bxgy.buy.products) > 0;
   const getHasTargets =
-    bxgy.get.products.allProducts ||
-    getScopeCount(bxgy.get.products) > 0;
+    bxgy.get.products.allProducts || getScopeCount(bxgy.get.products) > 0;
   const hasOfferValues =
-    (bxgy.buy.quantity !== null ||
-      bxgy.buy.purchaseAmount !== null) &&
+    (bxgy.buy.quantity !== null || bxgy.buy.purchaseAmount !== null) &&
     bxgy.get.quantity !== null &&
     bxgy.get.rewardType !== "UNKNOWN";
   const isHealthy = buyHasTargets && getHasTargets && hasOfferValues;
 
   return (
     <s-stack direction="block" gap="large">
-      <s-section heading="Offer summary">
+      <section
+        aria-label="Offer summary"
+        style={{
+          border: "1px solid #dedede",
+          borderRadius: "16px",
+          background: "#ffffff",
+          boxShadow: "0 1px 3px rgba(0, 0, 0, 0.06)",
+          padding: "20px",
+        }}
+      >
         <s-stack direction="block" gap="large">
+          <s-text fontWeight="semibold">Offer summary</s-text>
+
           <div
             style={{
               display: "flex",
@@ -247,6 +308,8 @@ export function PromotionBxgyTab({
               label="BUY"
               value={getBuyLabel(bxgy)}
               description={getScopeSummary(bxgy.buy.products)}
+              icon="🛒"
+              accent="green"
             />
 
             <div
@@ -266,10 +329,12 @@ export function PromotionBxgyTab({
               label="GET"
               value={getRewardLabel(bxgy)}
               description={getScopeSummary(bxgy.get.products)}
+              icon="◇"
+              accent="blue"
             />
           </div>
         </s-stack>
-      </s-section>
+      </section>
 
       <div
         style={{
@@ -306,13 +371,9 @@ export function PromotionBxgyTab({
                 ? "Qualifying scope available"
                 : "Qualifying scope missing"}
             </s-badge>
-
             <s-badge tone={getHasTargets ? "success" : "warning"}>
-              {getHasTargets
-                ? "Reward scope available"
-                : "Reward scope missing"}
+              {getHasTargets ? "Reward scope available" : "Reward scope missing"}
             </s-badge>
-
             <s-badge tone={hasOfferValues ? "success" : "warning"}>
               {hasOfferValues
                 ? "Offer values available"
