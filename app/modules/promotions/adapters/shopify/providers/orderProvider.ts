@@ -1,10 +1,22 @@
-import type { ShopifyPromotionProvider } from "../types";
-import { getDiscountType } from "../../../types/discount";
+import type { PromotionCapabilities } from "../../../models/shopify";
+import {
+  getDiscountType,
+  type ShopifyDiscountNode,
+} from "../../../types/discount";
+import type {
+  PromotionTypeData,
+  ShopifyPromotionProvider,
+} from "../types";
 import { mapDiscountProducts } from "./shared";
 
-export const orderProvider: ShopifyPromotionProvider = {
-  type: "Order",
-  capabilities: {
+/**
+ * Owns order-promotion mapping and capabilities.
+ * Does not own Shopify queries, UI rendering, or common promotion mapping.
+ */
+export class OrderProvider implements ShopifyPromotionProvider {
+  readonly type = "Order" as const;
+
+  readonly capabilities: PromotionCapabilities = {
     supportsProducts: false,
     supportsShipping: false,
     supportsCustomers: true,
@@ -15,16 +27,18 @@ export const orderProvider: ShopifyPromotionProvider = {
     supportsLandingPage: true,
     supportsAnalytics: true,
     supportsHealthChecks: true,
-  },
+  };
 
-  supports(node) {
-    return getDiscountType(node) === "Order";
-  },
+  supports(node: ShopifyDiscountNode): boolean {
+    return getDiscountType(node) === this.type;
+  }
 
-  mapTypeData(node) {
+  mapTypeData(node: ShopifyDiscountNode): PromotionTypeData {
     return {
       products: mapDiscountProducts(node),
       shipping: null,
     };
-  },
-};
+  }
+}
+
+export const orderProvider = new OrderProvider();
