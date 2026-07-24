@@ -78,7 +78,7 @@ function getValueBadge(promotion: PromotionRecord): string | null {
 
       case "PERCENTAGE":
         return bxgy.get.rewardValue !== null
-          ? `${bxgy.get.rewardValue}% off reward`
+          ? `${bxgy.get.rewardValue}%`
           : "Percentage reward";
 
       case "FIXED_AMOUNT":

@@ -48,22 +48,26 @@ function getPromotionValue(promotion: PromotionRecord): string {
   }
 
   if (bxgy.get.rewardType === "PERCENTAGE") {
-    return `${bxgy.get.rewardValue ?? 0}% off`;
+    return bxgy.get.rewardValue !== null
+      ? `${bxgy.get.rewardValue}%`
+      : "Percentage reward";
   }
 
   if (bxgy.get.rewardType === "FIXED_AMOUNT") {
-    const value = bxgy.get.rewardValue ?? 0;
+    const value = bxgy.get.rewardValue;
     const currency = bxgy.get.rewardCurrencyCode;
 
-    return currency
-      ? new Intl.NumberFormat("en-GB", {
-          style: "currency",
-          currency,
-        }).format(value)
-      : `${value} off`;
+    if (value !== null && currency) {
+      return new Intl.NumberFormat("en-GB", {
+        style: "currency",
+        currency,
+      }).format(value);
+    }
+
+    return "Fixed amount reward";
   }
 
-  return promotion.shopify.general.value;
+  return "Buy X Get Y";
 }
 
 function StatCard({
