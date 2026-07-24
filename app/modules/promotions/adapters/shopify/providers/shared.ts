@@ -7,6 +7,10 @@ import {
   type ShopifyDiscountNode,
 } from "../../../types/discount";
 
+type DiscountItems = NonNullable<
+  NonNullable<ShopifyDiscountNode["discount"]["customerGets"]>["items"]
+>;
+
 export function mapEmptyProducts(
   appliesTo = "Not applicable",
 ): PromotionProducts {
@@ -19,17 +23,40 @@ export function mapEmptyProducts(
   };
 }
 
-export function mapDiscountProducts(
-  node: ShopifyDiscountNode,
-): PromotionProducts {
-  const items = node.discount.customerGets?.items;
+export function getItemsAppliesTo(items: DiscountItems): string {
+  if (items.__typename === "AllDiscountItems") {
+    return "All products";
+  }
 
+  if (items.__typename === "DiscountCollections") {
+    const count = items.collections?.nodes.length ?? 0;
+    return `${count} selected ${count === 1 ? "collection" : "collections"}`;
+  }
+
+  if (items.__typename === "DiscountProducts") {
+    const productCount = items.products?.nodes.length ?? 0;
+    const variantCount = items.productVariants?.nodes.length ?? 0;
+
+    if (variantCount > 0) {
+      return `${productCount} products and ${variantCount} variants`;
+    }
+
+    return `${productCount} selected ${productCount === 1 ? "product" : "products"}`;
+  }
+
+  return "Unknown";
+}
+
+export function mapProductsFromItems(
+  items: DiscountItems | null | undefined,
+  emptyLabel = "Not yet supported",
+): PromotionProducts {
   if (!items) {
-    return mapEmptyProducts(getDiscountAppliesTo(node));
+    return mapEmptyProducts(emptyLabel);
   }
 
   return {
-    appliesTo: getDiscountAppliesTo(node),
+    appliesTo: getItemsAppliesTo(items),
     allProducts:
       items.__typename === "AllDiscountItems" &&
       items.allItems === true,
@@ -49,6 +76,18 @@ export function mapDiscountProducts(
         title: collection.title,
       })) ?? [],
   };
+}
+
+export function mapDiscountProducts(
+  node: ShopifyDiscountNode,
+): PromotionProducts {
+  const items = node.discount.customerGets?.items;
+
+  if (!items) {
+    return mapEmptyProducts(getDiscountAppliesTo(node));
+  }
+
+  return mapProductsFromItems(items, getDiscountAppliesTo(node));
 }
 
 export function mapShipping(
