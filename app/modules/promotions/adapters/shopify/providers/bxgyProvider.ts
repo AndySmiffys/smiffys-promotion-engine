@@ -3,17 +3,15 @@ import {
   getDiscountType,
   type ShopifyDiscountNode,
 } from "../../../types/discount";
-import type {
-  PromotionTypeData,
-  ShopifyPromotionProvider,
-} from "../types";
+import type { PromotionTypeData } from "../types";
+import { PromotionProvider } from "./PromotionProvider";
 import { mapDiscountProducts } from "./shared";
 
 /**
  * Owns Buy X get Y promotion mapping and capabilities.
  * Does not own Shopify queries, UI rendering, or common promotion mapping.
  */
-export class BxgyProvider implements ShopifyPromotionProvider {
+export class BxgyProvider extends PromotionProvider {
   readonly type = "Buy X get Y" as const;
 
   readonly capabilities: PromotionCapabilities = {
@@ -33,7 +31,7 @@ export class BxgyProvider implements ShopifyPromotionProvider {
     return getDiscountType(node) === this.type;
   }
 
-  mapTypeData(node: ShopifyDiscountNode): PromotionTypeData {
+  map(node: ShopifyDiscountNode): PromotionTypeData {
     return {
       products: mapDiscountProducts(node),
       shipping: null,
