@@ -17,7 +17,6 @@ const tabs: Array<{
   label: string;
 }> = [
   { id: "general", label: "Overview" },
-  { id: "products", label: "Products" },
   { id: "customers", label: "Customers" },
   { id: "conditions", label: "Conditions" },
   { id: "schedule", label: "Schedule" },
@@ -40,15 +39,6 @@ export function PromotionTabs({
         background: "#f6f6f7",
       }}
     >
-      <style>{`
-        body:has([data-promotion-type="Order"])
-          [data-promotion-tab="products"],
-        body:has([aria-label="Offer summary"])
-          [data-promotion-tab="products"] {
-          display: none;
-        }
-      `}</style>
-
       <div
         role="tablist"
         style={{
