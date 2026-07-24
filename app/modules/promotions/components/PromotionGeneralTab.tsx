@@ -72,28 +72,26 @@ function getValueBadge(promotion: PromotionRecord): string | null {
   const bxgy = promotion.shopify.bxgy;
 
   if (bxgy) {
-    if (bxgy.get.rewardType === "FREE") {
-      return "Free reward";
-    }
+    switch (bxgy.get.rewardType) {
+      case "FREE":
+        return "Free item";
 
-    if (
-      bxgy.get.rewardType === "PERCENTAGE" &&
-      bxgy.get.rewardValue !== null
-    ) {
-      return `${bxgy.get.rewardValue.toLocaleString("en-GB", {
-        maximumFractionDigits: 2,
-      })}% off`;
-    }
+      case "PERCENTAGE":
+        return bxgy.get.rewardValue !== null
+          ? `${bxgy.get.rewardValue}% off reward`
+          : "Percentage reward";
 
-    if (
-      bxgy.get.rewardType === "FIXED_AMOUNT" &&
-      bxgy.get.rewardValue !== null &&
-      bxgy.get.rewardCurrencyCode
-    ) {
-      return `${new Intl.NumberFormat("en-GB", {
-        style: "currency",
-        currency: bxgy.get.rewardCurrencyCode,
-      }).format(bxgy.get.rewardValue)} off`;
+      case "FIXED_AMOUNT":
+        return bxgy.get.rewardValue !== null &&
+          bxgy.get.rewardCurrencyCode
+          ? `${new Intl.NumberFormat("en-GB", {
+            style: "currency",
+            currency: bxgy.get.rewardCurrencyCode,
+          }).format(bxgy.get.rewardValue)} off reward`
+          : "Fixed amount reward";
+
+      default:
+        return "Buy X Get Y";
     }
   }
 
