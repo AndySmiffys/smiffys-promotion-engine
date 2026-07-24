@@ -29,70 +29,11 @@ export const GET_DISCOUNT = `#graphql
           discountClasses
 
           customerGets {
-            value {
-              __typename
-
-              ... on DiscountPercentage {
-                percentage
-              }
-
-              ... on DiscountAmount {
-                amount {
-                  amount
-                  currencyCode
-                }
-
-                appliesOnEachItem
-              }
-            }
-
-            items {
-              __typename
-
-              ... on AllDiscountItems {
-                allItems
-              }
-
-              ... on DiscountProducts {
-                products(first: 50) {
-                  nodes {
-                    id
-                    title
-                  }
-                }
-
-                productVariants(first: 50) {
-                  nodes {
-                    id
-                    title
-                  }
-                }
-              }
-
-              ... on DiscountCollections {
-                collections(first: 50) {
-                  nodes {
-                    id
-                    title
-                  }
-                }
-              }
-            }
+            ...CustomerGetsFields
           }
 
           minimumRequirement {
-            __typename
-
-            ... on DiscountMinimumSubtotal {
-              greaterThanOrEqualToSubtotal {
-                amount
-                currencyCode
-              }
-            }
-
-            ... on DiscountMinimumQuantity {
-              greaterThanOrEqualToQuantity
-            }
+            ...MinimumRequirementFields
           }
         }
 
@@ -111,70 +52,11 @@ export const GET_DISCOUNT = `#graphql
           }
 
           customerGets {
-            value {
-              __typename
-
-              ... on DiscountPercentage {
-                percentage
-              }
-
-              ... on DiscountAmount {
-                amount {
-                  amount
-                  currencyCode
-                }
-
-                appliesOnEachItem
-              }
-            }
-
-            items {
-              __typename
-
-              ... on AllDiscountItems {
-                allItems
-              }
-
-              ... on DiscountProducts {
-                products(first: 50) {
-                  nodes {
-                    id
-                    title
-                  }
-                }
-
-                productVariants(first: 50) {
-                  nodes {
-                    id
-                    title
-                  }
-                }
-              }
-
-              ... on DiscountCollections {
-                collections(first: 50) {
-                  nodes {
-                    id
-                    title
-                  }
-                }
-              }
-            }
+            ...CustomerGetsFields
           }
 
           minimumRequirement {
-            __typename
-
-            ... on DiscountMinimumSubtotal {
-              greaterThanOrEqualToSubtotal {
-                amount
-                currencyCode
-              }
-            }
-
-            ... on DiscountMinimumQuantity {
-              greaterThanOrEqualToQuantity
-            }
+            ...MinimumRequirementFields
           }
         }
 
@@ -187,55 +69,7 @@ export const GET_DISCOUNT = `#graphql
           discountClasses
 
           customerGets {
-            value {
-              __typename
-
-              ... on DiscountPercentage {
-                percentage
-              }
-
-              ... on DiscountAmount {
-                amount {
-                  amount
-                  currencyCode
-                }
-
-                appliesOnEachItem
-              }
-            }
-
-            items {
-              __typename
-
-              ... on AllDiscountItems {
-                allItems
-              }
-
-              ... on DiscountProducts {
-                products(first: 50) {
-                  nodes {
-                    id
-                    title
-                  }
-                }
-
-                productVariants(first: 50) {
-                  nodes {
-                    id
-                    title
-                  }
-                }
-              }
-
-              ... on DiscountCollections {
-                collections(first: 50) {
-                  nodes {
-                    id
-                    title
-                  }
-                }
-              }
-            }
+            ...CustomerGetsFields
           }
         }
 
@@ -254,58 +88,147 @@ export const GET_DISCOUNT = `#graphql
           }
 
           customerGets {
-            value {
-              __typename
+            ...CustomerGetsFields
+          }
+        }
 
-              ... on DiscountPercentage {
-                percentage
-              }
+        ... on DiscountAutomaticFreeShipping {
+          title
+          status
+          summary
+          startsAt
+          endsAt
+          discountClasses
+          appliesOnOneTimePurchase
+          appliesOnSubscription
 
-              ... on DiscountAmount {
-                amount {
-                  amount
-                  currencyCode
-                }
+          maximumShippingPrice {
+            amount
+            currencyCode
+          }
 
-                appliesOnEachItem
-              }
+          destinationSelection {
+            __typename
+
+            ... on DiscountCountryAll {
+              allCountries
             }
 
-            items {
-              __typename
-
-              ... on AllDiscountItems {
-                allItems
-              }
-
-              ... on DiscountProducts {
-                products(first: 50) {
-                  nodes {
-                    id
-                    title
-                  }
-                }
-
-                productVariants(first: 50) {
-                  nodes {
-                    id
-                    title
-                  }
-                }
-              }
-
-              ... on DiscountCollections {
-                collections(first: 50) {
-                  nodes {
-                    id
-                    title
-                  }
-                }
-              }
+            ... on DiscountCountries {
+              countries
             }
+          }
+
+          minimumRequirement {
+            ...MinimumRequirementFields
+          }
+        }
+
+        ... on DiscountCodeFreeShipping {
+          title
+          status
+          summary
+          startsAt
+          endsAt
+          discountClasses
+          appliesOnOneTimePurchase
+          appliesOnSubscription
+
+          codes(first: 5) {
+            nodes {
+              code
+            }
+          }
+
+          maximumShippingPrice {
+            amount
+            currencyCode
+          }
+
+          destinationSelection {
+            __typename
+
+            ... on DiscountCountryAll {
+              allCountries
+            }
+
+            ... on DiscountCountries {
+              countries
+            }
+          }
+
+          minimumRequirement {
+            ...MinimumRequirementFields
           }
         }
       }
+    }
+  }
+
+  fragment CustomerGetsFields on DiscountCustomerGets {
+    value {
+      __typename
+
+      ... on DiscountPercentage {
+        percentage
+      }
+
+      ... on DiscountAmount {
+        amount {
+          amount
+          currencyCode
+        }
+
+        appliesOnEachItem
+      }
+    }
+
+    items {
+      __typename
+
+      ... on AllDiscountItems {
+        allItems
+      }
+
+      ... on DiscountProducts {
+        products(first: 50) {
+          nodes {
+            id
+            title
+          }
+        }
+
+        productVariants(first: 50) {
+          nodes {
+            id
+            title
+          }
+        }
+      }
+
+      ... on DiscountCollections {
+        collections(first: 50) {
+          nodes {
+            id
+            title
+          }
+        }
+      }
+    }
+  }
+
+  fragment MinimumRequirementFields on DiscountMinimumRequirement {
+    __typename
+
+    ... on DiscountMinimumSubtotal {
+      greaterThanOrEqualToSubtotal {
+        amount
+        currencyCode
+      }
+    }
+
+    ... on DiscountMinimumQuantity {
+      greaterThanOrEqualToQuantity
     }
   }
 `;
