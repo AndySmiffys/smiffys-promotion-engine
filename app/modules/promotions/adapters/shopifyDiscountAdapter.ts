@@ -1,9 +1,7 @@
 import {
-  getDiscountAppliesTo,
   getDiscountCode,
   getDiscountCreator,
   getDiscountMethod,
-  getDiscountType,
   getDiscountValue,
   getMinimumRequirement,
   shouldSyncDiscount,
@@ -14,12 +12,13 @@ import type {
   PromotionConditions,
   PromotionCustomers,
   PromotionGeneral,
-  PromotionProducts,
   PromotionSchedule,
   PromotionStatus,
   PromotionCombinations,
   ShopifyPromotion,
 } from "../models/shopify";
+import { resolveShopifyPromotionProvider } from "./shopify/registry";
+import type { ShopifyPromotionProvider } from "./shopify/types";
 
 export type AdaptedShopifyDiscount = {
   shopify: ShopifyPromotion;
@@ -43,54 +42,17 @@ function mapPromotionStatus(
 
 function adaptGeneral(
   node: ShopifyDiscountNode,
+  provider: ShopifyPromotionProvider,
 ): PromotionGeneral {
   return {
     title: node.discount.title ?? "Untitled promotion",
     summary: node.discount.summary ?? "No summary available",
     method: getDiscountMethod(node),
-    type: getDiscountType(node),
+    type: provider.type,
     status: mapPromotionStatus(node.discount.status),
     value: getDiscountValue(node),
     code: getDiscountCode(node),
     createdBy: getDiscountCreator(node),
-  };
-}
-
-function adaptProducts(
-  node: ShopifyDiscountNode,
-): PromotionProducts {
-  const items = node.discount.customerGets?.items;
-
-  if (!items) {
-    return {
-      appliesTo: getDiscountAppliesTo(node),
-      allProducts: false,
-      products: [],
-      variants: [],
-      collections: [],
-    };
-  }
-
-  return {
-    appliesTo: getDiscountAppliesTo(node),
-    allProducts:
-      items.__typename === "AllDiscountItems" &&
-      items.allItems === true,
-    products:
-      items.products?.nodes.map((product) => ({
-        id: product.id,
-        title: product.title,
-      })) ?? [],
-    variants:
-      items.productVariants?.nodes.map((variant) => ({
-        id: variant.id,
-        title: variant.title,
-      })) ?? [],
-    collections:
-      items.collections?.nodes.map((collection) => ({
-        id: collection.id,
-        title: collection.title,
-      })) ?? [],
   };
 }
 
@@ -161,10 +123,15 @@ function adaptCombinations(): PromotionCombinations {
 export function adaptShopifyDiscount(
   node: ShopifyDiscountNode,
 ): AdaptedShopifyDiscount {
+  const provider = resolveShopifyPromotionProvider(node);
+  const typeData = provider.mapTypeData(node);
+
   return {
     shopify: {
-      general: adaptGeneral(node),
-      products: adaptProducts(node),
+      general: adaptGeneral(node, provider),
+      capabilities: provider.capabilities,
+      products: typeData.products,
+      shipping: typeData.shipping,
       customers: adaptCustomers(),
       conditions: adaptConditions(node),
       schedule: adaptSchedule(node),
