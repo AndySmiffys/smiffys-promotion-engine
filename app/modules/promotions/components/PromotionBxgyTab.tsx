@@ -160,6 +160,7 @@ function ScopePanel({
               <ReferenceRow
                 key={collection.id}
                 title={collection.title}
+                typeLabel="Collection"
                 isLast={index === products.collections.length - 1}
               />
             ))}
@@ -173,6 +174,7 @@ function ScopePanel({
               <ReferenceRow
                 key={product.id}
                 title={product.title}
+                typeLabel="Product"
                 isLast={index === products.products.length - 1}
               />
             ))}
@@ -186,6 +188,7 @@ function ScopePanel({
               <ReferenceRow
                 key={variant.id}
                 title={variant.title}
+                typeLabel="Variant"
                 isLast={index === products.variants.length - 1}
               />
             ))}
