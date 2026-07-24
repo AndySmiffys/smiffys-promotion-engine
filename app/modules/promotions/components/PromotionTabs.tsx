@@ -43,7 +43,7 @@ export function PromotionTabs({
       <style>{`
         body:has([data-promotion-type="Order"])
           [data-promotion-tab="products"],
-        body:has([data-promotion-type="BXGY"])
+        body:has([aria-label="Offer summary"])
           [data-promotion-tab="products"] {
           display: none;
         }
