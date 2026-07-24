@@ -1,5 +1,7 @@
 import type { PromotionRecord } from "../models/promotion";
 
+import { PromotionBxgyTab } from "./PromotionBxgyTab";
+
 type PromotionGeneralTabProps = {
   promotion: PromotionRecord;
 };
@@ -175,6 +177,10 @@ export function PromotionGeneralTab({
           </div>
         </s-stack>
       </section>
+
+      {promotion.shopify.bxgy && (
+        <PromotionBxgyTab promotion={promotion} />
+      )}
 
       <s-section heading="Shopify discount">
         <s-stack direction="block" gap="base">
