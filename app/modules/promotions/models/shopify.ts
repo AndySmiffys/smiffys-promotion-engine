@@ -67,6 +67,28 @@ export type PromotionProducts = {
   collections: PromotionCollectionReference[];
 };
 
+export type PromotionBxgyRewardType =
+  | "FREE"
+  | "PERCENTAGE"
+  | "FIXED_AMOUNT"
+  | "UNKNOWN";
+
+export type PromotionBxgy = {
+  buy: {
+    quantity: number | null;
+    purchaseAmount: string | null;
+    products: PromotionProducts;
+  };
+
+  get: {
+    quantity: number | null;
+    rewardType: PromotionBxgyRewardType;
+    rewardValue: number | null;
+    rewardCurrencyCode: string | null;
+    products: PromotionProducts;
+  };
+};
+
 export type PromotionShipping = {
   appliesTo: string;
   allCountries: boolean;
@@ -124,6 +146,7 @@ export type ShopifyPromotion = {
   general: PromotionGeneral;
   capabilities: PromotionCapabilities;
   products: PromotionProducts;
+  bxgy: PromotionBxgy | null;
   shipping: PromotionShipping | null;
   customers: PromotionCustomers;
   conditions: PromotionConditions;
