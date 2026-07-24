@@ -34,18 +34,7 @@ export const GET_DISCOUNTS = `#graphql
             }
 
             minimumRequirement {
-              __typename
-
-              ... on DiscountMinimumSubtotal {
-                greaterThanOrEqualToSubtotal {
-                  amount
-                  currencyCode
-                }
-              }
-
-              ... on DiscountMinimumQuantity {
-                greaterThanOrEqualToQuantity
-              }
+              ...MinimumRequirementFields
             }
           }
 
@@ -68,18 +57,7 @@ export const GET_DISCOUNTS = `#graphql
             }
 
             minimumRequirement {
-              __typename
-
-              ... on DiscountMinimumSubtotal {
-                greaterThanOrEqualToSubtotal {
-                  amount
-                  currencyCode
-                }
-              }
-
-              ... on DiscountMinimumQuantity {
-                greaterThanOrEqualToQuantity
-              }
+              ...MinimumRequirementFields
             }
           }
 
@@ -112,6 +90,38 @@ export const GET_DISCOUNTS = `#graphql
 
             customerGets {
               ...CustomerGetsFields
+            }
+          }
+
+          ... on DiscountAutomaticFreeShipping {
+            title
+            status
+            summary
+            startsAt
+            endsAt
+            discountClasses
+
+            minimumRequirement {
+              ...MinimumRequirementFields
+            }
+          }
+
+          ... on DiscountCodeFreeShipping {
+            title
+            status
+            summary
+            startsAt
+            endsAt
+            discountClasses
+
+            codes(first: 5) {
+              nodes {
+                code
+              }
+            }
+
+            minimumRequirement {
+              ...MinimumRequirementFields
             }
           }
         }
@@ -168,6 +178,21 @@ export const GET_DISCOUNTS = `#graphql
           }
         }
       }
+    }
+  }
+
+  fragment MinimumRequirementFields on DiscountMinimumRequirement {
+    __typename
+
+    ... on DiscountMinimumSubtotal {
+      greaterThanOrEqualToSubtotal {
+        amount
+        currencyCode
+      }
+    }
+
+    ... on DiscountMinimumQuantity {
+      greaterThanOrEqualToQuantity
     }
   }
 `;
