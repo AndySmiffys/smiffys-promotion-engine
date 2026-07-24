@@ -15,6 +15,19 @@ export type PromotionStatus =
   | "EXPIRED"
   | "UNKNOWN";
 
+export type PromotionCapabilities = {
+  supportsProducts: boolean;
+  supportsShipping: boolean;
+  supportsCustomers: boolean;
+  supportsConditions: boolean;
+  supportsCombinations: boolean;
+  supportsWebsiteBadge: boolean;
+  supportsCountdown: boolean;
+  supportsLandingPage: boolean;
+  supportsAnalytics: boolean;
+  supportsHealthChecks: boolean;
+};
+
 export type PromotionGeneral = {
   title: string;
   summary: string;
@@ -109,6 +122,7 @@ export type PromotionCombinations = {
 
 export type ShopifyPromotion = {
   general: PromotionGeneral;
+  capabilities: PromotionCapabilities;
   products: PromotionProducts;
   shipping: PromotionShipping | null;
   customers: PromotionCustomers;
