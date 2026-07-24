@@ -1,5 +1,3 @@
-import type { PromotionRecord } from "../models/promotion";
-
 export type PromotionTab =
   | "general"
   | "products"
@@ -10,7 +8,6 @@ export type PromotionTab =
   | "messages";
 
 type PromotionTabsProps = {
-  promotion: PromotionRecord;
   activeTab: PromotionTab;
   onChange: (tab: PromotionTab) => void;
 };
@@ -29,21 +26,9 @@ const tabs: Array<{
 ];
 
 export function PromotionTabs({
-  promotion,
   activeTab,
   onChange,
 }: PromotionTabsProps) {
-  const visibleTabs = tabs.filter((tab) => {
-    if (
-      tab.id === "products" &&
-      promotion.shopify.general.type === "Order"
-    ) {
-      return false;
-    }
-
-    return true;
-  });
-
   return (
     <nav
       aria-label="Promotion sections"
@@ -55,6 +40,13 @@ export function PromotionTabs({
         background: "#f6f6f7",
       }}
     >
+      <style>{`
+        body:has([data-promotion-type="Order"])
+          [data-promotion-tab="products"] {
+          display: none;
+        }
+      `}</style>
+
       <div
         role="tablist"
         style={{
@@ -63,7 +55,7 @@ export function PromotionTabs({
           gap: "4px",
         }}
       >
-        {visibleTabs.map((tab) => {
+        {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
 
           return (
@@ -71,6 +63,7 @@ export function PromotionTabs({
               key={tab.id}
               type="button"
               role="tab"
+              data-promotion-tab={tab.id}
               aria-selected={isActive}
               tabIndex={isActive ? 0 : -1}
               onClick={() => onChange(tab.id)}
