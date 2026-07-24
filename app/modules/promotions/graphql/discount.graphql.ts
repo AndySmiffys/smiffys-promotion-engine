@@ -68,6 +68,10 @@ export const GET_DISCOUNT = `#graphql
           endsAt
           discountClasses
 
+          customerBuys {
+            ...CustomerBuysFields
+          }
+
           customerGets {
             ...CustomerGetsFields
           }
@@ -85,6 +89,10 @@ export const GET_DISCOUNT = `#graphql
             nodes {
               code
             }
+          }
+
+          customerBuys {
+            ...CustomerBuysFields
           }
 
           customerGets {
@@ -165,6 +173,24 @@ export const GET_DISCOUNT = `#graphql
     }
   }
 
+  fragment CustomerBuysFields on DiscountCustomerBuys {
+    value {
+      __typename
+
+      ... on DiscountQuantity {
+        quantity
+      }
+
+      ... on DiscountPurchaseAmount {
+        amount
+      }
+    }
+
+    items {
+      ...DiscountItemsFields
+    }
+  }
+
   fragment CustomerGetsFields on DiscountCustomerGets {
     value {
       __typename
@@ -181,37 +207,64 @@ export const GET_DISCOUNT = `#graphql
 
         appliesOnEachItem
       }
+
+      ... on DiscountOnQuantity {
+        quantity {
+          quantity
+        }
+
+        effect {
+          __typename
+
+          ... on DiscountPercentage {
+            percentage
+          }
+
+          ... on DiscountAmount {
+            amount {
+              amount
+              currencyCode
+            }
+
+            appliesOnEachItem
+          }
+        }
+      }
     }
 
     items {
-      __typename
+      ...DiscountItemsFields
+    }
+  }
 
-      ... on AllDiscountItems {
-        allItems
-      }
+  fragment DiscountItemsFields on DiscountItems {
+    __typename
 
-      ... on DiscountProducts {
-        products(first: 50) {
-          nodes {
-            id
-            title
-          }
-        }
+    ... on AllDiscountItems {
+      allItems
+    }
 
-        productVariants(first: 50) {
-          nodes {
-            id
-            title
-          }
+    ... on DiscountProducts {
+      products(first: 50) {
+        nodes {
+          id
+          title
         }
       }
 
-      ... on DiscountCollections {
-        collections(first: 50) {
-          nodes {
-            id
-            title
-          }
+      productVariants(first: 50) {
+        nodes {
+          id
+          title
+        }
+      }
+    }
+
+    ... on DiscountCollections {
+      collections(first: 50) {
+        nodes {
+          id
+          title
         }
       }
     }
