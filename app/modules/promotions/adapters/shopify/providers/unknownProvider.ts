@@ -31,6 +31,7 @@ export class UnknownProvider extends PromotionProvider {
   map(_node: ShopifyDiscountNode): PromotionTypeData {
     return {
       products: mapEmptyProducts("Not yet supported"),
+      bxgy: null,
       shipping: null,
     };
   }
