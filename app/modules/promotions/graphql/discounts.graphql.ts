@@ -145,6 +145,29 @@ export const GET_DISCOUNTS = `#graphql
 
         appliesOnEachItem
       }
+
+      ... on DiscountOnQuantity {
+        quantity {
+          quantity
+        }
+
+        effect {
+          __typename
+
+          ... on DiscountPercentage {
+            percentage
+          }
+
+          ... on DiscountAmount {
+            amount {
+              amount
+              currencyCode
+            }
+
+            appliesOnEachItem
+          }
+        }
+      }
     }
 
     items {
