@@ -16,46 +16,75 @@ const tabs: Array<{
   id: PromotionTab;
   label: string;
 }> = [
-    { id: "general", label: "General" },
-    { id: "products", label: "Products" },
-    { id: "customers", label: "Customers" },
-    { id: "conditions", label: "Conditions" },
-    { id: "schedule", label: "Schedule" },
-    { id: "website", label: "Website" },
-    { id: "messages", label: "Messages" },
-  ];
+  { id: "general", label: "Overview" },
+  { id: "products", label: "Products" },
+  { id: "customers", label: "Customers" },
+  { id: "conditions", label: "Conditions" },
+  { id: "schedule", label: "Schedule" },
+  { id: "website", label: "Website" },
+  { id: "messages", label: "Messages" },
+];
 
 export function PromotionTabs({
   activeTab,
   onChange,
 }: PromotionTabsProps) {
   return (
-    <s-section>
+    <nav
+      aria-label="Promotion sections"
+      style={{
+        overflowX: "auto",
+        padding: "4px",
+        border: "1px solid #e3e3e3",
+        borderRadius: "12px",
+        background: "#f6f6f7",
+      }}
+    >
       <div
         role="tablist"
-        aria-label="Promotion sections"
         style={{
           display: "flex",
-          flexWrap: "wrap",
-          gap: "8px",
+          minWidth: "max-content",
+          gap: "4px",
         }}
       >
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
 
           return (
-            <s-button
+            <button
               key={tab.id}
               type="button"
-              variant={isActive ? "primary" : "secondary"}
+              role="tab"
               aria-selected={isActive}
+              tabIndex={isActive ? 0 : -1}
               onClick={() => onChange(tab.id)}
+              style={{
+                appearance: "none",
+                border: isActive
+                  ? "1px solid #d4d4d4"
+                  : "1px solid transparent",
+                borderRadius: "8px",
+                padding: "9px 14px",
+                background: isActive ? "#ffffff" : "transparent",
+                color: isActive ? "#202223" : "#616161",
+                boxShadow: isActive
+                  ? "0 1px 2px rgba(0, 0, 0, 0.08)"
+                  : "none",
+                font: "inherit",
+                fontWeight: isActive ? 650 : 500,
+                lineHeight: 1.2,
+                whiteSpace: "nowrap",
+                cursor: "pointer",
+                transition:
+                  "background 120ms ease, color 120ms ease, box-shadow 120ms ease",
+              }}
             >
               {tab.label}
-            </s-button>
+            </button>
           );
         })}
       </div>
-    </s-section>
+    </nav>
   );
 }
