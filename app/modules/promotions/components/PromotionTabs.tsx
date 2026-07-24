@@ -1,10 +1,6 @@
-import type { PromotionRecord } from "../models/promotion";
-
 export type PromotionTab =
   | "general"
   | "products"
-  | "bxgy"
-  | "shipping"
   | "customers"
   | "conditions"
   | "schedule"
@@ -12,61 +8,27 @@ export type PromotionTab =
   | "messages";
 
 type PromotionTabsProps = {
-  promotion: PromotionRecord;
   activeTab: PromotionTab;
   onChange: (tab: PromotionTab) => void;
 };
 
-type PromotionTabDefinition = {
+const tabs: Array<{
   id: PromotionTab;
   label: string;
-};
-
-function getTabs(
-  promotion: PromotionRecord,
-): PromotionTabDefinition[] {
-  const capabilities = promotion.shopify.capabilities;
-  const tabs: PromotionTabDefinition[] = [
-    { id: "general", label: "Overview" },
-  ];
-
-  if (promotion.shopify.bxgy) {
-    tabs.push({ id: "bxgy", label: "Buy & Get" });
-  } else if (capabilities.supportsShipping) {
-    tabs.push({ id: "shipping", label: "Shipping" });
-  } else if (capabilities.supportsProducts) {
-    tabs.push({ id: "products", label: "Products" });
-  }
-
-  if (capabilities.supportsCustomers) {
-    tabs.push({ id: "customers", label: "Customers" });
-  }
-
-  if (capabilities.supportsConditions) {
-    tabs.push({ id: "conditions", label: "Conditions" });
-  }
-
-  tabs.push({ id: "schedule", label: "Schedule" });
-
-  if (
-    capabilities.supportsWebsiteBadge ||
-    capabilities.supportsCountdown ||
-    capabilities.supportsLandingPage
-  ) {
-    tabs.push({ id: "website", label: "Website" });
-    tabs.push({ id: "messages", label: "Messages" });
-  }
-
-  return tabs;
-}
+}> = [
+  { id: "general", label: "Overview" },
+  { id: "products", label: "Products" },
+  { id: "customers", label: "Customers" },
+  { id: "conditions", label: "Conditions" },
+  { id: "schedule", label: "Schedule" },
+  { id: "website", label: "Website" },
+  { id: "messages", label: "Messages" },
+];
 
 export function PromotionTabs({
-  promotion,
   activeTab,
   onChange,
 }: PromotionTabsProps) {
-  const tabs = getTabs(promotion);
-
   return (
     <nav
       aria-label="Promotion sections"
