@@ -1,16 +1,14 @@
 import type { PromotionCapabilities } from "../../../models/shopify";
 import type { ShopifyDiscountNode } from "../../../types/discount";
-import type {
-  PromotionTypeData,
-  ShopifyPromotionProvider,
-} from "../types";
+import type { PromotionTypeData } from "../types";
+import { PromotionProvider } from "./PromotionProvider";
 import { mapEmptyProducts } from "./shared";
 
 /**
  * Provides the safe fallback for unsupported promotion types.
  * Does not own Shopify queries, UI rendering, or supported promotion mapping.
  */
-export class UnknownProvider implements ShopifyPromotionProvider {
+export class UnknownProvider extends PromotionProvider {
   readonly type = "Unknown" as const;
 
   readonly capabilities: PromotionCapabilities = {
@@ -30,7 +28,7 @@ export class UnknownProvider implements ShopifyPromotionProvider {
     return true;
   }
 
-  mapTypeData(_node: ShopifyDiscountNode): PromotionTypeData {
+  map(_node: ShopifyDiscountNode): PromotionTypeData {
     return {
       products: mapEmptyProducts("Not yet supported"),
       shipping: null,
