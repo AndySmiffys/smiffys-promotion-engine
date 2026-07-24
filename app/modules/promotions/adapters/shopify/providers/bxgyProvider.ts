@@ -9,14 +9,20 @@ import {
 } from "../../../types/discount";
 import type { PromotionTypeData } from "../types";
 import { PromotionProvider } from "./PromotionProvider";
-import {
-  mapEmptyProducts,
-  mapProductsFromItems,
-} from "./shared";
+import { mapProductsFromItems } from "./shared";
 
 type DiscountItems = NonNullable<
   NonNullable<ShopifyDiscountNode["discount"]["customerGets"]>["items"]
 >;
+
+type RewardEffect = {
+  __typename: string;
+  percentage?: number;
+  amount?: {
+    amount: string;
+    currencyCode: string;
+  };
+};
 
 type BxgyDiscountData = ShopifyDiscountNode["discount"] & {
   customerBuys?: {
@@ -33,14 +39,7 @@ type BxgyDiscountData = ShopifyDiscountNode["discount"] & {
       quantity?: {
         quantity: string;
       };
-      effect?: {
-        __typename: string;
-        percentage?: number;
-        amount?: {
-          amount: string;
-          currencyCode: string;
-        };
-      };
+      effect?: RewardEffect;
     };
     items: DiscountItems;
   };
@@ -56,11 +55,7 @@ function parseNumber(value: string | number | undefined): number | null {
 }
 
 function getRewardType(
-  effect: BxgyDiscountData["customerGets"] extends infer CustomerGets
-    ? CustomerGets extends { value: { effect?: infer Effect } }
-      ? Effect
-      : never
-    : never,
+  effect: RewardEffect | undefined,
 ): PromotionBxgyRewardType {
   if (!effect) {
     return "UNKNOWN";
