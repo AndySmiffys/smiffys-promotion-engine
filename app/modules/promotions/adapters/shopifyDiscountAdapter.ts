@@ -17,7 +17,7 @@ import type {
   PromotionCombinations,
   ShopifyPromotion,
 } from "../models/shopify";
-import { resolveShopifyPromotionProvider } from "./shopify/registry";
+import { shopifyProviderManager } from "./shopify/registry";
 import type { ShopifyPromotionProvider } from "./shopify/types";
 
 export type AdaptedShopifyDiscount = {
@@ -123,8 +123,7 @@ function adaptCombinations(): PromotionCombinations {
 export function adaptShopifyDiscount(
   node: ShopifyDiscountNode,
 ): AdaptedShopifyDiscount {
-  const provider = resolveShopifyPromotionProvider(node);
-  const typeData = provider.mapTypeData(node);
+  const { provider, typeData } = shopifyProviderManager.map(node);
 
   return {
     shopify: {
