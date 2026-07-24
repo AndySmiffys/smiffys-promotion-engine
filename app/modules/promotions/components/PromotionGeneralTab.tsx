@@ -1,7 +1,6 @@
 import type { PromotionRecord } from "../models/promotion";
 
 import { PromotionBxgyTab } from "./PromotionBxgyTab";
-import { PromotionProductsTab } from "./PromotionProductsTab";
 import { SummaryCard } from "./SummaryCard";
 
 type PromotionGeneralTabProps = {
@@ -257,10 +256,17 @@ export function PromotionGeneralTab({
   const valueBadge = getValueBadge(promotion);
   const editInShopifyUrl = `shopify:admin/discounts/${promotion.routeId}`;
   const isOrderDiscount = general.type === "Order";
-  const isProductDiscount = general.type === "Product" && !promotion.shopify.bxgy;
 
   return (
     <s-stack direction="block" gap="large">
+      <style>{`
+        body:has([data-promotion-type="Product"]):not(:has([aria-label="Offer summary"]))
+          form > div:has(s-section[heading="Products"]) {
+          display: block !important;
+          margin-top: 24px;
+        }
+      `}</style>
+
       <section
         data-promotion-type={general.type}
         aria-label="Promotion quick summary"
@@ -387,10 +393,6 @@ export function PromotionGeneralTab({
       </section>
 
       {isOrderDiscount && <OrderDiscountOverview promotion={promotion} />}
-
-      {isProductDiscount && (
-        <PromotionProductsTab promotion={promotion} coverage={null} />
-      )}
 
       {promotion.shopify.bxgy && (
         <PromotionBxgyTab promotion={promotion} />
