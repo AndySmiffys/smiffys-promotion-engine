@@ -16,5 +16,5 @@ export interface ShopifyPromotionProvider {
   readonly capabilities: PromotionCapabilities;
 
   supports(node: ShopifyDiscountNode): boolean;
-  mapTypeData(node: ShopifyDiscountNode): PromotionTypeData;
+  map(node: ShopifyDiscountNode): PromotionTypeData;
 }
