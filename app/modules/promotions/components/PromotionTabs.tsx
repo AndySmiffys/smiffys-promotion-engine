@@ -1,3 +1,5 @@
+import type { PromotionRecord } from "../models/promotion";
+
 export type PromotionTab =
   | "general"
   | "products"
@@ -8,6 +10,7 @@ export type PromotionTab =
   | "messages";
 
 type PromotionTabsProps = {
+  promotion: PromotionRecord;
   activeTab: PromotionTab;
   onChange: (tab: PromotionTab) => void;
 };
@@ -26,9 +29,21 @@ const tabs: Array<{
 ];
 
 export function PromotionTabs({
+  promotion,
   activeTab,
   onChange,
 }: PromotionTabsProps) {
+  const visibleTabs = tabs.filter((tab) => {
+    if (
+      tab.id === "products" &&
+      promotion.shopify.general.type === "Order"
+    ) {
+      return false;
+    }
+
+    return true;
+  });
+
   return (
     <nav
       aria-label="Promotion sections"
@@ -48,7 +63,7 @@ export function PromotionTabs({
           gap: "4px",
         }}
       >
-        {tabs.map((tab) => {
+        {visibleTabs.map((tab) => {
           const isActive = activeTab === tab.id;
 
           return (
