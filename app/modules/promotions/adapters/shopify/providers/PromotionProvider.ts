@@ -23,5 +23,5 @@ export abstract class PromotionProvider
   abstract readonly capabilities: PromotionCapabilities;
 
   abstract supports(node: ShopifyDiscountNode): boolean;
-  abstract mapTypeData(node: ShopifyDiscountNode): PromotionTypeData;
+  abstract map(node: ShopifyDiscountNode): PromotionTypeData;
 }
