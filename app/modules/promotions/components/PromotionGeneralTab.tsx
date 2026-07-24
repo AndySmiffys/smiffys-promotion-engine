@@ -1,6 +1,7 @@
 import type { PromotionRecord } from "../models/promotion";
 
 import { PromotionBxgyTab } from "./PromotionBxgyTab";
+import { SummaryCard } from "./SummaryCard";
 
 type PromotionGeneralTabProps = {
   promotion: PromotionRecord;
@@ -167,6 +168,86 @@ function SummaryItem({
   );
 }
 
+function OrderDiscountOverview({
+  promotion,
+}: {
+  promotion: PromotionRecord;
+}) {
+  const conditions = promotion.shopify.conditions;
+
+  return (
+    <section
+      aria-label="Order discount coverage"
+      style={{
+        border: "1px solid #dedede",
+        borderRadius: "16px",
+        background: "#ffffff",
+        boxShadow: "0 1px 3px rgba(0, 0, 0, 0.06)",
+        padding: "22px",
+      }}
+    >
+      <s-stack direction="block" gap="large">
+        <div>
+          <div
+            style={{
+              fontSize: "20px",
+              fontWeight: 700,
+              lineHeight: 1.3,
+            }}
+          >
+            Full catalogue order discount
+          </div>
+          <div
+            style={{
+              marginTop: "6px",
+              color: "#616161",
+              fontSize: "14px",
+              lineHeight: 1.5,
+            }}
+          >
+            This discount is applied to the order and does not need separate
+            product, collection or variant targeting.
+          </div>
+        </div>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            gap: "12px",
+          }}
+        >
+          <SummaryCard
+            label="Promotion scope"
+            value="All products"
+            description="The full catalogue contributes to the qualifying order."
+            accent="purple"
+            icon="◇"
+          />
+          <SummaryCard
+            label="Discount value"
+            value={promotion.shopify.general.value}
+            description="Applied to the qualifying order at checkout."
+            accent="blue"
+            icon="%"
+          />
+          <SummaryCard
+            label="Minimum requirement"
+            value={conditions.minimumRequirement}
+            description="The order must meet this requirement before the discount applies."
+            accent="green"
+            icon="✓"
+          />
+        </div>
+
+        <s-banner tone="success">
+          No product targeting setup is required for this order discount.
+        </s-banner>
+      </s-stack>
+    </section>
+  );
+}
+
 export function PromotionGeneralTab({
   promotion,
 }: PromotionGeneralTabProps) {
@@ -174,10 +255,12 @@ export function PromotionGeneralTab({
   const schedule = promotion.shopify.schedule;
   const valueBadge = getValueBadge(promotion);
   const editInShopifyUrl = `shopify:admin/discounts/${promotion.routeId}`;
+  const isOrderDiscount = general.type === "Order";
 
   return (
     <s-stack direction="block" gap="large">
       <section
+        data-promotion-type={general.type}
         aria-label="Promotion quick summary"
         style={{
           border: "1px solid #dedede",
@@ -300,6 +383,8 @@ export function PromotionGeneralTab({
           </div>
         </s-stack>
       </section>
+
+      {isOrderDiscount && <OrderDiscountOverview promotion={promotion} />}
 
       {promotion.shopify.bxgy && (
         <PromotionBxgyTab promotion={promotion} />
