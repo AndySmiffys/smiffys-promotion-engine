@@ -56,9 +56,43 @@ function adaptGeneral(
   };
 }
 
-function adaptCustomers(): PromotionCustomers {
+function adaptCustomers(
+  node: ShopifyDiscountNode,
+): PromotionCustomers {
+  const context = node.discount.context;
+
+  if (!context || context.__typename === "DiscountBuyerSelectionAll") {
+    return {
+      appliesToAllCustomers: true,
+      customers: [],
+      segments: [],
+    };
+  }
+
+  if (context.__typename === "DiscountCustomers") {
+    return {
+      appliesToAllCustomers: false,
+      customers: (context.customers ?? []).map((customer) => ({
+        id: customer.id,
+        name: customer.displayName,
+      })),
+      segments: [],
+    };
+  }
+
+  if (context.__typename === "DiscountCustomerSegments") {
+    return {
+      appliesToAllCustomers: false,
+      customers: [],
+      segments: (context.segments ?? []).map((segment) => ({
+        id: segment.id,
+        name: segment.name,
+      })),
+    };
+  }
+
   return {
-    appliesToAllCustomers: true,
+    appliesToAllCustomers: false,
     customers: [],
     segments: [],
   };
@@ -132,7 +166,7 @@ export function adaptShopifyDiscount(
       products: typeData.products,
       bxgy: typeData.bxgy,
       shipping: typeData.shipping,
-      customers: adaptCustomers(),
+      customers: adaptCustomers(node),
       conditions: adaptConditions(node),
       schedule: adaptSchedule(node),
       combinations: adaptCombinations(),
