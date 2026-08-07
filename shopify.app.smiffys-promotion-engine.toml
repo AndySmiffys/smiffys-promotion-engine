@@ -6,7 +6,7 @@ embedded = true
 name = "Smiffys Promotion Engine"
 
 [access_scopes]
-scopes = "read_discounts,read_products,write_products"
+scopes = "read_customers,read_discounts,read_products,write_products"
 
 [auth]
 redirect_urls = [ "https://example.com/api/auth" ]
