@@ -886,11 +886,11 @@ export default function PromotionDetailsPage() {
           {(hasUnsavedChanges || isSaving || actionData?.error) && (
             <div
               style={{
-                position: "sticky",
+                position: "fixed",
                 bottom: "16px",
-                zIndex: 20,
-                marginTop: "24px",
-                paddingBottom: "8px",
+                left: "16px",
+                right: "16px",
+                zIndex: 30,
               }}
             >
               <div
