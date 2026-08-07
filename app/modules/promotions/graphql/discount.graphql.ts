@@ -256,6 +256,10 @@ export const GET_DISCOUNT = `#graphql
         nodes {
           id
           title
+          product {
+            id
+            title
+          }
         }
       }
     }
@@ -265,6 +269,9 @@ export const GET_DISCOUNT = `#graphql
         nodes {
           id
           title
+          productsCount {
+            count
+          }
         }
       }
     }
