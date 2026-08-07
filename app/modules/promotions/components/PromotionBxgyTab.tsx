@@ -106,6 +106,7 @@ type ProductGroup = {
   id: string;
   title: string;
   variants: PromotionVariantReference[];
+  allVariants: boolean;
 };
 
 function getProductGroups(products: PromotionProducts): ProductGroup[] {
@@ -116,6 +117,7 @@ function getProductGroups(products: PromotionProducts): ProductGroup[] {
       id: product.id,
       title: product.title,
       variants: [],
+      allVariants: true,
     });
   }
 
@@ -132,6 +134,7 @@ function getProductGroups(products: PromotionProducts): ProductGroup[] {
       id: productId,
       title: variant.productTitle ?? "Product",
       variants: [variant],
+      allVariants: false,
     });
   }
 
@@ -182,14 +185,27 @@ function ProductTargetList({ products }: { products: PromotionProducts }) {
               }}
             >
               <span>{product.title}</span>
-              {product.variants.length > 0 && (
-                <s-badge>
-                  {product.variants.length} {product.variants.length === 1 ? "variant" : "variants"}
-                </s-badge>
-              )}
+              <span
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  flexWrap: "wrap",
+                  justifyContent: "flex-end",
+                }}
+              >
+                {product.allVariants && (
+                  <s-badge tone="success">All variants</s-badge>
+                )}
+                {!product.allVariants && product.variants.length > 0 && (
+                  <s-badge>
+                    {product.variants.length} {product.variants.length === 1 ? "variant" : "variants"}
+                  </s-badge>
+                )}
+              </span>
             </summary>
 
-            {product.variants.length > 0 && (
+            {!product.allVariants && product.variants.length > 0 && (
               <div
                 style={{
                   marginTop: "10px",
