@@ -421,6 +421,34 @@ export default function PromotionDetailsPage() {
     }));
   }
 
+  function resetFormState() {
+    setSettings({
+      included: promotion.settings.included,
+      websiteEnabled: promotion.settings.websiteEnabled,
+      showProductPage: promotion.settings.showProductPage,
+      showCollectionPage: promotion.settings.showCollectionPage,
+      showProductBadge: promotion.settings.showProductBadge,
+      showCountdown: promotion.settings.showCountdown,
+      showHeaderBanner: promotion.settings.showHeaderBanner,
+    });
+
+    setMessages({
+      headline: promotion.settings.headline ?? "",
+      body: promotion.settings.body ?? "",
+      badgeText: promotion.settings.badgeText ?? "",
+      countdownText: promotion.settings.countdownText ?? "",
+      buttonText: promotion.settings.buttonText ?? "",
+      buttonUrl: promotion.settings.buttonUrl ?? "",
+      backgroundColour:
+        promotion.settings.backgroundColour ?? "#ffffff",
+      textColour:
+        promotion.settings.textColour ?? "#000000",
+      badgeColour:
+        promotion.settings.badgeColour ?? "#d72c0d",
+      priority: String(promotion.settings.priority ?? 0),
+    });
+  }
+
   const hasUnsavedChanges = useMemo(() => {
     const savedSettings = {
       included:
@@ -855,68 +883,83 @@ export default function PromotionDetailsPage() {
             </s-section>
           </div>
 
-          {/* Sticky save area */}
-          <div
-            style={{
-              position: "sticky",
-              bottom: "16px",
-              zIndex: 20,
-              marginTop: "24px",
-              paddingBottom: "8px",
-            }}
-          >
+          {(hasUnsavedChanges || isSaving || actionData?.error) && (
             <div
               style={{
-                backgroundColor: "#ffffff",
-                border: "1px solid #d9d9d9",
-                borderRadius: "12px",
-                boxShadow:
-                  "0 1px 2px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.06)",
-                padding: "16px",
+                position: "sticky",
+                bottom: "16px",
+                zIndex: 20,
+                marginTop: "24px",
+                paddingBottom: "8px",
               }}
             >
-              <s-stack direction="block" gap="base">
-                {actionData?.success && (
-                  <s-banner tone="success">
-                    Promotion settings saved.
-                  </s-banner>
-                )}
+              <div
+                style={{
+                  backgroundColor: "#202223",
+                  border: "1px solid #303234",
+                  borderRadius: "12px",
+                  boxShadow:
+                    "0 4px 16px rgba(0, 0, 0, 0.22), 0 1px 3px rgba(0, 0, 0, 0.16)",
+                  padding: "14px 16px",
+                }}
+              >
+                <s-stack direction="block" gap="base">
+                  {actionData?.error && (
+                    <s-banner tone="critical">
+                      {actionData.error}
+                    </s-banner>
+                  )}
 
-                {actionData?.error && (
-                  <s-banner tone="critical">
-                    {actionData.error}
-                  </s-banner>
-                )}
-
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: "16px",
-                  }}
-                >
-                  <s-paragraph>
-                    {hasUnsavedChanges
-                      ? "You have unsaved changes."
-                      : "All changes saved."}
-                  </s-paragraph>
-
-                  <s-button
-                    type="submit"
-                    variant="primary"
-                    loading={isSaving}
-                    disabled={isSaving || !hasUnsavedChanges}
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      flexWrap: "wrap",
+                      gap: "16px",
+                    }}
                   >
-                    {isSaving ? "Saving..." : "Save promotion"}
-                  </s-button>
-                </div>
-              </s-stack>
+                    <span
+                      style={{
+                        color: "#ffffff",
+                        fontSize: "14px",
+                        fontWeight: 600,
+                      }}
+                    >
+                      You have unsaved changes.
+                    </span>
+
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "10px",
+                      }}
+                    >
+                      <s-button
+                        type="button"
+                        variant="secondary"
+                        disabled={isSaving}
+                        onClick={resetFormState}
+                      >
+                        Discard
+                      </s-button>
+
+                      <s-button
+                        type="submit"
+                        variant="primary"
+                        loading={isSaving}
+                        disabled={isSaving || !hasUnsavedChanges}
+                      >
+                        {isSaving ? "Saving..." : "Save promotion"}
+                      </s-button>
+                    </div>
+                  </div>
+                </s-stack>
+              </div>
             </div>
-          </div>
+          )}
         </Form>
-
-
       </s-stack>
     </s-page>
   );
