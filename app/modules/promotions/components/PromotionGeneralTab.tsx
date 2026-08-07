@@ -257,14 +257,6 @@ export function PromotionGeneralTab({
 
   return (
     <s-stack direction="block" gap="large">
-      <style>{`
-        body:has([data-promotion-type="Product"]):not(:has([aria-label="Offer summary"]))
-          form > div:has(s-section[heading="Products"]) {
-          display: block !important;
-          margin-top: 24px;
-        }
-      `}</style>
-
       <section
         data-promotion-type={general.type}
         aria-label="Promotion quick summary"
