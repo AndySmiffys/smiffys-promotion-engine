@@ -32,6 +32,19 @@ export type ShopifyDiscountNode = {
     endsAt?: string | null;
     discountClasses?: string[];
 
+    context?: {
+      __typename: string;
+      all?: string;
+      customers?: Array<{
+        id: string;
+        displayName: string;
+      }>;
+      segments?: Array<{
+        id: string;
+        name: string;
+      }>;
+    };
+
     codes?: {
       nodes: Array<{
         code: string;
