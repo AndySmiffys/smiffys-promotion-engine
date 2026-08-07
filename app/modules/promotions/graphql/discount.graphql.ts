@@ -27,6 +27,9 @@ export const GET_DISCOUNT = `#graphql
           startsAt
           endsAt
           discountClasses
+          context {
+            ...DiscountContextFields
+          }
 
           customerGets {
             ...CustomerGetsFields
@@ -44,6 +47,9 @@ export const GET_DISCOUNT = `#graphql
           startsAt
           endsAt
           discountClasses
+          context {
+            ...DiscountContextFields
+          }
 
           codes(first: 5) {
             nodes {
@@ -67,6 +73,9 @@ export const GET_DISCOUNT = `#graphql
           startsAt
           endsAt
           discountClasses
+          context {
+            ...DiscountContextFields
+          }
 
           customerBuys {
             ...CustomerBuysFields
@@ -84,6 +93,9 @@ export const GET_DISCOUNT = `#graphql
           startsAt
           endsAt
           discountClasses
+          context {
+            ...DiscountContextFields
+          }
 
           codes(first: 5) {
             nodes {
@@ -107,6 +119,9 @@ export const GET_DISCOUNT = `#graphql
           startsAt
           endsAt
           discountClasses
+          context {
+            ...DiscountContextFields
+          }
           appliesOnOneTimePurchase
           appliesOnSubscription
 
@@ -139,6 +154,9 @@ export const GET_DISCOUNT = `#graphql
           startsAt
           endsAt
           discountClasses
+          context {
+            ...DiscountContextFields
+          }
           appliesOnOneTimePurchase
           appliesOnSubscription
 
@@ -169,6 +187,28 @@ export const GET_DISCOUNT = `#graphql
             ...MinimumRequirementFields
           }
         }
+      }
+    }
+  }
+
+  fragment DiscountContextFields on DiscountContext {
+    __typename
+
+    ... on DiscountBuyerSelectionAll {
+      all
+    }
+
+    ... on DiscountCustomers {
+      customers {
+        id
+        displayName
+      }
+    }
+
+    ... on DiscountCustomerSegments {
+      segments {
+        id
+        name
       }
     }
   }
