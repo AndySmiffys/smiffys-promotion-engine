@@ -62,12 +62,19 @@ export type ShopifyDiscountNode = {
           nodes: Array<{
             id: string;
             title: string;
+            product?: {
+              id: string;
+              title: string;
+            };
           }>;
         };
         collections?: {
           nodes: Array<{
             id: string;
             title: string;
+            productsCount?: {
+              count: number;
+            };
           }>;
         };
       };
