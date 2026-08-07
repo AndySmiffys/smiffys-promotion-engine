@@ -50,11 +50,14 @@ export type PromotionProductReference = {
 export type PromotionVariantReference = {
   id: string;
   title: string;
+  productId: string | null;
+  productTitle: string | null;
 };
 
 export type PromotionCollectionReference = {
   id: string;
   title: string;
+  productCount: number | null;
 };
 
 export type PromotionProducts = {
