@@ -1,10 +1,10 @@
 import type {
   PromotionBxgy,
   PromotionProducts,
+  PromotionVariantReference,
 } from "../models/shopify";
 import type { PromotionRecord } from "../models/promotion";
 
-import { ReferenceRow } from "./ReferenceRow";
 import { SummaryCard } from "./SummaryCard";
 
 type PromotionBxgyTabProps = {
@@ -42,33 +42,24 @@ function getScopeSummary(products: PromotionProducts): string {
     return "All products";
   }
 
-  const parts: string[] = [];
-
   if (products.collections.length > 0) {
-    parts.push(
-      `${products.collections.length} ${
-        products.collections.length === 1 ? "collection" : "collections"
-      }`,
-    );
+    return `${products.collections.length} ${
+      products.collections.length === 1 ? "collection" : "collections"
+    }`;
   }
 
-  if (products.products.length > 0) {
-    parts.push(
-      `${products.products.length} ${
-        products.products.length === 1 ? "product" : "products"
-      }`,
-    );
+  const productIds = new Set(products.products.map((product) => product.id));
+  for (const variant of products.variants) {
+    if (variant.productId) {
+      productIds.add(variant.productId);
+    }
   }
 
-  if (products.variants.length > 0) {
-    parts.push(
-      `${products.variants.length} ${
-        products.variants.length === 1 ? "variant" : "variants"
-      }`,
-    );
+  if (productIds.size > 0) {
+    return `${productIds.size} ${productIds.size === 1 ? "product" : "products"}`;
   }
 
-  return parts.length > 0 ? parts.join(" · ") : products.appliesTo;
+  return products.appliesTo;
 }
 
 function getBuyLabel(bxgy: PromotionBxgy): string {
@@ -107,83 +98,170 @@ function getRewardLabel(bxgy: PromotionBxgy): string {
   }
 }
 
-function ScopeGroup({
-  title,
-  emptyText,
-  icon,
-  accent,
-  items,
-  typeLabel,
-}: {
+function getShopifyNumericId(id: string): string {
+  return id.split("/").pop() ?? id;
+}
+
+type ProductGroup = {
+  id: string;
   title: string;
-  emptyText: string;
-  icon: string;
-  accent: "purple" | "amber" | "teal";
-  items: Array<{ id: string; title: string }>;
-  typeLabel: string;
-}) {
+  variants: PromotionVariantReference[];
+};
+
+function getProductGroups(products: PromotionProducts): ProductGroup[] {
+  const groups = new Map<string, ProductGroup>();
+
+  for (const product of products.products) {
+    groups.set(product.id, {
+      id: product.id,
+      title: product.title,
+      variants: [],
+    });
+  }
+
+  for (const variant of products.variants) {
+    const productId = variant.productId ?? `variant-product-${variant.id}`;
+    const existing = groups.get(productId);
+
+    if (existing) {
+      existing.variants.push(variant);
+      continue;
+    }
+
+    groups.set(productId, {
+      id: productId,
+      title: variant.productTitle ?? "Product",
+      variants: [variant],
+    });
+  }
+
+  return Array.from(groups.values());
+}
+
+function ProductTargetList({ products }: { products: PromotionProducts }) {
+  const productGroups = getProductGroups(products);
+
   return (
-    <div>
-      <div
+    <details open>
+      <summary
         style={{
+          cursor: "pointer",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
           gap: "12px",
-          padding: "12px 0",
+          padding: "13px 0",
+          fontWeight: 650,
           borderBottom: "1px solid #eeeeee",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <div
-            aria-hidden="true"
+        <span>Products</span>
+        <s-badge>{productGroups.length}</s-badge>
+      </summary>
+
+      <div>
+        {productGroups.map((product, index) => (
+          <details
+            key={product.id}
             style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: "34px",
-              height: "34px",
-              borderRadius: "10px",
-              background:
-                accent === "purple"
-                  ? "#f2eafe"
-                  : accent === "amber"
-                    ? "#fff5df"
-                    : "#e5f6f7",
-              color:
-                accent === "purple"
-                  ? "#7c3aed"
-                  : accent === "amber"
-                    ? "#c77800"
-                    : "#087f8c",
-              fontWeight: 700,
+              padding: "13px 0",
+              borderBottom:
+                index === productGroups.length - 1
+                  ? "none"
+                  : "1px solid #eeeeee",
             }}
           >
-            {icon}
-          </div>
+            <summary
+              style={{
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "12px",
+                fontWeight: 650,
+              }}
+            >
+              <span>{product.title}</span>
+              {product.variants.length > 0 && (
+                <s-badge>
+                  {product.variants.length} {product.variants.length === 1 ? "variant" : "variants"}
+                </s-badge>
+              )}
+            </summary>
 
-          <div>
-            <div style={{ fontWeight: 650 }}>{title}</div>
-            {items.length === 0 && (
-              <div style={{ color: "#616161", fontSize: "13px" }}>
-                {emptyText}
+            {product.variants.length > 0 && (
+              <div
+                style={{
+                  marginTop: "10px",
+                  marginLeft: "18px",
+                  borderLeft: "2px solid #e5f6f7",
+                  paddingLeft: "14px",
+                }}
+              >
+                {product.variants.map((variant) => (
+                  <div
+                    key={variant.id}
+                    style={{
+                      padding: "8px 0",
+                      color: "#616161",
+                      fontSize: "13px",
+                    }}
+                  >
+                    {variant.title}
+                  </div>
+                ))}
               </div>
             )}
-          </div>
-        </div>
-
-        <s-badge>{items.length}</s-badge>
+          </details>
+        ))}
       </div>
+    </details>
+  );
+}
 
-      {items.map((item, index) => (
-        <ReferenceRow
-          key={item.id}
-          title={item.title}
-          typeLabel={typeLabel}
-          icon={icon}
-          accent={accent}
-          isLast={index === items.length - 1}
-        />
+function CollectionTargetList({ products }: { products: PromotionProducts }) {
+  return (
+    <div>
+      {products.collections.map((collection, index) => (
+        <div
+          key={collection.id}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "16px",
+            padding: "13px 0",
+            borderBottom:
+              index === products.collections.length - 1
+                ? "none"
+                : "1px solid #eeeeee",
+          }}
+        >
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontWeight: 650 }}>{collection.title}</div>
+            <div
+              style={{
+                marginTop: "3px",
+                color: "#616161",
+                fontSize: "13px",
+              }}
+            >
+              {collection.productCount !== null
+                ? `${formatNumber(collection.productCount)} ${
+                    collection.productCount === 1 ? "product" : "products"
+                  }`
+                : "Product count unavailable"}
+            </div>
+          </div>
+
+          <s-button
+            href={`shopify:admin/collections/${getShopifyNumericId(collection.id)}`}
+            target="_blank"
+            variant="secondary"
+          >
+            View collection ↗
+          </s-button>
+        </div>
       ))}
     </div>
   );
@@ -199,6 +277,9 @@ function ScopePanel({
   products: PromotionProducts;
 }) {
   const hasTargets = products.allProducts || getScopeCount(products) > 0;
+  const usesCollections = products.collections.length > 0;
+  const usesProducts =
+    products.products.length > 0 || products.variants.length > 0;
 
   return (
     <section
@@ -227,34 +308,11 @@ function ScopePanel({
 
         {products.allProducts ? (
           <s-paragraph>Every product in the catalogue is included.</s-paragraph>
-        ) : (
-          <div>
-            <ScopeGroup
-              title="Products"
-              emptyText="No products"
-              icon="◇"
-              accent="purple"
-              items={products.products}
-              typeLabel="Product"
-            />
-            <ScopeGroup
-              title="Collections"
-              emptyText="No collections"
-              icon="□"
-              accent="amber"
-              items={products.collections}
-              typeLabel="Collection"
-            />
-            <ScopeGroup
-              title="Variants"
-              emptyText="No variants"
-              icon="Ⅱ"
-              accent="teal"
-              items={products.variants}
-              typeLabel="Variant"
-            />
-          </div>
-        )}
+        ) : usesCollections ? (
+          <CollectionTargetList products={products} />
+        ) : usesProducts ? (
+          <ProductTargetList products={products} />
+        ) : null}
       </s-stack>
     </section>
   );
