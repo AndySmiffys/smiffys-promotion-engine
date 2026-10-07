@@ -8,6 +8,16 @@ type LinkResource = {
   id: string;
   title: string;
   handle: string;
+  featuredImage?: {
+    url: string;
+    altText: string | null;
+  } | null;
+  priceRangeV2?: {
+    minVariantPrice: {
+      amount: string;
+      currencyCode: string;
+    };
+  } | null;
 };
 
 type LinkResourcesResponse = {
@@ -29,6 +39,16 @@ export async function loader({ request }: LoaderFunctionArgs) {
           id
           title
           handle
+          featuredImage {
+            url
+            altText
+          }
+          priceRangeV2 {
+            minVariantPrice {
+              amount
+              currencyCode
+            }
+          }
         }
       }
       collections(first: 50, sortKey: TITLE) {
@@ -87,6 +107,25 @@ const typeConfig: Record<
   },
 };
 
+function formatPreviewPrice(product?: LinkResource): string {
+  const money = product?.priceRangeV2?.minVariantPrice;
+
+  if (!money) {
+    return "£29.99";
+  }
+
+  const amount = Number.parseFloat(money.amount);
+
+  if (!Number.isFinite(amount)) {
+    return money.amount;
+  }
+
+  return new Intl.NumberFormat("en-GB", {
+    style: "currency",
+    currency: money.currencyCode || "GBP",
+  }).format(amount);
+}
+
 function FormSection({
   title,
   children,
@@ -135,6 +174,8 @@ export default function CreatePromotionPage() {
       : "product";
 
   const config = typeConfig[discountType];
+  const previewProducts = products.filter((product) => product.featuredImage).slice(0, 3);
+  const primaryPreviewProduct = previewProducts[0] ?? products[0];
   const [method, setMethod] = useState<"code" | "automatic">("code");
   const [discountCode, setDiscountCode] = useState("");
   const [automaticTitle, setAutomaticTitle] = useState("");
@@ -172,6 +213,8 @@ export default function CreatePromotionPage() {
   const [linkType, setLinkType] = useState<"collections" | "products" | "custom">("collections");
   const [linkSearch, setLinkSearch] = useState("");
   const [buttonLinkLabel, setButtonLinkLabel] = useState("");
+  const [bannerImagePreview, setBannerImagePreview] = useState("");
+  const [bannerImageName, setBannerImageName] = useState("");
 
   function generateDiscountCode() {
     const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -900,7 +943,68 @@ export default function CreatePromotionPage() {
                 </FormSection>
 
                 <FormSection title="Website promotion">
-                  <s-stack direction="block" gap="small">
+                  <s-stack direction="block" gap="base">
+                    <div>
+                      <div
+                        style={{
+                          marginBottom: "6px",
+                          color: "#303030",
+                          fontSize: "12px",
+                          fontWeight: 650,
+                        }}
+                      >
+                        Promotion banner image
+                      </div>
+
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(event) => {
+                          const file = event.currentTarget.files?.[0];
+
+                          if (!file) {
+                            setBannerImagePreview("");
+                            setBannerImageName("");
+                            return;
+                          }
+
+                          setBannerImageName(file.name);
+                          setBannerImagePreview(URL.createObjectURL(file));
+                        }}
+                        style={{
+                          display: "block",
+                          width: "100%",
+                          padding: "8px",
+                          border: "1px solid #c9c9c9",
+                          borderRadius: "8px",
+                          background: "#ffffff",
+                          fontSize: "12px",
+                        }}
+                      />
+
+                      <div
+                        style={{
+                          marginTop: "6px",
+                          color: "#616161",
+                          fontSize: "11px",
+                          lineHeight: 1.45,
+                        }}
+                      >
+                        Optional. Used for collection and promotional banner visuals. The selected image is previewed immediately and will be uploaded to Shopify Files when the promotion is saved.
+                      </div>
+
+                      {bannerImageName && (
+                        <div
+                          style={{
+                            marginTop: "5px",
+                            color: "#303030",
+                            fontSize: "11px",
+                          }}
+                        >
+                          Selected: {bannerImageName}
+                        </div>
+                      )}
+                    </div>
                     <s-checkbox
                       label="Include in promotion sync"
                       checked={included}
@@ -1083,7 +1187,7 @@ export default function CreatePromotionPage() {
                       overflow: "hidden",
                       border: "1px solid #d9d9d9",
                       borderRadius: "12px",
-                      background: "#f6f6f7",
+                      background: "#eef2f4",
                     }}
                   >
                     <div
@@ -1093,16 +1197,16 @@ export default function CreatePromotionPage() {
                         justifyContent: "space-between",
                         gap: "10px",
                         padding: "10px 12px",
-                        borderBottom: "1px solid #e4e4e4",
+                        borderBottom: "1px solid #dde3e6",
                         background: "#ffffff",
                       }}
                     >
                       <div>
                         <div style={{ fontSize: "12px", fontWeight: 650 }}>
-                          Live website preview
+                          Storefront preview
                         </div>
                         <div style={{ marginTop: "2px", color: "#616161", fontSize: "11px" }}>
-                          Preview only — nothing is published until the promotion is saved.
+                          Uses live products from this Shopify store. Preview only until saved.
                         </div>
                       </div>
                       <s-badge tone={websiteEnabled && included ? "success" : "neutral"}>
@@ -1110,168 +1214,311 @@ export default function CreatePromotionPage() {
                       </s-badge>
                     </div>
 
-                    <div
-                      style={{
-                        padding: "16px",
-                        background: "#f4f4f4",
-                      }}
-                    >
+                    <div style={{ padding: "14px" }}>
                       {showHeaderBanner && (
                         <div
                           style={{
-                            marginBottom: "14px",
+                            marginBottom: "12px",
+                            display: "grid",
+                            gridTemplateColumns: "minmax(0, 1fr) auto auto",
+                            gap: "12px",
+                            alignItems: "center",
                             padding: "10px 14px",
-                            borderRadius: "6px",
+                            borderRadius: "8px",
                             background: backgroundColour,
                             color: textColour,
-                            textAlign: "center",
-                            fontSize: "12px",
-                            fontWeight: 650,
                             boxShadow: "0 1px 2px rgba(0,0,0,0.08)",
                           }}
                         >
-                          {headline || "Promotion headline"}
+                          <div style={{ fontSize: "12px", fontWeight: 700 }}>
+                            {headline || "Promotion headline"}
+                          </div>
                           {showCountdown && (
-                            <span style={{ marginLeft: "8px", fontWeight: 500 }}>
-                              {countdownText || "Offer ends soon"}
-                            </span>
+                            <div style={{ fontSize: "10px", fontWeight: 600 }}>
+                              {countdownText || "Ends in 02D 14H 36M"}
+                            </div>
+                          )}
+                          {buttonText && (
+                            <div
+                              style={{
+                                padding: "6px 10px",
+                                borderRadius: "5px",
+                                background: textColour,
+                                color: backgroundColour,
+                                fontSize: "10px",
+                                fontWeight: 700,
+                              }}
+                            >
+                              {buttonText}
+                            </div>
                           )}
                         </div>
                       )}
 
                       <div
                         style={{
-                          display: "grid",
-                          gridTemplateColumns: "minmax(180px, 0.8fr) minmax(0, 1.2fr)",
-                          gap: "14px",
+                          marginBottom: "12px",
+                          overflow: "hidden",
+                          border: "1px solid #dde3e6",
+                          borderRadius: "10px",
+                          background: "#ffffff",
                         }}
-                        className="website-preview-grid"
                       >
                         <div
                           style={{
+                            padding: "8px 12px",
+                            borderBottom: "1px solid #eeeeee",
+                            fontSize: "10px",
+                            color: "#616161",
+                          }}
+                        >
+                          Home / Costumes / Promotion
+                        </div>
+
+                        <div
+                          className="website-preview-collection-banner"
+                          style={{
                             position: "relative",
-                            minHeight: "250px",
-                            overflow: "hidden",
-                            border: "1px solid #dddddd",
-                            borderRadius: "10px",
-                            background: "#ffffff",
+                            minHeight: "135px",
+                            display: "grid",
+                            gridTemplateColumns: "minmax(0, 1fr) minmax(180px, 38%)",
+                            alignItems: "stretch",
+                            background: "#f7f7f7",
                           }}
                         >
                           <div
                             style={{
-                              height: "150px",
-                              background: "linear-gradient(135deg, #eeeeee, #dddddd)",
+                              padding: "22px",
+                              display: "flex",
+                              flexDirection: "column",
+                              justifyContent: "center",
+                              zIndex: 1,
                             }}
-                          />
-                          {showProductBadge && (
-                            <div
-                              style={{
-                                position: "absolute",
-                                top: "12px",
-                                left: "12px",
-                                padding: "4px 8px",
-                                borderRadius: "999px",
-                                background: badgeColour,
-                                color: "#ffffff",
-                                fontSize: "10px",
-                                fontWeight: 700,
-                              }}
-                            >
-                              {badgeText || "PROMOTION"}
+                          >
+                            <div style={{ fontSize: "17px", fontWeight: 750 }}>
+                              {headline || "Promotion headline"}
                             </div>
-                          )}
-                          <div style={{ padding: "12px" }}>
-                            <div style={{ fontSize: "12px", fontWeight: 650 }}>
-                              Example product
+                            <div style={{ marginTop: "5px", color: "#555", fontSize: "11px" }}>
+                              {body || "Limited time only. Subject to availability."}
                             </div>
-                            <div style={{ marginTop: "4px", color: "#616161", fontSize: "11px" }}>
-                              £29.99
-                            </div>
-                            {showCollectionPage && (
+                            {buttonText && (
                               <div
                                 style={{
-                                  marginTop: "10px",
-                                  padding: "8px",
-                                  borderRadius: "6px",
+                                  width: "fit-content",
+                                  marginTop: "12px",
+                                  padding: "6px 12px",
+                                  borderRadius: "5px",
                                   background: backgroundColour,
                                   color: textColour,
                                   fontSize: "10px",
+                                  fontWeight: 700,
                                 }}
                               >
-                                {headline || "Promotion headline"}
+                                {buttonText}
                               </div>
                             )}
+                          </div>
+
+                          <div
+                            style={{
+                              minHeight: "135px",
+                              backgroundImage: bannerImagePreview
+                                ? `linear-gradient(90deg, rgba(247,247,247,0.15), rgba(247,247,247,0)), url("${bannerImagePreview}")`
+                                : primaryPreviewProduct?.featuredImage?.url
+                                  ? `linear-gradient(90deg, rgba(247,247,247,0.15), rgba(247,247,247,0)), url("${primaryPreviewProduct.featuredImage.url}")`
+                                  : "linear-gradient(135deg, #dedede, #f0f0f0)",
+                              backgroundSize: "cover",
+                              backgroundPosition: "center",
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      <div
+                        className="website-preview-grid"
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "minmax(0, 1.25fr) minmax(260px, 0.75fr)",
+                          gap: "12px",
+                        }}
+                      >
+                        <div
+                          style={{
+                            padding: "12px",
+                            border: "1px solid #dde3e6",
+                            borderRadius: "10px",
+                            background: "#ffffff",
+                          }}
+                        >
+                          <div style={{ marginBottom: "10px", fontSize: "13px", fontWeight: 700 }}>
+                            Collection page
+                          </div>
+                          <div
+                            style={{
+                              display: "grid",
+                              gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+                              gap: "8px",
+                            }}
+                          >
+                            {(previewProducts.length > 0 ? previewProducts : products.slice(0, 3)).map((product) => (
+                              <div
+                                key={product.id}
+                                style={{
+                                  position: "relative",
+                                  overflow: "hidden",
+                                  border: "1px solid #eeeeee",
+                                  borderRadius: "8px",
+                                  background: "#ffffff",
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    aspectRatio: "4 / 5",
+                                    background: "#f5f5f5",
+                                  }}
+                                >
+                                  {product.featuredImage?.url && (
+                                    <img
+                                      src={product.featuredImage.url}
+                                      alt={product.featuredImage.altText || product.title}
+                                      style={{
+                                        width: "100%",
+                                        height: "100%",
+                                        objectFit: "cover",
+                                      }}
+                                    />
+                                  )}
+                                </div>
+
+                                {showProductBadge && (
+                                  <div
+                                    style={{
+                                      position: "absolute",
+                                      top: "7px",
+                                      left: "7px",
+                                      padding: "3px 6px",
+                                      borderRadius: "5px",
+                                      background: badgeColour,
+                                      color: "#ffffff",
+                                      fontSize: "8px",
+                                      fontWeight: 750,
+                                    }}
+                                  >
+                                    {badgeText || "PROMOTION"}
+                                  </div>
+                                )}
+
+                                <div style={{ padding: "8px" }}>
+                                  <div
+                                    style={{
+                                      fontSize: "9px",
+                                      fontWeight: 650,
+                                      lineHeight: 1.35,
+                                    }}
+                                  >
+                                    {product.title}
+                                  </div>
+                                  <div style={{ marginTop: "4px", fontSize: "10px", fontWeight: 700 }}>
+                                    {formatPreviewPrice(product)}
+                                  </div>
+                                  {showCollectionPage && (
+                                    <div
+                                      style={{
+                                        marginTop: "6px",
+                                        padding: "5px 6px",
+                                        borderRadius: "5px",
+                                        background: backgroundColour,
+                                        color: textColour,
+                                        fontSize: "8px",
+                                        lineHeight: 1.3,
+                                      }}
+                                    >
+                                      {headline || "Promotion headline"}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
                           </div>
                         </div>
 
                         <div
                           style={{
-                            minHeight: "250px",
-                            padding: "18px",
-                            border: "1px solid #dddddd",
+                            overflow: "hidden",
+                            border: "1px solid #dde3e6",
                             borderRadius: "10px",
                             background: "#ffffff",
                           }}
                         >
                           <div
                             style={{
-                              display: "inline-block",
-                              padding: "3px 7px",
-                              borderRadius: "999px",
-                              background: "#f1f1f1",
-                              color: "#616161",
-                              fontSize: "10px",
+                              aspectRatio: "1 / 1",
+                              background: "#f5f5f5",
                             }}
                           >
-                            Product page
+                            {primaryPreviewProduct?.featuredImage?.url && (
+                              <img
+                                src={primaryPreviewProduct.featuredImage.url}
+                                alt={primaryPreviewProduct.featuredImage.altText || primaryPreviewProduct.title}
+                                style={{
+                                  width: "100%",
+                                  height: "100%",
+                                  objectFit: "cover",
+                                }}
+                              />
+                            )}
                           </div>
 
-                          <div style={{ marginTop: "16px", fontSize: "18px", fontWeight: 700 }}>
-                            Example product
-                          </div>
-                          <div style={{ marginTop: "6px", fontSize: "14px" }}>£29.99</div>
-
-                          {showProductPage && (
-                            <div
-                              style={{
-                                marginTop: "18px",
-                                padding: "14px",
-                                borderRadius: "8px",
-                                background: backgroundColour,
-                                color: textColour,
-                              }}
-                            >
-                              <div style={{ fontSize: "13px", fontWeight: 700 }}>
-                                {headline || "Promotion headline"}
-                              </div>
-                              {body && (
-                                <div style={{ marginTop: "5px", fontSize: "11px", lineHeight: 1.45 }}>
-                                  {body}
-                                </div>
-                              )}
-                              {showCountdown && (
-                                <div style={{ marginTop: "8px", fontSize: "11px", fontWeight: 650 }}>
-                                  {countdownText || "Offer ends soon"}
-                                </div>
-                              )}
-                              {buttonText && (
-                                <span
-                                  style={{
-                                    display: "inline-block",
-                                    marginTop: "10px",
-                                    padding: "6px 10px",
-                                    borderRadius: "6px",
-                                    background: textColour,
-                                    color: backgroundColour,
-                                    fontSize: "10px",
-                                    fontWeight: 650,
-                                  }}
-                                >
-                                  {buttonText}
-                                </span>
-                              )}
+                          <div style={{ padding: "12px" }}>
+                            <div style={{ fontSize: "13px", fontWeight: 700 }}>
+                              {primaryPreviewProduct?.title || "Example product"}
                             </div>
-                          )}
+                            <div style={{ marginTop: "5px", fontSize: "12px", fontWeight: 700 }}>
+                              {formatPreviewPrice(primaryPreviewProduct)}
+                            </div>
+
+                            {showProductPage && (
+                              <div
+                                style={{
+                                  marginTop: "12px",
+                                  padding: "11px",
+                                  borderRadius: "7px",
+                                  background: backgroundColour,
+                                  color: textColour,
+                                }}
+                              >
+                                <div style={{ fontSize: "11px", fontWeight: 750 }}>
+                                  {headline || "Promotion headline"}
+                                </div>
+                                {body && (
+                                  <div style={{ marginTop: "4px", fontSize: "9px", lineHeight: 1.45 }}>
+                                    {body}
+                                  </div>
+                                )}
+                                {showCountdown && (
+                                  <div style={{ marginTop: "7px", fontSize: "9px", fontWeight: 650 }}>
+                                    {countdownText || "Offer ends soon"}
+                                  </div>
+                                )}
+                                {buttonText && (
+                                  <div
+                                    style={{
+                                      marginTop: "8px",
+                                      padding: "6px 8px",
+                                      borderRadius: "5px",
+                                      background: textColour,
+                                      color: backgroundColour,
+                                      textAlign: "center",
+                                      fontSize: "9px",
+                                      fontWeight: 750,
+                                    }}
+                                  >
+                                    {buttonText}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
 
@@ -1281,7 +1528,7 @@ export default function CreatePromotionPage() {
                         !showProductBadge && (
                           <div
                             style={{
-                              marginTop: "14px",
+                              marginTop: "12px",
                               padding: "12px",
                               border: "1px dashed #c9c9c9",
                               borderRadius: "8px",
@@ -1590,6 +1837,7 @@ export default function CreatePromotionPage() {
               .discount-value-row,
               .bxgy-pair-row,
               .website-preview-grid,
+              .website-preview-collection-banner,
               .link-selector-layout {
                 grid-template-columns: 1fr !important;
               }
