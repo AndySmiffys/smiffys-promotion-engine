@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { useFetcher, useLoaderData, useSearchParams } from "react-router";
+import { useAppBridge } from "@shopify/app-bridge-react";
 
 import { authenticate } from "../shopify.server";
 
@@ -28,21 +29,135 @@ type LinkResourcesResponse = {
   errors?: Array<{ message: string }>;
 };
 
-type ResolveFileActionData = {
+type ResourceSearchItem = {
+  id: string;
+  title: string;
+  handle: string;
+  imageUrl?: string | null;
+};
+
+type PromotionActionData = {
   success: boolean;
   image?: {
     id: string;
     url: string;
     alt: string | null;
   };
+  resources?: ResourceSearchItem[];
   error?: string;
 };
 
-export async function action({ request }: ActionFunctionArgs): Promise<ResolveFileActionData> {
+export async function action({ request }: ActionFunctionArgs): Promise<PromotionActionData> {
   const { admin } = await authenticate.admin(request);
   const formData = await request.formData();
+  const intent = formData.get("intent");
 
-  if (formData.get("intent") !== "resolveFile") {
+  if (intent === "searchResources") {
+    const resourceType = formData.get("resourceType");
+    const query = formData.get("query");
+
+    if (
+      (resourceType !== "product" && resourceType !== "collection") ||
+      typeof query !== "string"
+    ) {
+      return {
+        success: false,
+        error: "The resource search request is invalid.",
+      };
+    }
+
+    const searchQuery = query.trim();
+    if (searchQuery.length < 2) {
+      return {
+        success: true,
+        resources: [],
+      };
+    }
+
+    const response = await admin.graphql(
+      resourceType === "product"
+        ? `
+          #graphql
+          query SearchPromotionProducts($query: String!) {
+            products(first: 20, query: $query, sortKey: TITLE) {
+              nodes {
+                id
+                title
+                handle
+                featuredImage {
+                  url
+                }
+              }
+            }
+          }
+        `
+        : `
+          #graphql
+          query SearchPromotionCollections($query: String!) {
+            collections(first: 20, query: $query, sortKey: TITLE) {
+              nodes {
+                id
+                title
+                handle
+              }
+            }
+          }
+        `,
+      {
+        variables: {
+          query: `title:*${searchQuery.replace(/"/g, "")}*`,
+        },
+      },
+    );
+
+    const result = (await response.json()) as {
+      data?: {
+        products?: {
+          nodes: Array<{
+            id: string;
+            title: string;
+            handle: string;
+            featuredImage?: { url: string } | null;
+          }>;
+        };
+        collections?: {
+          nodes: Array<{
+            id: string;
+            title: string;
+            handle: string;
+          }>;
+        };
+      };
+      errors?: Array<{ message: string }>;
+    };
+
+    if (result.errors?.length) {
+      return {
+        success: false,
+        error: result.errors.map((error) => error.message).join(", "),
+      };
+    }
+
+    const nodes =
+      resourceType === "product"
+        ? result.data?.products?.nodes ?? []
+        : result.data?.collections?.nodes ?? [];
+
+    return {
+      success: true,
+      resources: nodes.map((item) => ({
+        id: item.id,
+        title: item.title,
+        handle: item.handle,
+        imageUrl:
+          "featuredImage" in item
+            ? item.featuredImage?.url ?? null
+            : null,
+      })),
+    };
+  }
+
+  if (intent !== "resolveFile") {
     return {
       success: false,
       error: "Unsupported action.",
@@ -257,7 +372,9 @@ function FormSection({
 
 export default function CreatePromotionPage() {
   const { products, collections } = useLoaderData<typeof loader>();
-  const fileFetcher = useFetcher<ResolveFileActionData>();
+  const shopify = useAppBridge();
+  const fileFetcher = useFetcher<PromotionActionData>();
+  const resourceFetcher = useFetcher<PromotionActionData>();
   const [searchParams] = useSearchParams();
   const rawType = searchParams.get("type");
   const discountType: DiscountType =
@@ -277,6 +394,9 @@ export default function CreatePromotionPage() {
   const [valueType, setValueType] = useState<"percentage" | "fixed">("percentage");
   const [discountValue, setDiscountValue] = useState("");
   const [appliesTo, setAppliesTo] = useState<"products" | "collections">("collections");
+  const [resourceSearch, setResourceSearch] = useState("");
+  const [selectedProducts, setSelectedProducts] = useState<ResourceSearchItem[]>([]);
+  const [selectedCollections, setSelectedCollections] = useState<ResourceSearchItem[]>([]);
   const [buyRequirement, setBuyRequirement] = useState<"quantity" | "amount">("quantity");
   const [buyQuantity, setBuyQuantity] = useState("1");
   const [buyAmount, setBuyAmount] = useState("");
@@ -407,6 +527,102 @@ export default function CreatePromotionPage() {
     setBannerShopifyFileId("");
     setBannerImageName(file.name);
     setBannerImagePreview(URL.createObjectURL(file));
+  }
+
+
+  useEffect(() => {
+    const query = resourceSearch.trim();
+
+    if (query.length < 2) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      resourceFetcher.submit(
+        {
+          intent: "searchResources",
+          resourceType: appliesTo === "products" ? "product" : "collection",
+          query,
+        },
+        {
+          method: "post",
+        },
+      );
+    }, 250);
+
+    return () => window.clearTimeout(timeout);
+  }, [resourceSearch, appliesTo]);
+
+  async function browseDiscountResources() {
+    const type = appliesTo === "products" ? "product" : "collection";
+    const currentSelection =
+      appliesTo === "products" ? selectedProducts : selectedCollections;
+
+    const selected = await shopify.resourcePicker({
+      type,
+      action: "select",
+      multiple: true,
+      selectionIds: currentSelection.map((item) => ({ id: item.id })),
+      ...(type === "product"
+        ? {
+            filter: {
+              variants: false,
+            },
+          }
+        : {}),
+    });
+
+    if (!selected) {
+      return;
+    }
+
+    const mapped = selected.map((item) => ({
+      id: item.id,
+      title: item.title,
+      handle: item.handle,
+      imageUrl:
+        "images" in item && Array.isArray(item.images)
+          ? item.images[0]?.originalSrc ?? null
+          : null,
+    }));
+
+    if (appliesTo === "products") {
+      setSelectedProducts(mapped);
+    } else {
+      setSelectedCollections(mapped);
+    }
+
+    setResourceSearch("");
+  }
+
+  function addSearchedResource(resource: ResourceSearchItem) {
+    if (appliesTo === "products") {
+      setSelectedProducts((current) =>
+        current.some((item) => item.id === resource.id)
+          ? current
+          : [...current, resource],
+      );
+    } else {
+      setSelectedCollections((current) =>
+        current.some((item) => item.id === resource.id)
+          ? current
+          : [...current, resource],
+      );
+    }
+
+    setResourceSearch("");
+  }
+
+  function removeSelectedResource(id: string) {
+    if (appliesTo === "products") {
+      setSelectedProducts((current) =>
+        current.filter((item) => item.id !== id),
+      );
+    } else {
+      setSelectedCollections((current) =>
+        current.filter((item) => item.id !== id),
+      );
+    }
   }
 
   const details = useMemo(() => {
@@ -1065,7 +1281,8 @@ export default function CreatePromotionPage() {
                           label="Value"
                           labelAccessibilityVisibility="exclusive"
                           min={0}
-                          step={0.01}
+                          max={valueType === "percentage" ? 100 : undefined}
+                          step={valueType === "percentage" ? 1 : 0.01}
                           value={discountValue}
                           prefix={valueType === "fixed" ? "£" : undefined}
                           suffix={valueType === "percentage" ? "%" : undefined}
@@ -1078,32 +1295,177 @@ export default function CreatePromotionPage() {
                       <s-select
                         label="Applies to"
                         value={appliesTo}
-                        onChange={(event) =>
+                        onChange={(event) => {
                           setAppliesTo(
                             event.currentTarget.value as "products" | "collections",
-                          )
-                        }
+                          );
+                          setResourceSearch("");
+                        }}
                       >
                         <s-option value="collections">Specific collections</s-option>
                         <s-option value="products">Specific products</s-option>
                       </s-select>
 
-                      <div
-                        style={{
-                          display: "grid",
-                          gridTemplateColumns: "minmax(0, 1fr) auto",
-                          gap: "8px",
-                          alignItems: "end",
-                        }}
-                      >
-                        <s-text-field
-                          label={appliesTo === "collections" ? "Search collections" : "Search products"}
-                          labelAccessibilityVisibility="exclusive"
-                          placeholder={appliesTo === "collections" ? "Search collections" : "Search products"}
-                        />
-                        <s-button type="button" variant="secondary">
-                          Browse
-                        </s-button>
+                      <div>
+                        <div
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: "minmax(0, 1fr) auto",
+                            gap: "8px",
+                            alignItems: "end",
+                          }}
+                        >
+                          <s-text-field
+                            label={appliesTo === "collections" ? "Search collections" : "Search products"}
+                            labelAccessibilityVisibility="exclusive"
+                            placeholder={appliesTo === "collections" ? "Search collections" : "Search products"}
+                            value={resourceSearch}
+                            onInput={(event) =>
+                              setResourceSearch(event.currentTarget.value)
+                            }
+                          />
+                          <s-button
+                            type="button"
+                            variant="secondary"
+                            onClick={browseDiscountResources}
+                          >
+                            Browse
+                          </s-button>
+                        </div>
+
+                        {resourceSearch.trim().length >= 2 && (
+                          <div
+                            style={{
+                              marginTop: "6px",
+                              overflow: "hidden",
+                              border: "1px solid #dedede",
+                              borderRadius: "8px",
+                              background: "#ffffff",
+                            }}
+                          >
+                            {resourceFetcher.state !== "idle" && (
+                              <div
+                                style={{
+                                  padding: "10px 12px",
+                                  color: "#616161",
+                                  fontSize: "12px",
+                                }}
+                              >
+                                Searching…
+                              </div>
+                            )}
+
+                            {resourceFetcher.state === "idle" &&
+                              resourceFetcher.data?.resources?.length === 0 && (
+                                <div
+                                  style={{
+                                    padding: "10px 12px",
+                                    color: "#616161",
+                                    fontSize: "12px",
+                                  }}
+                                >
+                                  No matching {appliesTo === "products" ? "products" : "collections"}.
+                                </div>
+                              )}
+
+                            {resourceFetcher.data?.resources?.map((resource) => (
+                              <button
+                                key={resource.id}
+                                type="button"
+                                onClick={() => addSearchedResource(resource)}
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "10px",
+                                  width: "100%",
+                                  padding: "9px 12px",
+                                  border: 0,
+                                  borderTop: "1px solid #f1f1f1",
+                                  background: "#ffffff",
+                                  color: "#202223",
+                                  textAlign: "left",
+                                  font: "inherit",
+                                  cursor: "pointer",
+                                }}
+                              >
+                                {resource.imageUrl && (
+                                  <img
+                                    src={resource.imageUrl}
+                                    alt=""
+                                    style={{
+                                      width: "34px",
+                                      height: "34px",
+                                      borderRadius: "6px",
+                                      objectFit: "cover",
+                                      flex: "0 0 auto",
+                                    }}
+                                  />
+                                )}
+                                <span style={{ fontSize: "12px", fontWeight: 600 }}>
+                                  {resource.title}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                        {(appliesTo === "products"
+                          ? selectedProducts
+                          : selectedCollections
+                        ).length > 0 && (
+                          <div
+                            style={{
+                              display: "grid",
+                              gap: "6px",
+                              marginTop: "10px",
+                            }}
+                          >
+                            {(appliesTo === "products"
+                              ? selectedProducts
+                              : selectedCollections
+                            ).map((resource) => (
+                              <div
+                                key={resource.id}
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "space-between",
+                                  gap: "10px",
+                                  padding: "8px 10px",
+                                  border: "1px solid #e3e3e3",
+                                  borderRadius: "8px",
+                                  background: "#fafafa",
+                                }}
+                              >
+                                <span
+                                  style={{
+                                    minWidth: 0,
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                    fontSize: "12px",
+                                  }}
+                                >
+                                  {resource.title}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => removeSelectedResource(resource.id)}
+                                  style={{
+                                    border: 0,
+                                    background: "transparent",
+                                    color: "#8a1f11",
+                                    font: "inherit",
+                                    fontSize: "11px",
+                                    cursor: "pointer",
+                                  }}
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </s-stack>
                   </FormSection>
