@@ -95,6 +95,8 @@ export default function CreatePromotionPage() {
   const [rewardType, setRewardType] = useState<"percentage" | "amount" | "free">("percentage");
   const [rewardValue, setRewardValue] = useState("");
   const [maxUsesPerOrder, setMaxUsesPerOrder] = useState(false);
+  const [eligibility, setEligibility] = useState<"all" | "segments" | "customers">("all");
+  const [eligibilitySearch, setEligibilitySearch] = useState("");
 
   function generateDiscountCode() {
     const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -106,8 +108,15 @@ export default function CreatePromotionPage() {
   }
 
   const details = useMemo(() => {
+    const eligibilityDetail =
+      eligibility === "all"
+        ? "All customers"
+        : eligibility === "segments"
+          ? "Specific customer segments"
+          : "Specific customers";
+
     const base = [
-      "All customers",
+      eligibilityDetail,
       "For Online Store",
       "No usage limits",
       "Can't combine with other discounts",
@@ -123,7 +132,7 @@ export default function CreatePromotionPage() {
     }
 
     return base;
-  }, [discountType]);
+  }, [discountType, eligibility]);
 
   return (
     <s-page heading="Create discount">
@@ -692,11 +701,77 @@ export default function CreatePromotionPage() {
                 )}
 
                 <FormSection title="Eligibility">
-                  <s-select label="Eligibility" value="all">
-                    <s-option value="all">All customers</s-option>
-                    <s-option value="segments">Specific customer segments</s-option>
-                    <s-option value="customers">Specific customers</s-option>
-                  </s-select>
+                  <s-stack direction="block" gap="base">
+                    <s-select
+                      label="Eligibility"
+                      value={eligibility}
+                      onChange={(event) => {
+                        setEligibility(
+                          event.currentTarget.value as
+                            | "all"
+                            | "segments"
+                            | "customers",
+                        );
+                        setEligibilitySearch("");
+                      }}
+                    >
+                      <s-option value="all">All customers</s-option>
+                      <s-option value="segments">
+                        Specific customer segments
+                      </s-option>
+                      <s-option value="customers">
+                        Specific customers
+                      </s-option>
+                    </s-select>
+
+                    {eligibility !== "all" && (
+                      <div>
+                        <div
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: "minmax(0, 1fr) auto",
+                            gap: "8px",
+                            alignItems: "end",
+                          }}
+                        >
+                          <s-text-field
+                            label={
+                              eligibility === "segments"
+                                ? "Search customer segments"
+                                : "Search customers"
+                            }
+                            labelAccessibilityVisibility="exclusive"
+                            placeholder={
+                              eligibility === "segments"
+                                ? "Search customer segments"
+                                : "Search customers"
+                            }
+                            value={eligibilitySearch}
+                            onInput={(event) =>
+                              setEligibilitySearch(event.currentTarget.value)
+                            }
+                          />
+
+                          <s-button type="button" variant="secondary">
+                            Browse
+                          </s-button>
+                        </div>
+
+                        <div
+                          style={{
+                            marginTop: "8px",
+                            color: "#616161",
+                            fontSize: "12px",
+                            lineHeight: 1.45,
+                          }}
+                        >
+                          {eligibility === "segments"
+                            ? "Select the customer segments that can use this discount."
+                            : "Select the individual customers that can use this discount."}
+                        </div>
+                      </div>
+                    )}
+                  </s-stack>
                 </FormSection>
 
                 {discountType !== "bxgy" && (
