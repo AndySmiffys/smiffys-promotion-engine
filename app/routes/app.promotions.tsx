@@ -98,6 +98,70 @@ function getSummaryLines(summary: string): string[] {
     .filter(Boolean);
 }
 
+type DiscountIconType = "tag" | "order" | "truck";
+
+function DiscountTypeIcon({
+  type,
+  size = 22,
+}: {
+  type: DiscountIconType;
+  size?: number;
+}) {
+  return (
+    <span
+      aria-hidden="true"
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flex: "0 0 auto",
+        width: `${size + 10}px`,
+        height: `${size + 10}px`,
+        borderRadius: "10px",
+        background: "#f6f6f7",
+        color: "#303030",
+      }}
+    >
+      {type === "tag" && (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M20.6 13.6 13.7 20.5a2 2 0 0 1-2.8 0L3.5 13.1a2 2 0 0 1-.6-1.4V5a2 2 0 0 1 2-2h6.7a2 2 0 0 1 1.4.6l7.6 7.2a2 2 0 0 1 0 2.8Z" />
+          <circle cx="8" cy="8" r="1.25" />
+        </svg>
+      )}
+      {type === "order" && (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M5 3h14a2 2 0 0 1 2 2v16l-3-2-3 2-3-2-3 2-3-2-3 2V5a2 2 0 0 1 2-2Z" />
+          <path d="M8 8h8M8 12h8M8 16h5" />
+        </svg>
+      )}
+      {type === "truck" && (
+        <svg width={size + 2} height={size} viewBox="0 0 26 22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M2 3h14v13H2z" />
+          <path d="M16 8h4l4 4v4h-8z" />
+          <circle cx="7" cy="18" r="2" />
+          <circle cx="20" cy="18" r="2" />
+          <path d="M9 18h9M20 8v4h4" />
+        </svg>
+      )}
+    </span>
+  );
+}
+
+function getPromotionIconType(promotion: PromotionRecord): DiscountIconType {
+  if (promotion.shopify.bxgy) {
+    return "tag";
+  }
+
+  switch (promotion.shopify.general.type) {
+    case "Order":
+      return "order";
+    case "Shipping":
+      return "truck";
+    default:
+      return "tag";
+  }
+}
+
 export default function PromotionsPage() {
   const { promotions } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
@@ -395,30 +459,45 @@ export default function PromotionsPage() {
                       className="promotion-list-row"
                     >
                       <div className="promotion-list-cell promotion-list-title">
-                        <s-link href={`/app/promotions/${promotion.routeId}`}>
-                          <span
-                            style={{
-                              color: "#202223",
-                              fontSize: "14px",
-                              fontWeight: 650,
-                            }}
-                          >
-                            {general.title}
-                          </span>
-                        </s-link>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "flex-start",
+                            gap: "10px",
+                          }}
+                        >
+                          <DiscountTypeIcon
+                            type={getPromotionIconType(promotion)}
+                            size={20}
+                          />
 
-                        {summaryLines.length > 0 && (
-                          <div className="promotion-summary-lines">
-                            {summaryLines.map((line, index) => (
+                          <div style={{ minWidth: 0 }}>
+                            <s-link href={`/app/promotions/${promotion.routeId}`}>
                               <span
-                                key={`${promotion.id}-summary-${index}`}
-                                className="promotion-summary-line"
+                                style={{
+                                  color: "#202223",
+                                  fontSize: "14px",
+                                  fontWeight: 650,
+                                }}
                               >
-                                {line}
+                                {general.title}
                               </span>
-                            ))}
+                            </s-link>
+
+                            {summaryLines.length > 0 && (
+                              <div className="promotion-summary-lines">
+                                {summaryLines.map((line, index) => (
+                                  <span
+                                    key={`${promotion.id}-summary-${index}`}
+                                    className="promotion-summary-line"
+                                  >
+                                    {line}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
                           </div>
-                        )}
+                        </div>
                       </div>
 
                       <div className="promotion-list-cell">
@@ -593,39 +672,10 @@ export default function PromotionsPage() {
                   cursor: "pointer",
                 }}
               >
-                <span
-                  aria-hidden="true"
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    width: "28px",
-                    height: "28px",
-                    color: "#303030",
-                  }}
-                >
-                  {discountType.icon === "tag" && (
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M20.6 13.6 13.7 20.5a2 2 0 0 1-2.8 0L3.5 13.1a2 2 0 0 1-.6-1.4V5a2 2 0 0 1 2-2h6.7a2 2 0 0 1 1.4.6l7.6 7.2a2 2 0 0 1 0 2.8Z" />
-                      <circle cx="8" cy="8" r="1.25" />
-                    </svg>
-                  )}
-                  {discountType.icon === "order" && (
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M5 3h14a2 2 0 0 1 2 2v16l-3-2-3 2-3-2-3 2-3-2-3 2V5a2 2 0 0 1 2-2Z" />
-                      <path d="M8 8h8M8 12h8M8 16h5" />
-                    </svg>
-                  )}
-                  {discountType.icon === "truck" && (
-                    <svg width="22" height="20" viewBox="0 0 26 22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M2 3h14v13H2z" />
-                      <path d="M16 8h4l4 4v4h-8z" />
-                      <circle cx="7" cy="18" r="2" />
-                      <circle cx="20" cy="18" r="2" />
-                      <path d="M9 18h9M20 8v4h4" />
-                    </svg>
-                  )}
-                </span>
+                <DiscountTypeIcon
+                  type={discountType.icon as DiscountIconType}
+                  size={20}
+                />
 
                 <span style={{ minWidth: 0 }}>
                   <span
