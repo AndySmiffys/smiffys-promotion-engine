@@ -106,6 +106,22 @@ export default function CreatePromotionPage() {
   const [maxUsesPerOrder, setMaxUsesPerOrder] = useState(false);
   const [eligibility, setEligibility] = useState<"all" | "segments" | "customers">("all");
   const [eligibilitySearch, setEligibilitySearch] = useState("");
+  const [included, setIncluded] = useState(true);
+  const [websiteEnabled, setWebsiteEnabled] = useState(false);
+  const [showProductPage, setShowProductPage] = useState(false);
+  const [showCollectionPage, setShowCollectionPage] = useState(false);
+  const [showProductBadge, setShowProductBadge] = useState(false);
+  const [showCountdown, setShowCountdown] = useState(false);
+  const [showHeaderBanner, setShowHeaderBanner] = useState(false);
+  const [headline, setHeadline] = useState("");
+  const [body, setBody] = useState("");
+  const [badgeText, setBadgeText] = useState("");
+  const [countdownText, setCountdownText] = useState("");
+  const [buttonText, setButtonText] = useState("");
+  const [buttonUrl, setButtonUrl] = useState("");
+  const [backgroundColour, setBackgroundColour] = useState("#ffffff");
+  const [textColour, setTextColour] = useState("#000000");
+  const [badgeColour, setBadgeColour] = useState("#d72c0d");
 
   function generateDiscountCode() {
     const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -835,28 +851,314 @@ export default function CreatePromotionPage() {
 
                 <FormSection title="Website promotion">
                   <s-stack direction="block" gap="small">
-                    <s-checkbox label="Include in promotion sync" checked />
-                    <s-checkbox label="Enable website promotion" />
-                    <s-checkbox label="Show on product pages" />
-                    <s-checkbox label="Show on collection pages" />
-                    <s-checkbox label="Show product badge" />
-                    <s-checkbox label="Show countdown" />
-                    <s-checkbox label="Show header banner" />
+                    <s-checkbox
+                      label="Include in promotion sync"
+                      checked={included}
+                      onChange={(event) => setIncluded(event.currentTarget.checked)}
+                    />
+                    <s-checkbox
+                      label="Enable website promotion"
+                      checked={websiteEnabled}
+                      onChange={(event) => setWebsiteEnabled(event.currentTarget.checked)}
+                    />
+                    <s-checkbox
+                      label="Show on product pages"
+                      checked={showProductPage}
+                      onChange={(event) => setShowProductPage(event.currentTarget.checked)}
+                    />
+                    <s-checkbox
+                      label="Show on collection pages"
+                      checked={showCollectionPage}
+                      onChange={(event) => setShowCollectionPage(event.currentTarget.checked)}
+                    />
+                    <s-checkbox
+                      label="Show product badge"
+                      checked={showProductBadge}
+                      onChange={(event) => setShowProductBadge(event.currentTarget.checked)}
+                    />
+                    <s-checkbox
+                      label="Show countdown"
+                      checked={showCountdown}
+                      onChange={(event) => setShowCountdown(event.currentTarget.checked)}
+                    />
+                    <s-checkbox
+                      label="Show header banner"
+                      checked={showHeaderBanner}
+                      onChange={(event) => setShowHeaderBanner(event.currentTarget.checked)}
+                    />
                   </s-stack>
                 </FormSection>
 
                 <FormSection title="Messages and styling">
                   <s-stack direction="block" gap="base">
-                    <s-text-field label="Headline" />
-                    <s-text-area label="Body" rows={4} />
-                    <s-text-field label="Badge text" />
-                    <s-text-field label="Countdown text" />
-                    <s-text-field label="Button text" />
-                    <s-url-field label="Button URL" />
-                    <s-color-field label="Background colour" value="#ffffff" />
-                    <s-color-field label="Text colour" value="#000000" />
-                    <s-color-field label="Badge colour" value="#d72c0d" />
+                    <s-text-field
+                      label="Headline"
+                      value={headline}
+                      onInput={(event) => setHeadline(event.currentTarget.value)}
+                    />
+                    <s-text-area
+                      label="Body"
+                      rows={4}
+                      value={body}
+                      onInput={(event) => setBody(event.currentTarget.value)}
+                    />
+                    <s-text-field
+                      label="Badge text"
+                      value={badgeText}
+                      onInput={(event) => setBadgeText(event.currentTarget.value)}
+                    />
+                    <s-text-field
+                      label="Countdown text"
+                      value={countdownText}
+                      onInput={(event) => setCountdownText(event.currentTarget.value)}
+                    />
+                    <s-text-field
+                      label="Button text"
+                      value={buttonText}
+                      onInput={(event) => setButtonText(event.currentTarget.value)}
+                    />
+                    <s-url-field
+                      label="Button URL"
+                      value={buttonUrl}
+                      onInput={(event) => setButtonUrl(event.currentTarget.value)}
+                    />
+                    <s-color-field
+                      label="Background colour"
+                      value={backgroundColour}
+                      onInput={(event) => setBackgroundColour(event.currentTarget.value)}
+                    />
+                    <s-color-field
+                      label="Text colour"
+                      value={textColour}
+                      onInput={(event) => setTextColour(event.currentTarget.value)}
+                    />
+                    <s-color-field
+                      label="Badge colour"
+                      value={badgeColour}
+                      onInput={(event) => setBadgeColour(event.currentTarget.value)}
+                    />
                   </s-stack>
+                </FormSection>
+
+                <FormSection title="Website preview">
+                  <div
+                    style={{
+                      overflow: "hidden",
+                      border: "1px solid #d9d9d9",
+                      borderRadius: "12px",
+                      background: "#f6f6f7",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: "10px",
+                        padding: "10px 12px",
+                        borderBottom: "1px solid #e4e4e4",
+                        background: "#ffffff",
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontSize: "12px", fontWeight: 650 }}>
+                          Live website preview
+                        </div>
+                        <div style={{ marginTop: "2px", color: "#616161", fontSize: "11px" }}>
+                          Preview only — nothing is published until the promotion is saved.
+                        </div>
+                      </div>
+                      <s-badge tone={websiteEnabled && included ? "success" : "neutral"}>
+                        {websiteEnabled && included ? "Enabled" : "Not enabled"}
+                      </s-badge>
+                    </div>
+
+                    <div
+                      style={{
+                        padding: "16px",
+                        background: "#f4f4f4",
+                      }}
+                    >
+                      {showHeaderBanner && (
+                        <div
+                          style={{
+                            marginBottom: "14px",
+                            padding: "10px 14px",
+                            borderRadius: "6px",
+                            background: backgroundColour,
+                            color: textColour,
+                            textAlign: "center",
+                            fontSize: "12px",
+                            fontWeight: 650,
+                            boxShadow: "0 1px 2px rgba(0,0,0,0.08)",
+                          }}
+                        >
+                          {headline || "Promotion headline"}
+                          {showCountdown && (
+                            <span style={{ marginLeft: "8px", fontWeight: 500 }}>
+                              {countdownText || "Offer ends soon"}
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "minmax(180px, 0.8fr) minmax(0, 1.2fr)",
+                          gap: "14px",
+                        }}
+                        className="website-preview-grid"
+                      >
+                        <div
+                          style={{
+                            position: "relative",
+                            minHeight: "250px",
+                            overflow: "hidden",
+                            border: "1px solid #dddddd",
+                            borderRadius: "10px",
+                            background: "#ffffff",
+                          }}
+                        >
+                          <div
+                            style={{
+                              height: "150px",
+                              background: "linear-gradient(135deg, #eeeeee, #dddddd)",
+                            }}
+                          />
+                          {showProductBadge && (
+                            <div
+                              style={{
+                                position: "absolute",
+                                top: "12px",
+                                left: "12px",
+                                padding: "4px 8px",
+                                borderRadius: "999px",
+                                background: badgeColour,
+                                color: "#ffffff",
+                                fontSize: "10px",
+                                fontWeight: 700,
+                              }}
+                            >
+                              {badgeText || "PROMOTION"}
+                            </div>
+                          )}
+                          <div style={{ padding: "12px" }}>
+                            <div style={{ fontSize: "12px", fontWeight: 650 }}>
+                              Example product
+                            </div>
+                            <div style={{ marginTop: "4px", color: "#616161", fontSize: "11px" }}>
+                              £29.99
+                            </div>
+                            {showCollectionPage && (
+                              <div
+                                style={{
+                                  marginTop: "10px",
+                                  padding: "8px",
+                                  borderRadius: "6px",
+                                  background: backgroundColour,
+                                  color: textColour,
+                                  fontSize: "10px",
+                                }}
+                              >
+                                {headline || "Promotion headline"}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div
+                          style={{
+                            minHeight: "250px",
+                            padding: "18px",
+                            border: "1px solid #dddddd",
+                            borderRadius: "10px",
+                            background: "#ffffff",
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: "inline-block",
+                              padding: "3px 7px",
+                              borderRadius: "999px",
+                              background: "#f1f1f1",
+                              color: "#616161",
+                              fontSize: "10px",
+                            }}
+                          >
+                            Product page
+                          </div>
+
+                          <div style={{ marginTop: "16px", fontSize: "18px", fontWeight: 700 }}>
+                            Example product
+                          </div>
+                          <div style={{ marginTop: "6px", fontSize: "14px" }}>£29.99</div>
+
+                          {showProductPage && (
+                            <div
+                              style={{
+                                marginTop: "18px",
+                                padding: "14px",
+                                borderRadius: "8px",
+                                background: backgroundColour,
+                                color: textColour,
+                              }}
+                            >
+                              <div style={{ fontSize: "13px", fontWeight: 700 }}>
+                                {headline || "Promotion headline"}
+                              </div>
+                              {body && (
+                                <div style={{ marginTop: "5px", fontSize: "11px", lineHeight: 1.45 }}>
+                                  {body}
+                                </div>
+                              )}
+                              {showCountdown && (
+                                <div style={{ marginTop: "8px", fontSize: "11px", fontWeight: 650 }}>
+                                  {countdownText || "Offer ends soon"}
+                                </div>
+                              )}
+                              {buttonText && (
+                                <span
+                                  style={{
+                                    display: "inline-block",
+                                    marginTop: "10px",
+                                    padding: "6px 10px",
+                                    borderRadius: "6px",
+                                    background: textColour,
+                                    color: backgroundColour,
+                                    fontSize: "10px",
+                                    fontWeight: 650,
+                                  }}
+                                >
+                                  {buttonText}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {!showHeaderBanner &&
+                        !showProductPage &&
+                        !showCollectionPage &&
+                        !showProductBadge && (
+                          <div
+                            style={{
+                              marginTop: "14px",
+                              padding: "12px",
+                              border: "1px dashed #c9c9c9",
+                              borderRadius: "8px",
+                              background: "#ffffff",
+                              color: "#616161",
+                              fontSize: "12px",
+                              textAlign: "center",
+                            }}
+                          >
+                            Select one or more website placements above to preview the promotion.
+                          </div>
+                        )}
+                    </div>
+                  </div>
                 </FormSection>
 
                 <s-banner tone="info">
@@ -937,7 +1239,8 @@ export default function CreatePromotionPage() {
               }
 
               .discount-value-row,
-              .bxgy-pair-row {
+              .bxgy-pair-row,
+              .website-preview-grid {
                 grid-template-columns: 1fr !important;
               }
             }
