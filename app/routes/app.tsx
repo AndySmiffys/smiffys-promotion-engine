@@ -29,7 +29,6 @@ export const loader = async ({
 }: LoaderFunctionArgs) => {
   await authenticate.admin(request);
 
-  // eslint-disable-next-line no-undef
   return {
     apiKey:
       process.env.SHOPIFY_API_KEY || "",
@@ -50,7 +49,7 @@ export default function App() {
           to="/app"
           rel="home"
         >
-          Dashboard
+          Home
         </Link>
 
         <Link to="/app/promotions">
@@ -63,8 +62,6 @@ export default function App() {
   );
 }
 
-// Shopify needs React Router to catch some thrown responses,
-// so their headers are included in the response.
 export function ErrorBoundary() {
   return boundary.error(
     useRouteError(),
