@@ -550,25 +550,25 @@ export default function PromotionsPage() {
                 type: "product",
                 title: "Amount off products",
                 description: "Discount specific products or collections of products",
-                icon: "◇",
+                icon: "tag",
               },
               {
                 type: "bxgy",
                 title: "Buy X get Y",
                 description: "Discount specific products or collections of products",
-                icon: "◇",
+                icon: "tag",
               },
               {
                 type: "order",
                 title: "Amount off order",
                 description: "Discount the total order amount",
-                icon: "▭",
+                icon: "order",
               },
               {
                 type: "shipping",
                 title: "Free shipping",
                 description: "Offer free shipping on an order",
-                icon: "♧",
+                icon: "truck",
               },
             ].map((discountType) => (
               <button
@@ -596,11 +596,35 @@ export default function PromotionsPage() {
                 <span
                   aria-hidden="true"
                   style={{
-                    fontSize: "18px",
-                    textAlign: "center",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: "28px",
+                    height: "28px",
+                    color: "#303030",
                   }}
                 >
-                  {discountType.icon}
+                  {discountType.icon === "tag" && (
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20.6 13.6 13.7 20.5a2 2 0 0 1-2.8 0L3.5 13.1a2 2 0 0 1-.6-1.4V5a2 2 0 0 1 2-2h6.7a2 2 0 0 1 1.4.6l7.6 7.2a2 2 0 0 1 0 2.8Z" />
+                      <circle cx="8" cy="8" r="1.25" />
+                    </svg>
+                  )}
+                  {discountType.icon === "order" && (
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M5 3h14a2 2 0 0 1 2 2v16l-3-2-3 2-3-2-3 2-3-2-3 2V5a2 2 0 0 1 2-2Z" />
+                      <path d="M8 8h8M8 12h8M8 16h5" />
+                    </svg>
+                  )}
+                  {discountType.icon === "truck" && (
+                    <svg width="22" height="20" viewBox="0 0 26 22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M2 3h14v13H2z" />
+                      <path d="M16 8h4l4 4v4h-8z" />
+                      <circle cx="7" cy="18" r="2" />
+                      <circle cx="20" cy="18" r="2" />
+                      <path d="M9 18h9M20 8v4h4" />
+                    </svg>
+                  )}
                 </span>
 
                 <span style={{ minWidth: 0 }}>
