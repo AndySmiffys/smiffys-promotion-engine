@@ -29,11 +29,18 @@ type LinkResourcesResponse = {
   errors?: Array<{ message: string }>;
 };
 
+type ResourceVariant = {
+  id: string;
+  title: string;
+};
+
 type ResourceSearchItem = {
   id: string;
   title: string;
   handle: string;
   imageUrl?: string | null;
+  variants?: ResourceVariant[];
+  selectedVariantIds?: string[];
 };
 
 type PromotionActionData = {
@@ -87,6 +94,12 @@ export async function action({ request }: ActionFunctionArgs): Promise<Promotion
                 featuredImage {
                   url
                 }
+                variants(first: 100) {
+                  nodes {
+                    id
+                    title
+                  }
+                }
               }
             }
           }
@@ -118,6 +131,12 @@ export async function action({ request }: ActionFunctionArgs): Promise<Promotion
             title: string;
             handle: string;
             featuredImage?: { url: string } | null;
+            variants?: {
+              nodes: Array<{
+                id: string;
+                title: string;
+              }>;
+            };
           }>;
         };
         collections?: {
@@ -153,6 +172,14 @@ export async function action({ request }: ActionFunctionArgs): Promise<Promotion
           "featuredImage" in item
             ? item.featuredImage?.url ?? null
             : null,
+        variants:
+          "variants" in item
+            ? item.variants?.nodes ?? []
+            : undefined,
+        selectedVariantIds:
+          "variants" in item
+            ? (item.variants?.nodes ?? []).map((variant) => variant.id)
+            : undefined,
       })),
     };
   }
@@ -562,11 +589,18 @@ export default function CreatePromotionPage() {
       type,
       action: "select",
       multiple: true,
-      selectionIds: currentSelection.map((item) => ({ id: item.id })),
+      selectionIds: currentSelection.map((item) => ({
+        id: item.id,
+        ...(type === "product" && item.selectedVariantIds?.length
+          ? {
+              variants: item.selectedVariantIds.map((id) => ({ id })),
+            }
+          : {}),
+      })),
       ...(type === "product"
         ? {
             filter: {
-              variants: false,
+              variants: true,
             },
           }
         : {}),
@@ -576,15 +610,27 @@ export default function CreatePromotionPage() {
       return;
     }
 
-    const mapped = selected.map((item) => ({
-      id: item.id,
-      title: item.title,
-      handle: item.handle,
-      imageUrl:
-        "images" in item && Array.isArray(item.images)
-          ? item.images[0]?.originalSrc ?? null
-          : null,
-    }));
+    const mapped = selected.map((item) => {
+      const variants =
+        "variants" in item && Array.isArray(item.variants)
+          ? item.variants.map((variant) => ({
+              id: variant.id,
+              title: variant.title,
+            }))
+          : undefined;
+
+      return {
+        id: item.id,
+        title: item.title,
+        handle: item.handle,
+        imageUrl:
+          "images" in item && Array.isArray(item.images)
+            ? item.images[0]?.originalSrc ?? null
+            : null,
+        variants,
+        selectedVariantIds: variants?.map((variant) => variant.id),
+      };
+    });
 
     if (appliesTo === "products") {
       setSelectedProducts(mapped);
@@ -596,17 +642,28 @@ export default function CreatePromotionPage() {
   }
 
   function addSearchedResource(resource: ResourceSearchItem) {
+    const selectedResource =
+      appliesTo === "products"
+        ? {
+            ...resource,
+            selectedVariantIds:
+              resource.selectedVariantIds ??
+              resource.variants?.map((variant) => variant.id) ??
+              [],
+          }
+        : resource;
+
     if (appliesTo === "products") {
       setSelectedProducts((current) =>
         current.some((item) => item.id === resource.id)
           ? current
-          : [...current, resource],
+          : [...current, selectedResource],
       );
     } else {
       setSelectedCollections((current) =>
         current.some((item) => item.id === resource.id)
           ? current
-          : [...current, resource],
+          : [...current, selectedResource],
       );
     }
 
@@ -1437,31 +1494,75 @@ export default function CreatePromotionPage() {
                                   background: "#fafafa",
                                 }}
                               >
-                                <span
+                                <div
                                   style={{
                                     minWidth: 0,
                                     overflow: "hidden",
-                                    textOverflow: "ellipsis",
-                                    whiteSpace: "nowrap",
-                                    fontSize: "12px",
                                   }}
                                 >
-                                  {resource.title}
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => removeSelectedResource(resource.id)}
+                                  <div
+                                    style={{
+                                      overflow: "hidden",
+                                      textOverflow: "ellipsis",
+                                      whiteSpace: "nowrap",
+                                      fontSize: "12px",
+                                      fontWeight: 600,
+                                    }}
+                                  >
+                                    {resource.title}
+                                  </div>
+                                  {appliesTo === "products" && resource.variants && (
+                                    <div
+                                      style={{
+                                        marginTop: "2px",
+                                        color: "#616161",
+                                        fontSize: "11px",
+                                      }}
+                                    >
+                                      {resource.selectedVariantIds?.length ?? 0} of{" "}
+                                      {resource.variants.length} variants selected
+                                    </div>
+                                  )}
+                                </div>
+                                <div
                                   style={{
-                                    border: 0,
-                                    background: "transparent",
-                                    color: "#8a1f11",
-                                    font: "inherit",
-                                    fontSize: "11px",
-                                    cursor: "pointer",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "10px",
+                                    flex: "0 0 auto",
                                   }}
                                 >
-                                  Remove
-                                </button>
+                                  {appliesTo === "products" && (
+                                    <button
+                                      type="button"
+                                      onClick={browseDiscountResources}
+                                      style={{
+                                        border: 0,
+                                        background: "transparent",
+                                        color: "#005bd3",
+                                        font: "inherit",
+                                        fontSize: "11px",
+                                        cursor: "pointer",
+                                      }}
+                                    >
+                                      Edit variants
+                                    </button>
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() => removeSelectedResource(resource.id)}
+                                    style={{
+                                      border: 0,
+                                      background: "transparent",
+                                      color: "#8a1f11",
+                                      font: "inherit",
+                                      fontSize: "11px",
+                                      cursor: "pointer",
+                                    }}
+                                  >
+                                    Remove
+                                  </button>
+                                </div>
                               </div>
                             ))}
                           </div>
