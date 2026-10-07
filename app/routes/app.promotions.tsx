@@ -91,6 +91,13 @@ function getEligibility(promotion: PromotionRecord): string {
   return "Targeted customers";
 }
 
+function getSummaryLines(summary: string): string[] {
+  return summary
+    .split(/\s*•\s*/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
 export default function PromotionsPage() {
   const { promotions } = useLoaderData<typeof loader>();
   const [query, setQuery] = useState("");
@@ -159,6 +166,143 @@ export default function PromotionsPage() {
             </s-button>
           </div>
 
+          <style>{`
+            .promotion-filters {
+              display: grid;
+              grid-template-columns: minmax(0, 1fr) 180px;
+              gap: 12px;
+              padding: 12px;
+              border-bottom: 1px solid #ebebeb;
+              background: #fafafa;
+            }
+
+            .promotion-list-header,
+            .promotion-list-row {
+              display: grid;
+              grid-template-columns:
+                minmax(220px, 2.4fr)
+                minmax(84px, 0.75fr)
+                minmax(70px, 0.65fr)
+                minmax(110px, 1fr)
+                minmax(92px, 0.9fr)
+                minmax(92px, 0.85fr)
+                minmax(72px, 0.7fr)
+                64px;
+              column-gap: 12px;
+              align-items: center;
+            }
+
+            .promotion-list-header {
+              padding: 11px 14px;
+              border-bottom: 1px solid #ebebeb;
+              background: #fafafa;
+              color: #616161;
+              font-size: 12px;
+              font-weight: 650;
+            }
+
+            .promotion-list-row {
+              padding: 14px;
+              border-bottom: 1px solid #eeeeee;
+            }
+
+            .promotion-list-row:last-child {
+              border-bottom: 0;
+            }
+
+            .promotion-list-cell {
+              min-width: 0;
+              overflow-wrap: anywhere;
+              font-size: 13px;
+            }
+
+            .promotion-mobile-label {
+              display: none;
+              margin-bottom: 4px;
+              color: #616161;
+              font-size: 11px;
+              font-weight: 650;
+            }
+
+            .promotion-summary-lines {
+              display: grid;
+              gap: 2px;
+              margin-top: 4px;
+              color: #616161;
+              font-size: 12px;
+              line-height: 1.4;
+            }
+
+            .promotion-summary-line {
+              display: block;
+            }
+
+            @media (max-width: 980px) {
+              .promotion-list-header,
+              .promotion-list-row {
+                grid-template-columns:
+                  minmax(200px, 2fr)
+                  minmax(78px, 0.7fr)
+                  minmax(72px, 0.65fr)
+                  minmax(110px, 1fr)
+                  minmax(90px, 0.85fr)
+                  minmax(86px, 0.8fr)
+                  minmax(68px, 0.65fr)
+                  58px;
+                column-gap: 8px;
+              }
+
+              .promotion-list-row {
+                padding: 12px;
+              }
+
+              .promotion-list-header {
+                padding: 10px 12px;
+              }
+            }
+
+            @media (max-width: 760px) {
+              .promotion-filters {
+                grid-template-columns: 1fr;
+              }
+
+              .promotion-list-header {
+                display: none;
+              }
+
+              .promotion-list-row {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 14px 18px;
+                align-items: start;
+                padding: 16px;
+              }
+
+              .promotion-list-title {
+                grid-column: 1 / -1;
+              }
+
+              .promotion-list-action {
+                grid-column: 1 / -1;
+                text-align: left !important;
+              }
+
+              .promotion-mobile-label {
+                display: block;
+              }
+            }
+
+            @media (max-width: 480px) {
+              .promotion-list-row {
+                grid-template-columns: 1fr;
+              }
+
+              .promotion-list-title,
+              .promotion-list-action {
+                grid-column: 1;
+              }
+            }
+          `}</style>
+
           <section
             style={{
               overflow: "hidden",
@@ -168,16 +312,7 @@ export default function PromotionsPage() {
               boxShadow: "0 1px 2px rgba(0, 0, 0, 0.04)",
             }}
           >
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "minmax(220px, 1fr) 180px",
-                gap: "12px",
-                padding: "12px",
-                borderBottom: "1px solid #ebebeb",
-                background: "#fafafa",
-              }}
-            >
+            <div className="promotion-filters">
               <s-text-field
                 label="Search promotions"
                 labelAccessibilityVisibility="exclusive"
@@ -219,116 +354,104 @@ export default function PromotionsPage() {
                 </div>
               </div>
             ) : (
-              <div style={{ overflowX: "auto" }}>
-                <table
-                  style={{
-                    width: "100%",
-                    minWidth: "980px",
-                    borderCollapse: "collapse",
-                  }}
-                >
-                  <thead>
-                    <tr
-                      style={{
-                        background: "#fafafa",
-                        borderBottom: "1px solid #ebebeb",
-                      }}
-                    >
-                      {["Title", "Status", "Method", "Eligibility", "Type", "Website", "Value", ""].map((label) => (
-                        <th
-                          key={label || "action"}
-                          scope="col"
-                          style={{
-                            padding: "11px 14px",
-                            color: "#616161",
-                            fontSize: "12px",
-                            fontWeight: 650,
-                            textAlign: "left",
-                            whiteSpace: "nowrap",
-                          }}
-                        >
-                          {label}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredPromotions.map((promotion) => {
-                      const general = promotion.shopify.general;
+              <div>
+                <div className="promotion-list-header" aria-hidden="true">
+                  <div>Title</div>
+                  <div>Status</div>
+                  <div>Method</div>
+                  <div>Eligibility</div>
+                  <div>Type</div>
+                  <div>Website</div>
+                  <div>Value</div>
+                  <div />
+                </div>
 
-                      return (
-                        <tr
-                          key={promotion.id}
-                          style={{
-                            borderBottom: "1px solid #eeeeee",
-                          }}
-                        >
-                          <td style={{ padding: "14px" }}>
-                            <s-link href={`/app/promotions/${promotion.routeId}`}>
-                              <span
-                                style={{
-                                  color: "#202223",
-                                  fontSize: "14px",
-                                  fontWeight: 650,
-                                }}
-                              >
-                                {general.title}
-                              </span>
-                            </s-link>
-                            <div
-                              style={{
-                                maxWidth: "390px",
-                                marginTop: "3px",
-                                color: "#616161",
-                                fontSize: "12px",
-                                lineHeight: 1.4,
-                              }}
-                            >
-                              {general.summary}
-                            </div>
-                          </td>
-                          <td style={{ padding: "14px" }}>
-                            <s-badge tone={getStatusTone(general.status)}>
-                              {general.status}
-                            </s-badge>
-                          </td>
-                          <td style={{ padding: "14px", fontSize: "13px" }}>
-                            {general.method}
-                          </td>
-                          <td style={{ padding: "14px", fontSize: "13px" }}>
-                            {getEligibility(promotion)}
-                          </td>
-                          <td style={{ padding: "14px", fontSize: "13px" }}>
-                            {general.type}
-                          </td>
-                          <td style={{ padding: "14px" }}>
-                            <s-badge
-                              tone={promotion.settings.included ? "success" : "neutral"}
-                            >
-                              {promotion.settings.included ? "Included" : "Excluded"}
-                            </s-badge>
-                          </td>
-                          <td style={{ padding: "14px", fontSize: "13px" }}>
-                            {getPromotionValue(promotion)}
-                          </td>
-                          <td
+                {filteredPromotions.map((promotion) => {
+                  const general = promotion.shopify.general;
+                  const summaryLines = getSummaryLines(general.summary);
+
+                  return (
+                    <div
+                      key={promotion.id}
+                      className="promotion-list-row"
+                    >
+                      <div className="promotion-list-cell promotion-list-title">
+                        <s-link href={`/app/promotions/${promotion.routeId}`}>
+                          <span
                             style={{
-                              padding: "14px",
-                              textAlign: "right",
+                              color: "#202223",
+                              fontSize: "14px",
+                              fontWeight: 650,
                             }}
                           >
-                            <s-button
-                              href={`/app/promotions/${promotion.routeId}`}
-                              variant="secondary"
-                            >
-                              View
-                            </s-button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                            {general.title}
+                          </span>
+                        </s-link>
+
+                        {summaryLines.length > 0 && (
+                          <div className="promotion-summary-lines">
+                            {summaryLines.map((line, index) => (
+                              <span
+                                key={`${promotion.id}-summary-${index}`}
+                                className="promotion-summary-line"
+                              >
+                                {line}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="promotion-list-cell">
+                        <span className="promotion-mobile-label">Status</span>
+                        <s-badge tone={getStatusTone(general.status)}>
+                          {general.status}
+                        </s-badge>
+                      </div>
+
+                      <div className="promotion-list-cell">
+                        <span className="promotion-mobile-label">Method</span>
+                        {general.method}
+                      </div>
+
+                      <div className="promotion-list-cell">
+                        <span className="promotion-mobile-label">Eligibility</span>
+                        {getEligibility(promotion)}
+                      </div>
+
+                      <div className="promotion-list-cell">
+                        <span className="promotion-mobile-label">Type</span>
+                        {general.type}
+                      </div>
+
+                      <div className="promotion-list-cell">
+                        <span className="promotion-mobile-label">Website</span>
+                        <s-badge
+                          tone={promotion.settings.included ? "success" : "neutral"}
+                        >
+                          {promotion.settings.included ? "Included" : "Excluded"}
+                        </s-badge>
+                      </div>
+
+                      <div className="promotion-list-cell">
+                        <span className="promotion-mobile-label">Value</span>
+                        {getPromotionValue(promotion)}
+                      </div>
+
+                      <div
+                        className="promotion-list-cell promotion-list-action"
+                        style={{ textAlign: "right" }}
+                      >
+                        <s-button
+                          href={`/app/promotions/${promotion.routeId}`}
+                          variant="secondary"
+                        >
+                          View
+                        </s-button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </section>
