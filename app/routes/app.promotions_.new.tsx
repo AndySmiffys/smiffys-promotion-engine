@@ -531,6 +531,11 @@ export default function CreatePromotionPage() {
   const [rewardType, setRewardType] = useState<"percentage" | "amount" | "free">("percentage");
   const [rewardValue, setRewardValue] = useState("");
   const [maxUsesPerOrder, setMaxUsesPerOrder] = useState(false);
+  const [minimumRequirement, setMinimumRequirement] = useState<
+    "none" | "amount" | "quantity"
+  >("none");
+  const [minimumPurchaseAmount, setMinimumPurchaseAmount] = useState("");
+  const [minimumQuantity, setMinimumQuantity] = useState("");
   const [eligibility, setEligibility] = useState<"all" | "segments" | "customers">("all");
   const [eligibilitySearch, setEligibilitySearch] = useState("");
   const [selectedEligibility, setSelectedEligibility] = useState<EligibilityResource[]>([]);
@@ -2288,24 +2293,109 @@ export default function CreatePromotionPage() {
 
                 {discountType !== "bxgy" && (
                   <FormSection title="Minimum purchase requirements">
-                    <s-stack direction="block" gap="small">
-                      <s-radio-button
-                        name="minimumRequirement"
-                        value="none"
-                        label="No minimum requirements"
-                        checked
-                      />
-                      <s-radio-button
-                        name="minimumRequirement"
-                        value="amount"
-                        label="Minimum purchase amount"
-                      />
-                      <s-radio-button
-                        name="minimumRequirement"
-                        value="quantity"
-                        label="Minimum quantity of items"
-                      />
-                    </s-stack>
+                    <div
+                      style={{
+                        display: "grid",
+                        gap: "10px",
+                      }}
+                    >
+                      {[
+                        {
+                          value: "none",
+                          label: "No minimum requirements",
+                        },
+                        {
+                          value: "amount",
+                          label: "Minimum purchase amount",
+                        },
+                        {
+                          value: "quantity",
+                          label: "Minimum quantity of items",
+                        },
+                      ].map((option) => (
+                        <label
+                          key={option.value}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                            color: "#202223",
+                            fontSize: "13px",
+                            cursor: "pointer",
+                          }}
+                        >
+                          <input
+                            type="radio"
+                            name="minimumRequirement"
+                            value={option.value}
+                            checked={minimumRequirement === option.value}
+                            onChange={() =>
+                              setMinimumRequirement(
+                                option.value as
+                                  | "none"
+                                  | "amount"
+                                  | "quantity",
+                              )
+                            }
+                            style={{
+                              width: "16px",
+                              height: "16px",
+                              margin: 0,
+                              accentColor: "#202223",
+                              cursor: "pointer",
+                            }}
+                          />
+                          <span>{option.label}</span>
+                        </label>
+                      ))}
+
+                      {minimumRequirement === "amount" && (
+                        <div
+                          style={{
+                            maxWidth: "220px",
+                            marginLeft: "24px",
+                          }}
+                        >
+                          <s-number-field
+                            label="Minimum purchase amount"
+                            labelAccessibilityVisibility="exclusive"
+                            min={0}
+                            step={0.01}
+                            prefix="£"
+                            value={minimumPurchaseAmount}
+                            onInput={(event) =>
+                              setMinimumPurchaseAmount(
+                                event.currentTarget.value,
+                              )
+                            }
+                            details="Customers must spend at least this amount to use the discount."
+                          />
+                        </div>
+                      )}
+
+                      {minimumRequirement === "quantity" && (
+                        <div
+                          style={{
+                            maxWidth: "220px",
+                            marginLeft: "24px",
+                          }}
+                        >
+                          <s-number-field
+                            label="Minimum quantity of items"
+                            labelAccessibilityVisibility="exclusive"
+                            min={1}
+                            step={1}
+                            value={minimumQuantity}
+                            onInput={(event) =>
+                              setMinimumQuantity(
+                                event.currentTarget.value,
+                              )
+                            }
+                            details="Customers must add at least this many eligible items to use the discount."
+                          />
+                        </div>
+                      )}
+                    </div>
                   </FormSection>
                 )}
 
