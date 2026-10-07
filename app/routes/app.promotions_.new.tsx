@@ -869,7 +869,7 @@ export default function CreatePromotionPage() {
             className="create-discount-layout"
             style={{
               display: "grid",
-              gridTemplateColumns: "430px minmax(0, 1fr) 260px",
+              gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr) 260px",
               gap: "24px",
               alignItems: "start",
             }}
