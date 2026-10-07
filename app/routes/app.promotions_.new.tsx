@@ -854,8 +854,8 @@ export default function CreatePromotionPage() {
       <div
         style={{
           width: "100%",
-          maxWidth: "1680px",
-          margin: "0 auto",
+          maxWidth: "none",
+          margin: 0,
         }}
       >
         <s-stack direction="block" gap="large">
