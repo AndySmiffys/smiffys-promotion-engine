@@ -201,7 +201,7 @@ export default function PromotionsPage() {
   }, [promotions, query, statusFilter]);
 
   return (
-    <s-page heading="Promotions">
+    <s-page heading="Promotions" inlineSize="large">
       <div
         style={{
           width: "100%",
