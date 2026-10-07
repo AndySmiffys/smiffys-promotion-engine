@@ -43,6 +43,12 @@ type ResourceSearchItem = {
   selectedVariantIds?: string[];
 };
 
+type EligibilityResource = {
+  id: string;
+  name: string;
+  secondary?: string | null;
+};
+
 type PromotionActionData = {
   success: boolean;
   image?: {
@@ -51,6 +57,7 @@ type PromotionActionData = {
     alt: string | null;
   };
   resources?: ResourceSearchItem[];
+  eligibilityResources?: EligibilityResource[];
   error?: string;
 };
 
@@ -58,6 +65,96 @@ export async function action({ request }: ActionFunctionArgs): Promise<Promotion
   const { admin } = await authenticate.admin(request);
   const formData = await request.formData();
   const intent = formData.get("intent");
+
+  if (intent === "searchEligibility") {
+    const eligibilityType = formData.get("eligibilityType");
+    const query = formData.get("query");
+
+    if (
+      (eligibilityType !== "segments" && eligibilityType !== "customers") ||
+      typeof query !== "string"
+    ) {
+      return {
+        success: false,
+        error: "The eligibility search request is invalid.",
+      };
+    }
+
+    const searchQuery = query.trim();
+
+    const response = await admin.graphql(
+      eligibilityType === "segments"
+        ? `
+          #graphql
+          query SearchPromotionSegments($query: String) {
+            segments(first: 50, query: $query) {
+              nodes {
+                id
+                name
+              }
+            }
+          }
+        `
+        : `
+          #graphql
+          query SearchPromotionCustomers($query: String) {
+            customers(first: 50, query: $query) {
+              nodes {
+                id
+                displayName
+                email
+              }
+            }
+          }
+        `,
+      {
+        variables: {
+          query: searchQuery.length > 0 ? searchQuery : null,
+        },
+      },
+    );
+
+    const result = (await response.json()) as {
+      data?: {
+        segments?: {
+          nodes: Array<{
+            id: string;
+            name: string;
+          }>;
+        };
+        customers?: {
+          nodes: Array<{
+            id: string;
+            displayName: string;
+            email: string | null;
+          }>;
+        };
+      };
+      errors?: Array<{ message: string }>;
+    };
+
+    if (result.errors?.length) {
+      return {
+        success: false,
+        error: result.errors.map((error) => error.message).join(", "),
+      };
+    }
+
+    return {
+      success: true,
+      eligibilityResources:
+        eligibilityType === "segments"
+          ? (result.data?.segments?.nodes ?? []).map((segment) => ({
+              id: segment.id,
+              name: segment.name,
+            }))
+          : (result.data?.customers?.nodes ?? []).map((customer) => ({
+              id: customer.id,
+              name: customer.displayName,
+              secondary: customer.email,
+            })),
+    };
+  }
 
   if (intent === "searchResources") {
     const resourceType = formData.get("resourceType");
@@ -402,6 +499,7 @@ export default function CreatePromotionPage() {
   const shopify = useAppBridge();
   const fileFetcher = useFetcher<PromotionActionData>();
   const resourceFetcher = useFetcher<PromotionActionData>();
+  const eligibilityFetcher = useFetcher<PromotionActionData>();
   const [searchParams] = useSearchParams();
   const rawType = searchParams.get("type");
   const discountType: DiscountType =
@@ -435,6 +533,9 @@ export default function CreatePromotionPage() {
   const [maxUsesPerOrder, setMaxUsesPerOrder] = useState(false);
   const [eligibility, setEligibility] = useState<"all" | "segments" | "customers">("all");
   const [eligibilitySearch, setEligibilitySearch] = useState("");
+  const [selectedEligibility, setSelectedEligibility] = useState<EligibilityResource[]>([]);
+  const [showEligibilityPicker, setShowEligibilityPicker] = useState(false);
+  const [eligibilityPickerSearch, setEligibilityPickerSearch] = useState("");
   const [included, setIncluded] = useState(true);
   const [websiteEnabled, setWebsiteEnabled] = useState(false);
   const [showProductPage, setShowProductPage] = useState(false);
@@ -680,6 +781,75 @@ export default function CreatePromotionPage() {
         current.filter((item) => item.id !== id),
       );
     }
+  }
+
+
+  useEffect(() => {
+    const query = eligibilitySearch.trim();
+
+    if (eligibility === "all" || query.length < 2) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      eligibilityFetcher.submit(
+        {
+          intent: "searchEligibility",
+          eligibilityType: eligibility,
+          query,
+        },
+        {
+          method: "post",
+        },
+      );
+    }, 250);
+
+    return () => window.clearTimeout(timeout);
+  }, [eligibilitySearch, eligibility]);
+
+  function openEligibilityPicker() {
+    setEligibilityPickerSearch("");
+    setShowEligibilityPicker(true);
+
+    eligibilityFetcher.submit(
+      {
+        intent: "searchEligibility",
+        eligibilityType: eligibility,
+        query: "",
+      },
+      {
+        method: "post",
+      },
+    );
+  }
+
+  function searchEligibilityPicker(value: string) {
+    setEligibilityPickerSearch(value);
+
+    eligibilityFetcher.submit(
+      {
+        intent: "searchEligibility",
+        eligibilityType: eligibility,
+        query: value,
+      },
+      {
+        method: "post",
+      },
+    );
+  }
+
+  function toggleEligibilityResource(resource: EligibilityResource) {
+    setSelectedEligibility((current) =>
+      current.some((item) => item.id === resource.id)
+        ? current.filter((item) => item.id !== resource.id)
+        : [...current, resource],
+    );
+  }
+
+  function removeEligibilityResource(id: string) {
+    setSelectedEligibility((current) =>
+      current.filter((item) => item.id !== id),
+    );
   }
 
   const details = useMemo(() => {
@@ -1905,6 +2075,7 @@ export default function CreatePromotionPage() {
                             | "customers",
                         );
                         setEligibilitySearch("");
+                        setSelectedEligibility([]);
                       }}
                     >
                       <s-option value="all">All customers</s-option>
@@ -1944,10 +2115,159 @@ export default function CreatePromotionPage() {
                             }
                           />
 
-                          <s-button type="button" variant="secondary">
+                          <s-button
+                            type="button"
+                            variant="secondary"
+                            onClick={openEligibilityPicker}
+                          >
                             Browse
                           </s-button>
                         </div>
+
+                        {eligibilitySearch.trim().length >= 2 && (
+                          <div
+                            style={{
+                              marginTop: "6px",
+                              overflow: "hidden",
+                              border: "1px solid #dedede",
+                              borderRadius: "8px",
+                              background: "#ffffff",
+                            }}
+                          >
+                            {eligibilityFetcher.state !== "idle" && (
+                              <div
+                                style={{
+                                  padding: "10px 12px",
+                                  color: "#616161",
+                                  fontSize: "12px",
+                                }}
+                              >
+                                Searching…
+                              </div>
+                            )}
+
+                            {eligibilityFetcher.state === "idle" &&
+                              eligibilityFetcher.data?.eligibilityResources?.length === 0 && (
+                                <div
+                                  style={{
+                                    padding: "10px 12px",
+                                    color: "#616161",
+                                    fontSize: "12px",
+                                  }}
+                                >
+                                  No matching {eligibility === "segments" ? "segments" : "customers"}.
+                                </div>
+                              )}
+
+                            {eligibilityFetcher.data?.eligibilityResources?.map((resource) => (
+                              <button
+                                key={resource.id}
+                                type="button"
+                                onClick={() => {
+                                  toggleEligibilityResource(resource);
+                                  setEligibilitySearch("");
+                                }}
+                                style={{
+                                  display: "block",
+                                  width: "100%",
+                                  padding: "9px 12px",
+                                  border: 0,
+                                  borderTop: "1px solid #f1f1f1",
+                                  background: "#ffffff",
+                                  color: "#202223",
+                                  textAlign: "left",
+                                  font: "inherit",
+                                  cursor: "pointer",
+                                }}
+                              >
+                                <span style={{ display: "block", fontSize: "12px", fontWeight: 600 }}>
+                                  {resource.name}
+                                </span>
+                                {resource.secondary && (
+                                  <span
+                                    style={{
+                                      display: "block",
+                                      marginTop: "2px",
+                                      color: "#616161",
+                                      fontSize: "11px",
+                                    }}
+                                  >
+                                    {resource.secondary}
+                                  </span>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                        {selectedEligibility.length > 0 && (
+                          <div
+                            style={{
+                              display: "grid",
+                              gap: "6px",
+                              marginTop: "10px",
+                            }}
+                          >
+                            {selectedEligibility.map((resource) => (
+                              <div
+                                key={resource.id}
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "space-between",
+                                  gap: "10px",
+                                  padding: "8px 10px",
+                                  border: "1px solid #e3e3e3",
+                                  borderRadius: "8px",
+                                  background: "#fafafa",
+                                }}
+                              >
+                                <div style={{ minWidth: 0 }}>
+                                  <div
+                                    style={{
+                                      overflow: "hidden",
+                                      textOverflow: "ellipsis",
+                                      whiteSpace: "nowrap",
+                                      fontSize: "12px",
+                                      fontWeight: 600,
+                                    }}
+                                  >
+                                    {resource.name}
+                                  </div>
+                                  {resource.secondary && (
+                                    <div
+                                      style={{
+                                        marginTop: "2px",
+                                        overflow: "hidden",
+                                        textOverflow: "ellipsis",
+                                        whiteSpace: "nowrap",
+                                        color: "#616161",
+                                        fontSize: "11px",
+                                      }}
+                                    >
+                                      {resource.secondary}
+                                    </div>
+                                  )}
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={() => removeEligibilityResource(resource.id)}
+                                  style={{
+                                    border: 0,
+                                    background: "transparent",
+                                    color: "#8a1f11",
+                                    font: "inherit",
+                                    fontSize: "11px",
+                                    cursor: "pointer",
+                                  }}
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
 
                         <div
                           style={{
@@ -2523,6 +2843,192 @@ export default function CreatePromotionPage() {
                   {websitePreview}
                 </div>
               </aside>
+            </div>
+          )}
+
+          {showEligibilityPicker && (
+            <div
+              role="presentation"
+              onClick={() => setShowEligibilityPicker(false)}
+              style={{
+                position: "fixed",
+                inset: 0,
+                zIndex: 120,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "24px",
+                background: "rgba(0, 0, 0, 0.45)",
+              }}
+            >
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="eligibility-picker-title"
+                onClick={(event) => event.stopPropagation()}
+                style={{
+                  width: "min(100%, 620px)",
+                  maxHeight: "78vh",
+                  display: "flex",
+                  flexDirection: "column",
+                  overflow: "hidden",
+                  borderRadius: "14px",
+                  background: "#ffffff",
+                  boxShadow: "0 18px 48px rgba(0,0,0,0.24)",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: "12px",
+                    padding: "16px 18px",
+                    borderBottom: "1px solid #eeeeee",
+                  }}
+                >
+                  <div id="eligibility-picker-title" style={{ fontSize: "16px", fontWeight: 700 }}>
+                    {eligibility === "segments"
+                      ? "Select customer segments"
+                      : "Select customers"}
+                  </div>
+
+                  <button
+                    type="button"
+                    aria-label="Close"
+                    onClick={() => setShowEligibilityPicker(false)}
+                    style={{
+                      width: "32px",
+                      height: "32px",
+                      border: "1px solid #dedede",
+                      borderRadius: "8px",
+                      background: "#ffffff",
+                      fontSize: "18px",
+                      cursor: "pointer",
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+
+                <div style={{ padding: "12px", borderBottom: "1px solid #eeeeee" }}>
+                  <s-text-field
+                    label={eligibility === "segments" ? "Search segments" : "Search customers"}
+                    labelAccessibilityVisibility="exclusive"
+                    placeholder={eligibility === "segments" ? "Search segments" : "Search customers"}
+                    value={eligibilityPickerSearch}
+                    onInput={(event) => searchEligibilityPicker(event.currentTarget.value)}
+                  />
+                </div>
+
+                <div style={{ overflowY: "auto", padding: "6px" }}>
+                  {eligibilityFetcher.state !== "idle" && (
+                    <div style={{ padding: "18px", color: "#616161", fontSize: "12px" }}>
+                      Loading…
+                    </div>
+                  )}
+
+                  {eligibilityFetcher.state === "idle" &&
+                    eligibilityFetcher.data?.eligibilityResources?.map((resource) => {
+                      const selected = selectedEligibility.some(
+                        (item) => item.id === resource.id,
+                      );
+
+                      return (
+                        <button
+                          key={resource.id}
+                          type="button"
+                          onClick={() => toggleEligibilityResource(resource)}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "10px",
+                            width: "100%",
+                            padding: "10px 12px",
+                            border: 0,
+                            borderBottom: "1px solid #f1f1f1",
+                            background: selected ? "#f3f8f4" : "#ffffff",
+                            color: "#202223",
+                            textAlign: "left",
+                            font: "inherit",
+                            cursor: "pointer",
+                          }}
+                        >
+                          <span
+                            aria-hidden="true"
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              width: "18px",
+                              height: "18px",
+                              flex: "0 0 auto",
+                              border: selected
+                                ? "1px solid #202223"
+                                : "1px solid #8c8c8c",
+                              borderRadius: "4px",
+                              background: selected ? "#202223" : "#ffffff",
+                              color: "#ffffff",
+                              fontSize: "11px",
+                            }}
+                          >
+                            {selected ? "✓" : ""}
+                          </span>
+
+                          <span style={{ minWidth: 0 }}>
+                            <span style={{ display: "block", fontSize: "12px", fontWeight: 600 }}>
+                              {resource.name}
+                            </span>
+                            {resource.secondary && (
+                              <span
+                                style={{
+                                  display: "block",
+                                  marginTop: "2px",
+                                  color: "#616161",
+                                  fontSize: "11px",
+                                }}
+                              >
+                                {resource.secondary}
+                              </span>
+                            )}
+                          </span>
+                        </button>
+                      );
+                    })}
+
+                  {eligibilityFetcher.state === "idle" &&
+                    eligibilityFetcher.data?.eligibilityResources?.length === 0 && (
+                      <div style={{ padding: "18px", color: "#616161", fontSize: "12px" }}>
+                        No {eligibility === "segments" ? "segments" : "customers"} found.
+                      </div>
+                    )}
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "flex-end",
+                    gap: "8px",
+                    padding: "12px 16px",
+                    borderTop: "1px solid #eeeeee",
+                  }}
+                >
+                  <s-button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => setShowEligibilityPicker(false)}
+                  >
+                    Cancel
+                  </s-button>
+                  <s-button
+                    type="button"
+                    variant="primary"
+                    onClick={() => setShowEligibilityPicker(false)}
+                  >
+                    Done
+                  </s-button>
+                </div>
+              </div>
             </div>
           )}
 
