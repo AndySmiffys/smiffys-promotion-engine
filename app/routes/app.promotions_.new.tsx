@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { useFetcher, useLoaderData, useSearchParams } from "react-router";
 import { useAppBridge } from "@shopify/app-bridge-react";
@@ -540,6 +540,33 @@ const [limitTotalUses, setLimitTotalUses] = useState(false);
 const [totalUsageLimit, setTotalUsageLimit] = useState("");
 const [limitOncePerCustomer, setLimitOncePerCustomer] = useState(false);
 const [showCombinationPicker, setShowCombinationPicker] = useState(false);
+const combinationFieldRef = useRef<HTMLDivElement>(null);
+const combinationTriggerRef = useRef<HTMLButtonElement>(null);
+const combinationDialogRef = useRef<HTMLDivElement>(null);
+useEffect(() => {
+if (!showCombinationPicker) return;
+combinationDialogRef.current?.focus();
+function closeOnOutsideClick(event: PointerEvent) {
+if (event.target instanceof Node && !combinationFieldRef.current?.contains(event.target)) {
+setShowCombinationPicker(false);
+setShowCombinationTags(false);
+}
+}
+function closeOnEscape(event: KeyboardEvent) {
+if (event.key === "Escape") {
+setShowCombinationPicker(false);
+setShowCombinationTags(false);
+combinationTriggerRef.current?.focus();
+}
+}
+document.addEventListener("pointerdown", closeOnOutsideClick);
+document.addEventListener("keydown", closeOnEscape);
+return () => {
+document.removeEventListener("pointerdown", closeOnOutsideClick);
+document.removeEventListener("keydown", closeOnEscape);
+};
+}, [showCombinationPicker]);
+
 const [combineProductDiscounts, setCombineProductDiscounts] = useState(false);
 const [combineOrderDiscounts, setCombineOrderDiscounts] = useState(false);
 const [combineShippingDiscounts, setCombineShippingDiscounts] = useState(false);
@@ -2475,43 +2502,24 @@ setLimitOncePerCustomer(event.currentTarget.checked)
 </div>
 </FormSection>
 
-<section>
-<div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:"12px",marginBottom:"8px"}}>
-<div style={{color:"#202223",fontSize:"14px",fontWeight:650}}>Combinations</div>
-<button type="button" aria-label="Edit combinations" title="Edit combinations" onClick={()=>setShowCombinationPicker(v=>!v)} style={{width:"30px",height:"30px",display:"flex",alignItems:"center",justifyContent:"center",border:0,borderRadius:"50%",background:"#e8e8e8",color:"#4a4a4a",fontSize:"22px",lineHeight:1,cursor:"pointer"}}>+</button>
-</div>
-<div style={{position:"relative",border:"1px solid #dedede",borderRadius:"12px",background:"#fff",boxShadow:"0 1px 2px rgba(0,0,0,.04)",padding:"16px"}}>
+<section style={{padding:"16px",border:"1px solid #dedede",borderRadius:"12px",background:"#fff"}}>
+<div id="combinations-label" style={{color:"#202223",fontSize:"14px",fontWeight:650,marginBottom:"8px"}}>Combinations</div>
+<div ref={combinationFieldRef} style={{position:"relative"}}>
 {showCombinationPicker&&(
-<div style={{position:"absolute",zIndex:30,right:0,top:"-8px",transform:"translateY(-100%)",width:"min(390px, calc(100vw - 48px))",padding:"16px",border:"1px solid #dedede",borderRadius:"12px",background:"#fff",boxShadow:"0 10px 28px rgba(0,0,0,.16)"}}>
-<div style={{marginBottom:"12px",fontSize:"13px",fontWeight:600}}>Allow this discount to combine with other discounts</div>
+<div ref={combinationDialogRef} id="combinations-editor" role="dialog" aria-labelledby="combinations-editor-title" tabIndex={-1} style={{position:"absolute",zIndex:30,left:0,bottom:"calc(100% + 8px)",width:"min(390px, 100%)",maxHeight:"min(520px, 60vh)",overflowY:"auto",boxSizing:"border-box",padding:"16px",border:"1px solid #dedede",borderRadius:"12px",background:"#fff",boxShadow:"0 10px 28px rgba(0,0,0,.16)"}}>
+<div id="combinations-editor-title" style={{marginBottom:"12px",fontSize:"13px",fontWeight:600}}>Allow this discount to combine with other discounts</div>
 {[
 ["Product discounts","Multiple can apply per order",combineProductDiscounts,setCombineProductDiscounts],
 ["Order discounts","Multiple can apply per order",combineOrderDiscounts,setCombineOrderDiscounts],
 ["Shipping discounts","Only one can apply per order (best value wins)",combineShippingDiscounts,setCombineShippingDiscounts],
 ].map(([label,detail,checked,setChecked])=>(
-<label key={String(label)} style={{display:"flex",alignItems:"flex-start",gap:"10px",padding:"8px 0",cursor:"pointer"}}>
-<input type="checkbox" checked={Boolean(checked)} onChange={e=>(setChecked as React.Dispatch<React.SetStateAction<boolean>>)(e.currentTarget.checked)} style={{width:"18px",height:"18px",marginTop:"1px"}}/>
+<label key={String(label)} aria-label={String(label)} htmlFor={`combination-${String(label).split(" ")[0].toLowerCase()}`} style={{display:"flex",alignItems:"flex-start",gap:"10px",padding:"8px 0",cursor:"pointer"}}>
+<input id={`combination-${String(label).split(" ")[0].toLowerCase()}`} type="checkbox" checked={Boolean(checked)} onChange={e=>{(setChecked as React.Dispatch<React.SetStateAction<boolean>>)(e.currentTarget.checked);if(label==="Product discounts"&&!e.currentTarget.checked){setShowCombinationTags(false);setSelectedCombinationTags([]);}}} style={{width:"18px",height:"18px",marginTop:"1px"}}/>
 <span><span style={{display:"block",fontSize:"13px"}}>{String(label)}</span><span style={{display:"block",marginTop:"2px",color:"#616161",fontSize:"11px"}}>{String(detail)}</span></span>
 </label>
 ))}
-</div>
-)}
-{!combineProductDiscounts&&!combineOrderDiscounts&&!combineShippingDiscounts?(
-<div style={{color:"#202223",fontSize:"13px",lineHeight:1.5}}>
-<strong>{method==="code"?discountCode||"This discount":automaticTitle||"This discount"}</strong>{" "}won't combine with other product, order, or shipping discounts in the customer's cart.
-</div>
-):(
-<div>
-<div style={{marginBottom:"10px",color:"#202223",fontSize:"13px",lineHeight:1.45}}>
-<strong>{method==="code"?discountCode||"This discount":automaticTitle||"This discount"}</strong>{" "}can be combined with the following discounts in the customer's cart:
-</div>
-<div style={{overflow:"visible",border:"1px solid #eee",borderRadius:"9px"}}>
 {combineProductDiscounts&&(
-<div style={{padding:"11px 12px",borderBottom:combineOrderDiscounts||combineShippingDiscounts?"1px solid #eee":0}}>
-<div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:"12px"}}>
-<div><div style={{fontSize:"13px",fontWeight:600}}>Product discounts</div><div style={{marginTop:"2px",color:"#616161",fontSize:"11px"}}>Multiple can apply per order • {productCombinationMode==="best"?"One per product (best value wins)":"Multiple per product"}</div></div>
-<button type="button" aria-label="Remove product discounts" onClick={()=>{setCombineProductDiscounts(false);setShowCombinationTags(false);setSelectedCombinationTags([]);}} style={{border:0,background:"transparent",color:"#616161",fontSize:"17px",cursor:"pointer"}}>×</button>
-</div>
+<>
 <div style={{marginTop:"8px",maxWidth:"310px"}}>
 <s-select label="Product discount combination" labelAccessibilityVisibility="exclusive" value={productCombinationMode} onChange={e=>{const value=e.currentTarget.value as "best"|"multiple";setProductCombinationMode(value);if(value==="best"){setShowCombinationTags(false);setSelectedCombinationTags([]);}}}>
 <s-option value="best">One per product (best value wins)</s-option>
@@ -2523,7 +2531,7 @@ setLimitOncePerCustomer(event.currentTarget.checked)
 <div style={{marginBottom:"5px",color:"#303030",fontSize:"12px"}}>Combine on same product with discounts tagged</div>
 <button type="button" onClick={()=>setShowCombinationTags(v=>!v)} style={{width:"100%",minHeight:"36px",padding:"7px 10px",border:"1px solid #c9c9c9",borderRadius:"8px",background:"#fff",color:"#202223",textAlign:"left",font:"inherit",fontSize:"12px",cursor:"pointer"}}>+ Select tags{selectedCombinationTags.length?` (${selectedCombinationTags.length})`:""}</button>
 {showCombinationTags&&(
-<div style={{position:"absolute",zIndex:40,top:"calc(100% + 4px)",left:0,width:"min(360px, 100%)",overflow:"hidden",border:"1px solid #dedede",borderRadius:"10px",background:"#fff",boxShadow:"0 8px 24px rgba(0,0,0,.16)"}}>
+<div style={{marginTop:"8px",width:"100%",overflow:"hidden",border:"1px solid #dedede",borderRadius:"10px",background:"#fff",boxShadow:"0 8px 24px rgba(0,0,0,.16)"}}>
 <div style={{padding:"8px",borderBottom:"1px solid #eee"}}>
 <input type="search" value={combinationTagSearch} onChange={e=>setCombinationTagSearch(e.currentTarget.value)} placeholder="Search discount tags" style={{width:"100%",minHeight:"34px",border:"1px solid #c9c9c9",borderRadius:"7px",padding:"6px 9px",font:"inherit",fontSize:"12px"}}/>
 </div>
@@ -2537,23 +2545,22 @@ setLimitOncePerCustomer(event.currentTarget.checked)
 )}
 </div>
 )}
-</div>
+</>
 )}
-{combineOrderDiscounts&&(
-<div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:"12px",padding:"11px 12px",borderBottom:combineShippingDiscounts?"1px solid #eee":0}}>
-<div><div style={{fontSize:"13px",fontWeight:600}}>Order discounts</div><div style={{marginTop:"2px",color:"#616161",fontSize:"11px"}}>Multiple can apply per order</div></div>
-<button type="button" aria-label="Remove order discounts" onClick={()=>setCombineOrderDiscounts(false)} style={{border:0,background:"transparent",color:"#616161",fontSize:"17px",cursor:"pointer"}}>×</button>
-</div>
-)}
-{combineShippingDiscounts&&(
-<div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:"12px",padding:"11px 12px"}}>
-<div><div style={{fontSize:"13px",fontWeight:600}}>Shipping discounts</div><div style={{marginTop:"2px",color:"#616161",fontSize:"11px"}}>Only one can apply per order (best value wins)</div></div>
-<button type="button" aria-label="Remove shipping discounts" onClick={()=>setCombineShippingDiscounts(false)} style={{border:0,background:"transparent",color:"#616161",fontSize:"17px",cursor:"pointer"}}>×</button>
-</div>
-)}
+<div style={{display:"flex",justifyContent:"flex-end",marginTop:"12px"}}>
+<button type="button" onClick={()=>{setShowCombinationPicker(false);setShowCombinationTags(false);combinationTriggerRef.current?.focus();}} style={{padding:"7px 14px",border:"1px solid #c9c9c9",borderRadius:"8px",background:"#fff",font:"inherit",fontSize:"12px",cursor:"pointer"}}>Done</button>
 </div>
 </div>
 )}
+<button ref={combinationTriggerRef} type="button" aria-labelledby="combinations-label" aria-haspopup="dialog" aria-expanded={showCombinationPicker} aria-controls={showCombinationPicker?"combinations-editor":undefined} onClick={()=>{setShowCombinationPicker(v=>!v);setShowCombinationTags(false);}} style={{display:"block",width:"100%",padding:"12px",border:"1px solid #c9c9c9",borderRadius:"8px",background:"#fff",color:"#202223",font:"inherit",textAlign:"left",cursor:"pointer",fontSize:"13px",lineHeight:1.5}}>
+<span style={{display:"block"}}>
+<strong>{method==="code"?discountCode||"This discount":automaticTitle||"This discount"}</strong>{" "}
+{!combineProductDiscounts&&!combineOrderDiscounts&&!combineShippingDiscounts?"won't combine with other product, order, or shipping discounts in the customer's cart.":"can be combined with the following discounts in the customer's cart:"}
+</span>
+{combineProductDiscounts&&<span style={{display:"block",marginTop:"8px"}}><strong>Product discounts</strong><span style={{display:"block",color:"#616161",fontSize:"11px"}}>Multiple can apply per order • {productCombinationMode==="best"?"One per product (best value wins)":"Multiple per product"}</span>{productCombinationMode==="multiple"&&<span style={{display:"block",color:"#616161",fontSize:"11px"}}>Tags: {selectedCombinationTags.join(", ")||"None selected"}</span>}</span>}
+{combineOrderDiscounts&&<span style={{display:"block",marginTop:"8px"}}><strong>Order discounts</strong><span style={{display:"block",color:"#616161",fontSize:"11px"}}>Multiple can apply per order</span></span>}
+{combineShippingDiscounts&&<span style={{display:"block",marginTop:"8px"}}><strong>Shipping discounts</strong><span style={{display:"block",color:"#616161",fontSize:"11px"}}>Only one can apply per order (best value wins)</span></span>}
+</button>
 </div>
 </section>
 
