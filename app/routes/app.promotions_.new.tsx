@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
-import type { LoaderFunctionArgs } from "react-router";
-import { useLoaderData, useSearchParams } from "react-router";
+import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
+import { useFetcher, useLoaderData, useSearchParams } from "react-router";
 
 import { authenticate } from "../shopify.server";
 
@@ -27,6 +27,100 @@ type LinkResourcesResponse = {
   };
   errors?: Array<{ message: string }>;
 };
+
+type ResolveFileActionData = {
+  success: boolean;
+  image?: {
+    id: string;
+    url: string;
+    alt: string | null;
+  };
+  error?: string;
+};
+
+export async function action({ request }: ActionFunctionArgs): Promise<ResolveFileActionData> {
+  const { admin } = await authenticate.admin(request);
+  const formData = await request.formData();
+
+  if (formData.get("intent") !== "resolveFile") {
+    return {
+      success: false,
+      error: "Unsupported action.",
+    };
+  }
+
+  const fileId = formData.get("fileId");
+
+  if (
+    typeof fileId !== "string" ||
+    !fileId.startsWith("gid://shopify/MediaImage/")
+  ) {
+    return {
+      success: false,
+      error: "The selected Shopify file is invalid.",
+    };
+  }
+
+  const response = await admin.graphql(
+    `
+      #graphql
+      query PromotionBannerFile($id: ID!) {
+        node(id: $id) {
+          ... on MediaImage {
+            id
+            alt
+            image {
+              url
+            }
+          }
+        }
+      }
+    `,
+    {
+      variables: {
+        id: fileId,
+      },
+    },
+  );
+
+  const result = (await response.json()) as {
+    data?: {
+      node?: {
+        id: string;
+        alt: string | null;
+        image?: {
+          url: string;
+        } | null;
+      } | null;
+    };
+    errors?: Array<{ message: string }>;
+  };
+
+  if (result.errors?.length) {
+    return {
+      success: false,
+      error: result.errors.map((error) => error.message).join(", "),
+    };
+  }
+
+  const image = result.data?.node;
+
+  if (!image?.image?.url) {
+    return {
+      success: false,
+      error: "The selected image could not be loaded.",
+    };
+  }
+
+  return {
+    success: true,
+    image: {
+      id: image.id,
+      url: image.image.url,
+      alt: image.alt,
+    },
+  };
+}
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const { admin } = await authenticate.admin(request);
@@ -163,6 +257,7 @@ function FormSection({
 
 export default function CreatePromotionPage() {
   const { products, collections } = useLoaderData<typeof loader>();
+  const fileFetcher = useFetcher<ResolveFileActionData>();
   const [searchParams] = useSearchParams();
   const rawType = searchParams.get("type");
   const discountType: DiscountType =
@@ -215,6 +310,8 @@ export default function CreatePromotionPage() {
   const [buttonLinkLabel, setButtonLinkLabel] = useState("");
   const [bannerImagePreview, setBannerImagePreview] = useState("");
   const [bannerImageName, setBannerImageName] = useState("");
+  const [bannerShopifyFileId, setBannerShopifyFileId] = useState("");
+  const [isBannerDragActive, setIsBannerDragActive] = useState(false);
 
   function generateDiscountCode() {
     const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -223,6 +320,91 @@ export default function CreatePromotionPage() {
     ).join("");
 
     setDiscountCode(code);
+  }
+
+
+  useMemo(() => {
+    const selectedImage = fileFetcher.data?.image;
+
+    if (fileFetcher.data?.success && selectedImage) {
+      setBannerShopifyFileId(selectedImage.id);
+      setBannerImagePreview(selectedImage.url);
+      setBannerImageName(selectedImage.alt || "Shopify image");
+    }
+
+    return null;
+  }, [fileFetcher.data]);
+
+  async function openShopifyImagePicker() {
+    const appBridge = (
+      window as Window & {
+        shopify?: {
+          intents?: {
+            invoke: (
+              intent: string,
+              options?: {
+                data?: {
+                  mediaTypes?: string[];
+                  multiSelect?: boolean;
+                  selectedFiles?: string[];
+                };
+              },
+            ) => Promise<{
+              complete: Promise<{
+                code: string;
+                data?: {
+                  ids?: string[];
+                };
+              }>;
+            }>;
+          };
+        };
+      }
+    ).shopify;
+
+    if (!appBridge?.intents) {
+      return;
+    }
+
+    const activity = await appBridge.intents.invoke(
+      "pick:shopify/File",
+      {
+        data: {
+          mediaTypes: ["MediaImage"],
+          multiSelect: false,
+          selectedFiles: bannerShopifyFileId
+            ? [bannerShopifyFileId]
+            : [],
+        },
+      },
+    );
+
+    const response = await activity.complete;
+    const selectedId = response.data?.ids?.[0];
+
+    if (response.code !== "ok" || !selectedId) {
+      return;
+    }
+
+    fileFetcher.submit(
+      {
+        intent: "resolveFile",
+        fileId: selectedId,
+      },
+      {
+        method: "post",
+      },
+    );
+  }
+
+  function useDroppedBannerImage(file: File | undefined) {
+    if (!file || !file.type.startsWith("image/")) {
+      return;
+    }
+
+    setBannerShopifyFileId("");
+    setBannerImageName(file.name);
+    setBannerImagePreview(URL.createObjectURL(file));
   }
 
   const details = useMemo(() => {
@@ -947,7 +1129,7 @@ export default function CreatePromotionPage() {
                     <div>
                       <div
                         style={{
-                          marginBottom: "6px",
+                          marginBottom: "8px",
                           color: "#303030",
                           fontSize: "12px",
                           fontWeight: 650,
@@ -956,54 +1138,183 @@ export default function CreatePromotionPage() {
                         Promotion banner image
                       </div>
 
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={(event) => {
-                          const file = event.currentTarget.files?.[0];
-
-                          if (!file) {
-                            setBannerImagePreview("");
-                            setBannerImageName("");
-                            return;
-                          }
-
-                          setBannerImageName(file.name);
-                          setBannerImagePreview(URL.createObjectURL(file));
-                        }}
-                        style={{
-                          display: "block",
-                          width: "100%",
-                          padding: "8px",
-                          border: "1px solid #c9c9c9",
-                          borderRadius: "8px",
-                          background: "#ffffff",
-                          fontSize: "12px",
-                        }}
-                      />
-
                       <div
                         style={{
-                          marginTop: "6px",
-                          color: "#616161",
-                          fontSize: "11px",
-                          lineHeight: 1.45,
+                          display: "flex",
+                          alignItems: "flex-start",
+                          gap: "16px",
+                          flexWrap: "wrap",
                         }}
                       >
-                        Optional. Used for collection and promotional banner visuals. The selected image is previewed immediately and will be uploaded to Shopify Files when the promotion is saved.
-                      </div>
+                        <button
+                          type="button"
+                          onClick={openShopifyImagePicker}
+                          onDragEnter={(event) => {
+                            event.preventDefault();
+                            setIsBannerDragActive(true);
+                          }}
+                          onDragOver={(event) => {
+                            event.preventDefault();
+                            setIsBannerDragActive(true);
+                          }}
+                          onDragLeave={(event) => {
+                            event.preventDefault();
+                            setIsBannerDragActive(false);
+                          }}
+                          onDrop={(event) => {
+                            event.preventDefault();
+                            setIsBannerDragActive(false);
+                            useDroppedBannerImage(event.dataTransfer.files?.[0]);
+                          }}
+                          style={{
+                            position: "relative",
+                            width: "164px",
+                            height: "164px",
+                            flex: "0 0 auto",
+                            overflow: "hidden",
+                            border: `1px dashed ${isBannerDragActive ? "#005bd3" : "#8c8c8c"}`,
+                            borderRadius: "18px",
+                            background: isBannerDragActive ? "#f1f7ff" : "#ffffff",
+                            color: "#303030",
+                            cursor: "pointer",
+                            padding: 0,
+                          }}
+                          aria-label="Select promotion banner image"
+                        >
+                          {bannerImagePreview ? (
+                            <>
+                              <img
+                                src={bannerImagePreview}
+                                alt={bannerImageName || "Selected promotion banner"}
+                                style={{
+                                  width: "100%",
+                                  height: "100%",
+                                  objectFit: "cover",
+                                }}
+                              />
+                              <span
+                                style={{
+                                  position: "absolute",
+                                  inset: "auto 8px 8px 8px",
+                                  padding: "5px 7px",
+                                  borderRadius: "6px",
+                                  background: "rgba(255,255,255,0.92)",
+                                  color: "#202223",
+                                  fontSize: "10px",
+                                  fontWeight: 650,
+                                  textAlign: "center",
+                                }}
+                              >
+                                Change image
+                              </span>
+                            </>
+                          ) : (
+                            <span
+                              style={{
+                                position: "absolute",
+                                inset: 0,
+                                display: "flex",
+                                flexDirection: "column",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                gap: "8px",
+                              }}
+                            >
+                              <svg
+                                width="24"
+                                height="24"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.8"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <path d="M12 16V4" />
+                                <path d="m7 9 5-5 5 5" />
+                                <path d="M5 20h14" />
+                              </svg>
+                              <span style={{ fontSize: "11px", fontWeight: 650 }}>
+                                Add image
+                              </span>
+                            </span>
+                          )}
+                        </button>
 
-                      {bannerImageName && (
                         <div
                           style={{
-                            marginTop: "5px",
-                            color: "#303030",
-                            fontSize: "11px",
+                            flex: "1 1 220px",
+                            paddingTop: "6px",
                           }}
                         >
-                          Selected: {bannerImageName}
+                          <div
+                            style={{
+                              color: "#303030",
+                              fontSize: "12px",
+                              fontWeight: 650,
+                            }}
+                          >
+                            Drag an image here or click to select
+                          </div>
+                          <div
+                            style={{
+                              marginTop: "5px",
+                              color: "#616161",
+                              fontSize: "11px",
+                              lineHeight: 1.5,
+                            }}
+                          >
+                            Clicking opens Shopify’s standard file picker so you can search existing Content files or add a new image. Dragged local images are previewed immediately and will be uploaded to Shopify Files when the promotion is saved.
+                          </div>
+
+                          {bannerImageName && (
+                            <div
+                              style={{
+                                marginTop: "8px",
+                                color: "#303030",
+                                fontSize: "11px",
+                              }}
+                            >
+                              Selected: {bannerImageName}
+                            </div>
+                          )}
+
+                          {fileFetcher.data?.error && (
+                            <div
+                              style={{
+                                marginTop: "8px",
+                                color: "#8a1f11",
+                                fontSize: "11px",
+                              }}
+                            >
+                              {fileFetcher.data.error}
+                            </div>
+                          )}
+
+                          {bannerImagePreview && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setBannerImagePreview("");
+                                setBannerImageName("");
+                                setBannerShopifyFileId("");
+                              }}
+                              style={{
+                                marginTop: "8px",
+                                border: 0,
+                                padding: 0,
+                                background: "transparent",
+                                color: "#8a1f11",
+                                font: "inherit",
+                                fontSize: "11px",
+                                cursor: "pointer",
+                              }}
+                            >
+                              Remove image
+                            </button>
+                          )}
                         </div>
-                      )}
+                      </div>
                     </div>
                     <s-checkbox
                       label="Include in promotion sync"
