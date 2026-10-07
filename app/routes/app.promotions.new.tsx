@@ -83,6 +83,18 @@ export default function CreatePromotionPage() {
   const [method, setMethod] = useState<"code" | "automatic">("code");
   const [discountCode, setDiscountCode] = useState("");
   const [automaticTitle, setAutomaticTitle] = useState("");
+  const [valueType, setValueType] = useState<"percentage" | "fixed">("percentage");
+  const [discountValue, setDiscountValue] = useState("");
+  const [appliesTo, setAppliesTo] = useState<"products" | "collections">("collections");
+  const [buyRequirement, setBuyRequirement] = useState<"quantity" | "amount">("quantity");
+  const [buyQuantity, setBuyQuantity] = useState("1");
+  const [buyAmount, setBuyAmount] = useState("");
+  const [buyAppliesTo, setBuyAppliesTo] = useState<"products" | "collections">("products");
+  const [getQuantity, setGetQuantity] = useState("1");
+  const [getAppliesTo, setGetAppliesTo] = useState<"products" | "collections">("products");
+  const [rewardType, setRewardType] = useState<"percentage" | "amount" | "free">("percentage");
+  const [rewardValue, setRewardValue] = useState("");
+  const [maxUsesPerOrder, setMaxUsesPerOrder] = useState(false);
 
   function generateDiscountCode() {
     const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -289,42 +301,113 @@ export default function CreatePromotionPage() {
                 {discountType === "product" && (
                   <FormSection title="Discount value">
                     <s-stack direction="block" gap="base">
-                      <s-select label="Discount type" value="percentage">
-                        <s-option value="percentage">Percentage</s-option>
-                        <s-option value="fixed">Fixed amount</s-option>
-                      </s-select>
-                      <s-number-field
-                        label="Value"
-                        min={0}
-                        step={1}
-                        suffix="%"
-                      />
-                      <s-select label="Applies to" value="collections">
+                      <div
+                        className="discount-value-row"
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "minmax(0, 1fr) 170px",
+                          gap: "8px",
+                          alignItems: "end",
+                        }}
+                      >
+                        <s-select
+                          label="Discount type"
+                          value={valueType}
+                          onChange={(event) =>
+                            setValueType(
+                              event.currentTarget.value as "percentage" | "fixed",
+                            )
+                          }
+                        >
+                          <s-option value="percentage">Percentage</s-option>
+                          <s-option value="fixed">Fixed amount</s-option>
+                        </s-select>
+
+                        <s-number-field
+                          label="Value"
+                          labelAccessibilityVisibility="exclusive"
+                          min={0}
+                          step={0.01}
+                          value={discountValue}
+                          prefix={valueType === "fixed" ? "£" : undefined}
+                          suffix={valueType === "percentage" ? "%" : undefined}
+                          onInput={(event) =>
+                            setDiscountValue(event.currentTarget.value)
+                          }
+                        />
+                      </div>
+
+                      <s-select
+                        label="Applies to"
+                        value={appliesTo}
+                        onChange={(event) =>
+                          setAppliesTo(
+                            event.currentTarget.value as "products" | "collections",
+                          )
+                        }
+                      >
                         <s-option value="collections">Specific collections</s-option>
                         <s-option value="products">Specific products</s-option>
                       </s-select>
-                      <s-text-field
-                        label="Search"
-                        placeholder="Search products or collections"
-                      />
+
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "minmax(0, 1fr) auto",
+                          gap: "8px",
+                          alignItems: "end",
+                        }}
+                      >
+                        <s-text-field
+                          label={appliesTo === "collections" ? "Search collections" : "Search products"}
+                          labelAccessibilityVisibility="exclusive"
+                          placeholder={appliesTo === "collections" ? "Search collections" : "Search products"}
+                        />
+                        <s-button type="button" variant="secondary">
+                          Browse
+                        </s-button>
+                      </div>
                     </s-stack>
                   </FormSection>
                 )}
 
                 {discountType === "order" && (
                   <FormSection title="Discount value">
-                    <s-stack direction="block" gap="base">
-                      <s-select label="Discount type" value="percentage">
+                    <div
+                      className="discount-value-row"
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "minmax(0, 1fr) 170px",
+                        gap: "8px",
+                        alignItems: "end",
+                      }}
+                    >
+                      <s-select
+                        label="Discount type"
+                        value={valueType}
+                        onChange={(event) =>
+                          setValueType(
+                            event.currentTarget.value as "percentage" | "fixed",
+                          )
+                        }
+                      >
                         <s-option value="percentage">Percentage</s-option>
                         <s-option value="fixed">Fixed amount</s-option>
                       </s-select>
+
                       <s-number-field
                         label="Value"
+                        labelAccessibilityVisibility="exclusive"
                         min={0}
-                        step={1}
-                        suffix="%"
+                        step={0.01}
+                        value={discountValue}
+                        prefix={valueType === "fixed" ? "£" : undefined}
+                        suffix={valueType === "percentage" ? "%" : undefined}
+                        onInput={(event) =>
+                          setDiscountValue(event.currentTarget.value)
+                        }
                       />
-                    </s-stack>
+                    </div>
                   </FormSection>
                 )}
 
@@ -332,16 +415,94 @@ export default function CreatePromotionPage() {
                   <FormSection title="Discount value">
                     <s-stack direction="block" gap="large">
                       <div>
-                        <div style={{ fontSize: "13px", fontWeight: 650, marginBottom: "10px" }}>
+                        <div
+                          style={{
+                            marginBottom: "10px",
+                            fontSize: "13px",
+                            fontWeight: 650,
+                          }}
+                        >
                           Customer buys
                         </div>
+
                         <s-stack direction="block" gap="base">
-                          <s-number-field label="Quantity" min={1} step={1} />
-                          <s-select label="Any items from" value="products">
-                            <s-option value="products">Specific products</s-option>
-                            <s-option value="collections">Specific collections</s-option>
-                          </s-select>
-                          <s-text-field label="Search products" placeholder="Search products" />
+                          <s-radio-button
+                            name="buyRequirement"
+                            value="quantity"
+                            label="Minimum quantity of items"
+                            checked={buyRequirement === "quantity"}
+                            onChange={() => setBuyRequirement("quantity")}
+                          />
+                          <s-radio-button
+                            name="buyRequirement"
+                            value="amount"
+                            label="Minimum purchase amount"
+                            checked={buyRequirement === "amount"}
+                            onChange={() => setBuyRequirement("amount")}
+                          />
+
+                          <div
+                            className="bxgy-pair-row"
+                            style={{
+                              display: "grid",
+                              gridTemplateColumns: "120px minmax(0, 1fr)",
+                              gap: "8px",
+                            }}
+                          >
+                            {buyRequirement === "quantity" ? (
+                              <s-number-field
+                                label="Quantity"
+                                min={1}
+                                step={1}
+                                value={buyQuantity}
+                                onInput={(event) =>
+                                  setBuyQuantity(event.currentTarget.value)
+                                }
+                              />
+                            ) : (
+                              <s-number-field
+                                label="Amount"
+                                min={0}
+                                step={0.01}
+                                prefix="£"
+                                value={buyAmount}
+                                onInput={(event) =>
+                                  setBuyAmount(event.currentTarget.value)
+                                }
+                              />
+                            )}
+
+                            <s-select
+                              label="Any items from"
+                              value={buyAppliesTo}
+                              onChange={(event) =>
+                                setBuyAppliesTo(
+                                  event.currentTarget.value as "products" | "collections",
+                                )
+                              }
+                            >
+                              <s-option value="products">Specific products</s-option>
+                              <s-option value="collections">Specific collections</s-option>
+                            </s-select>
+                          </div>
+
+                          <div
+                            style={{
+                              display: "grid",
+                              gridTemplateColumns: "minmax(0, 1fr) auto",
+                              gap: "8px",
+                              alignItems: "end",
+                            }}
+                          >
+                            <s-text-field
+                              label={buyAppliesTo === "products" ? "Search products" : "Search collections"}
+                              labelAccessibilityVisibility="exclusive"
+                              placeholder={buyAppliesTo === "products" ? "Search products" : "Search collections"}
+                            />
+                            <s-button type="button" variant="secondary">
+                              Browse
+                            </s-button>
+                          </div>
                         </s-stack>
                       </div>
 
@@ -351,30 +512,165 @@ export default function CreatePromotionPage() {
                           borderTop: "1px solid #eeeeee",
                         }}
                       >
-                        <div style={{ fontSize: "13px", fontWeight: 650, marginBottom: "4px" }}>
+                        <div
+                          style={{
+                            marginBottom: "4px",
+                            fontSize: "13px",
+                            fontWeight: 650,
+                          }}
+                        >
                           Customer gets
                         </div>
                         <div
                           style={{
-                            marginBottom: "10px",
+                            marginBottom: "12px",
                             color: "#616161",
                             fontSize: "12px",
+                            lineHeight: 1.45,
                           }}
                         >
                           Customers must add the quantity of items specified below to their cart.
                         </div>
+
                         <s-stack direction="block" gap="base">
-                          <s-number-field label="Quantity" min={1} step={1} />
-                          <s-select label="Any items from" value="products">
-                            <s-option value="products">Specific products</s-option>
-                            <s-option value="collections">Specific collections</s-option>
-                          </s-select>
-                          <s-text-field label="Search products" placeholder="Search products" />
-                          <s-select label="At a discounted value" value="percentage">
-                            <s-option value="percentage">Percentage</s-option>
-                            <s-option value="amount">Amount off each</s-option>
-                            <s-option value="free">Free</s-option>
-                          </s-select>
+                          <div
+                            className="bxgy-pair-row"
+                            style={{
+                              display: "grid",
+                              gridTemplateColumns: "120px minmax(0, 1fr)",
+                              gap: "8px",
+                            }}
+                          >
+                            <s-number-field
+                              label="Quantity"
+                              min={1}
+                              step={1}
+                              value={getQuantity}
+                              onInput={(event) =>
+                                setGetQuantity(event.currentTarget.value)
+                              }
+                            />
+
+                            <s-select
+                              label="Any items from"
+                              value={getAppliesTo}
+                              onChange={(event) =>
+                                setGetAppliesTo(
+                                  event.currentTarget.value as "products" | "collections",
+                                )
+                              }
+                            >
+                              <s-option value="products">Specific products</s-option>
+                              <s-option value="collections">Specific collections</s-option>
+                            </s-select>
+                          </div>
+
+                          <div
+                            style={{
+                              display: "grid",
+                              gridTemplateColumns: "minmax(0, 1fr) auto",
+                              gap: "8px",
+                              alignItems: "end",
+                            }}
+                          >
+                            <s-text-field
+                              label={getAppliesTo === "products" ? "Search products" : "Search collections"}
+                              labelAccessibilityVisibility="exclusive"
+                              placeholder={getAppliesTo === "products" ? "Search products" : "Search collections"}
+                            />
+                            <s-button type="button" variant="secondary">
+                              Browse
+                            </s-button>
+                          </div>
+
+                          <div
+                            style={{
+                              paddingTop: "4px",
+                            }}
+                          >
+                            <div
+                              style={{
+                                marginBottom: "8px",
+                                color: "#303030",
+                                fontSize: "12px",
+                                fontWeight: 650,
+                              }}
+                            >
+                              At a discounted value
+                            </div>
+
+                            <s-stack direction="block" gap="small">
+                              <s-radio-button
+                                name="rewardType"
+                                value="percentage"
+                                label="Percentage"
+                                checked={rewardType === "percentage"}
+                                onChange={() => setRewardType("percentage")}
+                              />
+                              {rewardType === "percentage" && (
+                                <div style={{ maxWidth: "150px", marginLeft: "26px" }}>
+                                  <s-number-field
+                                    label="Percentage"
+                                    labelAccessibilityVisibility="exclusive"
+                                    min={0}
+                                    max={100}
+                                    step={0.01}
+                                    suffix="%"
+                                    value={rewardValue}
+                                    onInput={(event) =>
+                                      setRewardValue(event.currentTarget.value)
+                                    }
+                                  />
+                                </div>
+                              )}
+
+                              <s-radio-button
+                                name="rewardType"
+                                value="amount"
+                                label="Amount off each"
+                                checked={rewardType === "amount"}
+                                onChange={() => setRewardType("amount")}
+                              />
+                              {rewardType === "amount" && (
+                                <div style={{ maxWidth: "150px", marginLeft: "26px" }}>
+                                  <s-number-field
+                                    label="Amount"
+                                    labelAccessibilityVisibility="exclusive"
+                                    min={0}
+                                    step={0.01}
+                                    prefix="£"
+                                    value={rewardValue}
+                                    onInput={(event) =>
+                                      setRewardValue(event.currentTarget.value)
+                                    }
+                                  />
+                                </div>
+                              )}
+
+                              <s-radio-button
+                                name="rewardType"
+                                value="free"
+                                label="Free"
+                                checked={rewardType === "free"}
+                                onChange={() => setRewardType("free")}
+                              />
+                            </s-stack>
+                          </div>
+
+                          <div
+                            style={{
+                              paddingTop: "14px",
+                              borderTop: "1px solid #eeeeee",
+                            }}
+                          >
+                            <s-checkbox
+                              label="Set a maximum number of uses per order"
+                              checked={maxUsesPerOrder}
+                              onChange={(event) =>
+                                setMaxUsesPerOrder(event.currentTarget.checked)
+                              }
+                            />
+                          </div>
                         </s-stack>
                       </div>
                     </s-stack>
@@ -554,6 +850,11 @@ export default function CreatePromotionPage() {
                 border: 1px solid #dedede;
                 border-radius: 12px;
                 background: #ffffff;
+              }
+
+              .discount-value-row,
+              .bxgy-pair-row {
+                grid-template-columns: 1fr !important;
               }
             }
           `}</style>
