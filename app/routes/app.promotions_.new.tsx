@@ -2285,14 +2285,13 @@ export default function CreatePromotionPage() {
               border-left: 0;
               border-radius: 0 9px 9px 0;
               padding: 12px 8px;
-              background: #ffffff;
-              color: #202223;
+              background: #dff5e5;
+              color: #174c2a;
               box-shadow: 0 2px 8px rgba(0,0,0,0.12);
               font: inherit;
               font-size: 11px;
               font-weight: 700;
               writing-mode: vertical-rl;
-              transform: rotate(180deg);
               cursor: pointer;
             }
 
