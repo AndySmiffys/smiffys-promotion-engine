@@ -1,13 +1,58 @@
 import { useMemo, useState } from "react";
 import type { LoaderFunctionArgs } from "react-router";
-import { useSearchParams } from "react-router";
+import { useLoaderData, useSearchParams } from "react-router";
 
 import { authenticate } from "../shopify.server";
 
-export async function loader({ request }: LoaderFunctionArgs) {
-  await authenticate.admin(request);
+type LinkResource = {
+  id: string;
+  title: string;
+  handle: string;
+};
 
-  return null;
+type LinkResourcesResponse = {
+  data?: {
+    products?: { nodes: LinkResource[] };
+    collections?: { nodes: LinkResource[] };
+  };
+  errors?: Array<{ message: string }>;
+};
+
+export async function loader({ request }: LoaderFunctionArgs) {
+  const { admin } = await authenticate.admin(request);
+
+  const response = await admin.graphql(`
+    #graphql
+    query PromotionLinkResources {
+      products(first: 50, sortKey: TITLE) {
+        nodes {
+          id
+          title
+          handle
+        }
+      }
+      collections(first: 50, sortKey: TITLE) {
+        nodes {
+          id
+          title
+          handle
+        }
+      }
+    }
+  `);
+
+  const result = (await response.json()) as LinkResourcesResponse;
+
+  if (result.errors?.length) {
+    throw new Error(
+      result.errors.map((error) => error.message).join(", "),
+    );
+  }
+
+  return {
+    products: result.data?.products?.nodes ?? [],
+    collections: result.data?.collections?.nodes ?? [],
+  };
 }
 
 type DiscountType = "product" | "bxgy" | "order" | "shipping";
@@ -78,6 +123,7 @@ function FormSection({
 }
 
 export default function CreatePromotionPage() {
+  const { products, collections } = useLoaderData<typeof loader>();
   const [searchParams] = useSearchParams();
   const rawType = searchParams.get("type");
   const discountType: DiscountType =
@@ -122,6 +168,10 @@ export default function CreatePromotionPage() {
   const [backgroundColour, setBackgroundColour] = useState("#ffffff");
   const [textColour, setTextColour] = useState("#000000");
   const [badgeColour, setBadgeColour] = useState("#d72c0d");
+  const [showLinkSelector, setShowLinkSelector] = useState(false);
+  const [linkType, setLinkType] = useState<"collections" | "products" | "custom">("collections");
+  const [linkSearch, setLinkSearch] = useState("");
+  const [buttonLinkLabel, setButtonLinkLabel] = useState("");
 
   function generateDiscountCode() {
     const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -917,11 +967,98 @@ export default function CreatePromotionPage() {
                       value={buttonText}
                       onInput={(event) => setButtonText(event.currentTarget.value)}
                     />
-                    <s-url-field
-                      label="Button URL"
-                      value={buttonUrl}
-                      onInput={(event) => setButtonUrl(event.currentTarget.value)}
-                    />
+                    <div>
+                      <div
+                        style={{
+                          marginBottom: "6px",
+                          color: "#303030",
+                          fontSize: "12px",
+                          fontWeight: 650,
+                        }}
+                      >
+                        Button link
+                      </div>
+
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "minmax(0, 1fr) auto",
+                          gap: "8px",
+                          alignItems: "center",
+                        }}
+                      >
+                        <div
+                          style={{
+                            minHeight: "34px",
+                            display: "flex",
+                            alignItems: "center",
+                            padding: "0 10px",
+                            border: "1px solid #c9c9c9",
+                            borderRadius: "8px",
+                            background: "#ffffff",
+                            color: buttonUrl ? "#202223" : "#8c8c8c",
+                            fontSize: "13px",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {buttonLinkLabel || buttonUrl || "No link selected"}
+                        </div>
+
+                        <s-button
+                          type="button"
+                          variant="secondary"
+                          onClick={() => setShowLinkSelector(true)}
+                        >
+                          {buttonUrl ? "Change" : "Select"}
+                        </s-button>
+                      </div>
+
+                      {buttonUrl && (
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            gap: "10px",
+                            marginTop: "6px",
+                          }}
+                        >
+                          <div
+                            style={{
+                              minWidth: 0,
+                              color: "#616161",
+                              fontSize: "11px",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {buttonUrl}
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setButtonUrl("");
+                              setButtonLinkLabel("");
+                            }}
+                            style={{
+                              border: 0,
+                              padding: 0,
+                              background: "transparent",
+                              color: "#8a1f11",
+                              font: "inherit",
+                              fontSize: "11px",
+                              cursor: "pointer",
+                            }}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      )}
+                    </div>
                     <s-color-field
                       label="Background colour"
                       value={backgroundColour}
@@ -1223,6 +1360,218 @@ export default function CreatePromotionPage() {
             </aside>
           </div>
 
+
+          {showLinkSelector && (
+            <div
+              role="presentation"
+              onClick={() => setShowLinkSelector(false)}
+              style={{
+                position: "fixed",
+                inset: 0,
+                zIndex: 120,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "24px",
+                background: "rgba(0, 0, 0, 0.45)",
+              }}
+            >
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="link-selector-title"
+                onClick={(event) => event.stopPropagation()}
+                style={{
+                  width: "min(100%, 560px)",
+                  maxHeight: "78vh",
+                  overflow: "hidden",
+                  borderRadius: "14px",
+                  background: "#ffffff",
+                  boxShadow: "0 18px 48px rgba(0,0,0,0.24)",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: "12px",
+                    padding: "16px 18px",
+                    borderBottom: "1px solid #eeeeee",
+                  }}
+                >
+                  <div id="link-selector-title" style={{ fontSize: "16px", fontWeight: 700 }}>
+                    Select link
+                  </div>
+
+                  <button
+                    type="button"
+                    aria-label="Close"
+                    onClick={() => setShowLinkSelector(false)}
+                    style={{
+                      width: "32px",
+                      height: "32px",
+                      border: "1px solid #dedede",
+                      borderRadius: "8px",
+                      background: "#ffffff",
+                      fontSize: "18px",
+                      cursor: "pointer",
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "150px minmax(0, 1fr)",
+                    minHeight: "360px",
+                  }}
+                  className="link-selector-layout"
+                >
+                  <div
+                    style={{
+                      padding: "10px",
+                      borderRight: "1px solid #eeeeee",
+                      background: "#fafafa",
+                    }}
+                  >
+                    {[
+                      ["collections", "Collections"],
+                      ["products", "Products"],
+                      ["custom", "Custom URL"],
+                    ].map(([value, label]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => {
+                          setLinkType(value as "collections" | "products" | "custom");
+                          setLinkSearch("");
+                        }}
+                        style={{
+                          width: "100%",
+                          marginBottom: "4px",
+                          padding: "9px 10px",
+                          border: 0,
+                          borderRadius: "8px",
+                          background: linkType === value ? "#e8e8e8" : "transparent",
+                          color: "#202223",
+                          textAlign: "left",
+                          font: "inherit",
+                          fontSize: "12px",
+                          fontWeight: linkType === value ? 650 : 500,
+                          cursor: "pointer",
+                        }}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div
+                    style={{
+                      minWidth: 0,
+                      display: "flex",
+                      flexDirection: "column",
+                    }}
+                  >
+                    {linkType === "custom" ? (
+                      <div style={{ padding: "16px" }}>
+                        <s-url-field
+                          label="URL"
+                          placeholder="https://example.com or /pages/example"
+                          value={buttonUrl}
+                          onInput={(event) => setButtonUrl(event.currentTarget.value)}
+                        />
+                        <div style={{ marginTop: "12px", textAlign: "right" }}>
+                          <s-button
+                            type="button"
+                            variant="primary"
+                            onClick={() => {
+                              setButtonLinkLabel(buttonUrl);
+                              setShowLinkSelector(false);
+                            }}
+                          >
+                            Select
+                          </s-button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div style={{ padding: "12px", borderBottom: "1px solid #eeeeee" }}>
+                          <s-text-field
+                            label={linkType === "collections" ? "Search collections" : "Search products"}
+                            labelAccessibilityVisibility="exclusive"
+                            placeholder={linkType === "collections" ? "Search collections" : "Search products"}
+                            value={linkSearch}
+                            onInput={(event) => setLinkSearch(event.currentTarget.value)}
+                          />
+                        </div>
+
+                        <div
+                          style={{
+                            overflowY: "auto",
+                            padding: "6px",
+                          }}
+                        >
+                          {(linkType === "collections" ? collections : products)
+                            .filter((item) =>
+                              item.title.toLowerCase().includes(linkSearch.trim().toLowerCase()),
+                            )
+                            .map((item) => (
+                              <button
+                                key={item.id}
+                                type="button"
+                                onClick={() => {
+                                  const url =
+                                    linkType === "collections"
+                                      ? `/collections/${item.handle}`
+                                      : `/products/${item.handle}`;
+
+                                  setButtonUrl(url);
+                                  setButtonLinkLabel(item.title);
+                                  setShowLinkSelector(false);
+                                }}
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "space-between",
+                                  gap: "12px",
+                                  width: "100%",
+                                  padding: "10px 12px",
+                                  border: 0,
+                                  borderBottom: "1px solid #f1f1f1",
+                                  background: "#ffffff",
+                                  color: "#202223",
+                                  textAlign: "left",
+                                  font: "inherit",
+                                  cursor: "pointer",
+                                }}
+                              >
+                                <span
+                                  style={{
+                                    minWidth: 0,
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                    fontSize: "12px",
+                                  }}
+                                >
+                                  {item.title}
+                                </span>
+                                <span style={{ color: "#8c8c8c" }}>›</span>
+                              </button>
+                            ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           <style>{`
             @media (max-width: 800px) {
               .create-discount-layout {
@@ -1240,8 +1589,14 @@ export default function CreatePromotionPage() {
 
               .discount-value-row,
               .bxgy-pair-row,
-              .website-preview-grid {
+              .website-preview-grid,
+              .link-selector-layout {
                 grid-template-columns: 1fr !important;
+              }
+
+              .link-selector-layout > div:first-child {
+                border-right: 0 !important;
+                border-bottom: 1px solid #eeeeee;
               }
             }
           `}</style>
