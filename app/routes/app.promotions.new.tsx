@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
 
 type DiscountType = "product" | "bxgy" | "order" | "shipping";
@@ -80,6 +80,18 @@ export default function CreatePromotionPage() {
       : "product";
 
   const config = typeConfig[discountType];
+  const [method, setMethod] = useState<"code" | "automatic">("code");
+  const [discountCode, setDiscountCode] = useState("");
+  const [automaticTitle, setAutomaticTitle] = useState("");
+
+  function generateDiscountCode() {
+    const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    const code = Array.from({ length: 10 }, () =>
+      alphabet[Math.floor(Math.random() * alphabet.length)],
+    ).join("");
+
+    setDiscountCode(code);
+  }
 
   const details = useMemo(() => {
     const base = [
@@ -140,16 +152,137 @@ export default function CreatePromotionPage() {
               <s-stack direction="block" gap="large">
                 <FormSection title="Method">
                   <s-stack direction="block" gap="base">
-                    <s-select label="Method" value="code">
-                      <s-option value="code">Discount code</s-option>
-                      <s-option value="automatic">Automatic discount</s-option>
-                    </s-select>
+                    <div>
+                      <div
+                        style={{
+                          marginBottom: "8px",
+                          color: "#303030",
+                          fontSize: "12px",
+                          fontWeight: 650,
+                        }}
+                      >
+                        Method
+                      </div>
 
-                    <s-text-field
-                      label="Discount code"
-                      placeholder="Enter discount code"
-                      details="Customers must enter this code at checkout."
-                    />
+                      <div
+                        role="group"
+                        aria-label="Discount method"
+                        style={{
+                          display: "inline-flex",
+                          padding: "2px",
+                          borderRadius: "8px",
+                          background: "#f1f1f1",
+                        }}
+                      >
+                        <button
+                          type="button"
+                          aria-pressed={method === "code"}
+                          onClick={() => setMethod("code")}
+                          style={{
+                            border: 0,
+                            borderRadius: "7px",
+                            padding: "7px 11px",
+                            background: method === "code" ? "#ffffff" : "transparent",
+                            boxShadow:
+                              method === "code"
+                                ? "0 1px 2px rgba(0, 0, 0, 0.12)"
+                                : "none",
+                            color: "#202223",
+                            font: "inherit",
+                            fontSize: "12px",
+                            fontWeight: 600,
+                            cursor: "pointer",
+                          }}
+                        >
+                          Discount code
+                        </button>
+
+                        <button
+                          type="button"
+                          aria-pressed={method === "automatic"}
+                          onClick={() => setMethod("automatic")}
+                          style={{
+                            border: 0,
+                            borderRadius: "7px",
+                            padding: "7px 11px",
+                            background:
+                              method === "automatic" ? "#ffffff" : "transparent",
+                            boxShadow:
+                              method === "automatic"
+                                ? "0 1px 2px rgba(0, 0, 0, 0.12)"
+                                : "none",
+                            color: "#202223",
+                            font: "inherit",
+                            fontSize: "12px",
+                            fontWeight: 600,
+                            cursor: "pointer",
+                          }}
+                        >
+                          Automatic discount
+                        </button>
+                      </div>
+                    </div>
+
+                    {method === "code" ? (
+                      <div>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            gap: "12px",
+                            marginBottom: "6px",
+                          }}
+                        >
+                          <span
+                            style={{
+                              color: "#303030",
+                              fontSize: "12px",
+                              fontWeight: 650,
+                            }}
+                          >
+                            Discount code
+                          </span>
+
+                          <button
+                            type="button"
+                            onClick={generateDiscountCode}
+                            style={{
+                              border: 0,
+                              padding: 0,
+                              background: "transparent",
+                              color: "#005bd3",
+                              font: "inherit",
+                              fontSize: "12px",
+                              cursor: "pointer",
+                            }}
+                          >
+                            Generate random code
+                          </button>
+                        </div>
+
+                        <s-text-field
+                          label="Discount code"
+                          labelAccessibilityVisibility="exclusive"
+                          placeholder="Enter discount code"
+                          value={discountCode}
+                          onInput={(event) =>
+                            setDiscountCode(event.currentTarget.value)
+                          }
+                          details="Customers must enter this code at checkout."
+                        />
+                      </div>
+                    ) : (
+                      <s-text-field
+                        label="Title"
+                        placeholder="Enter discount title"
+                        value={automaticTitle}
+                        onInput={(event) =>
+                          setAutomaticTitle(event.currentTarget.value)
+                        }
+                        details="Customers will see this title in their cart and at checkout."
+                      />
+                    )}
                   </s-stack>
                 </FormSection>
 
@@ -365,10 +498,12 @@ export default function CreatePromotionPage() {
                 }}
               >
                 <div style={{ fontSize: "12px", fontWeight: 650 }}>
-                  No discount code yet
+                  {method === "code"
+                    ? discountCode || "No discount code yet"
+                    : automaticTitle || "No title yet"}
                 </div>
                 <div style={{ marginTop: "2px", color: "#616161", fontSize: "12px" }}>
-                  Code
+                  {method === "code" ? "Code" : "Automatic"}
                 </div>
               </div>
 
