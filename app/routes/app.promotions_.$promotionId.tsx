@@ -508,20 +508,64 @@ export default function PromotionDetailsPage() {
 
   return (
     <s-page heading={general.title}>
-      <s-stack
-        direction="block"
-        gap="large"
+      <div
+        style={{
+          maxWidth: "1180px",
+          margin: "0 auto",
+        }}
       >
-        <s-stack direction="inline">
-          <s-button
-            href="/app/promotions"
-            variant="secondary"
+        <s-stack
+          direction="block"
+          gap="large"
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: "16px",
+              flexWrap: "wrap",
+            }}
           >
-            Back to promotions
-          </s-button>
-        </s-stack>
+            <s-button
+              href="/app/promotions"
+              variant="secondary"
+            >
+              Back to promotions
+            </s-button>
 
-        <PromotionTabs
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+              }}
+            >
+              <s-badge
+                tone={
+                  general.status === "ACTIVE"
+                    ? "success"
+                    : general.status === "SCHEDULED"
+                      ? "info"
+                      : general.status === "EXPIRED"
+                        ? "critical"
+                        : "neutral"
+                }
+              >
+                {general.status}
+              </s-badge>
+
+              <s-button
+                href={`shopify:admin/discounts/${promotion.routeId}`}
+                target="_blank"
+                variant="secondary"
+              >
+                Edit in Shopify
+              </s-button>
+            </div>
+          </div>
+
+          <PromotionTabs
           activeTab={activeTab}
           onChange={setActiveTab}
         />
@@ -959,8 +1003,9 @@ export default function PromotionDetailsPage() {
               </div>
             </div>
           )}
-        </Form>
-      </s-stack>
+          </Form>
+        </s-stack>
+      </div>
     </s-page>
   );
 }
