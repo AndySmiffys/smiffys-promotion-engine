@@ -547,6 +547,11 @@ const [productCombinationMode, setProductCombinationMode] = useState<"best" | "m
 const [showCombinationTags, setShowCombinationTags] = useState(false);
 const [combinationTagSearch, setCombinationTagSearch] = useState("");
 const [selectedCombinationTags, setSelectedCombinationTags] = useState<string[]>([]);
+const [startDate, setStartDate] = useState("");
+const [startTime, setStartTime] = useState("");
+const [hasEndDate, setHasEndDate] = useState(false);
+const [endDate, setEndDate] = useState("");
+const [endTime, setEndTime] = useState("");
 const [eligibility, setEligibility] = useState<"all" | "segments" | "customers">("all");
 const [eligibilitySearch, setEligibilitySearch] = useState("");
 const [selectedEligibility, setSelectedEligibility] = useState<EligibilityResource[]>([]);
@@ -2555,11 +2560,66 @@ setLimitOncePerCustomer(event.currentTarget.checked)
 </section>
 
 <FormSection title="Schedule">
-<s-stack direction="block" gap="base">
-<s-text-field label="Start date" type="date" />
-<s-text-field label="Start time" type="time" />
-<s-checkbox label="Set end date" />
-</s-stack>
+<div style={{display:"grid",gap:"12px"}}>
+<div style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) 150px",gap:"8px"}} className="schedule-date-time-row">
+<label style={{display:"grid",gap:"5px",fontSize:"12px",color:"#303030"}}>
+<span>Start date</span>
+<input
+type="date"
+value={startDate}
+onChange={(event)=>setStartDate(event.currentTarget.value)}
+style={{width:"100%",minHeight:"38px",padding:"7px 10px",border:"1px solid #c9c9c9",borderRadius:"8px",background:"#fff",color:"#202223",font:"inherit",fontSize:"13px",boxSizing:"border-box"}}
+/>
+</label>
+<label style={{display:"grid",gap:"5px",fontSize:"12px",color:"#303030"}}>
+<span>Start time</span>
+<input
+type="time"
+step="60"
+value={startTime}
+onChange={(event)=>setStartTime(event.currentTarget.value)}
+style={{width:"100%",minHeight:"38px",padding:"7px 10px",border:"1px solid #c9c9c9",borderRadius:"8px",background:"#fff",color:"#202223",font:"inherit",fontSize:"13px",boxSizing:"border-box"}}
+/>
+</label>
+</div>
+
+<s-checkbox
+label="Set end date"
+checked={hasEndDate}
+onChange={(event)=>{
+setHasEndDate(event.currentTarget.checked);
+if(!event.currentTarget.checked){
+setEndDate("");
+setEndTime("");
+}
+}}
+/>
+
+{hasEndDate&&(
+<div style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) 150px",gap:"8px"}} className="schedule-date-time-row">
+<label style={{display:"grid",gap:"5px",fontSize:"12px",color:"#303030"}}>
+<span>End date</span>
+<input
+type="date"
+value={endDate}
+min={startDate||undefined}
+onChange={(event)=>setEndDate(event.currentTarget.value)}
+style={{width:"100%",minHeight:"38px",padding:"7px 10px",border:"1px solid #c9c9c9",borderRadius:"8px",background:"#fff",color:"#202223",font:"inherit",fontSize:"13px",boxSizing:"border-box"}}
+/>
+</label>
+<label style={{display:"grid",gap:"5px",fontSize:"12px",color:"#303030"}}>
+<span>End time</span>
+<input
+type="time"
+step="60"
+value={endTime}
+onChange={(event)=>setEndTime(event.currentTarget.value)}
+style={{width:"100%",minHeight:"38px",padding:"7px 10px",border:"1px solid #c9c9c9",borderRadius:"8px",background:"#fff",color:"#202223",font:"inherit",fontSize:"13px",boxSizing:"border-box"}}
+/>
+</label>
+</div>
+)}
+</div>
 </FormSection>
 
 <FormSection title="Website promotion">
@@ -3555,7 +3615,8 @@ background: #ffffff;
 .website-preview-grid,
 .website-preview-collection-banner,
 .website-preview-product-page,
-.link-selector-layout {
+.link-selector-layout,
+.schedule-date-time-row {
 grid-template-columns: 1fr !important;
 }
 
