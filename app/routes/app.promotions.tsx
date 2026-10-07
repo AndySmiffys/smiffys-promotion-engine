@@ -98,6 +98,18 @@ function getSummaryLines(summary: string): string[] {
     .filter(Boolean);
 }
 
+function formatDate(value: string | null): string {
+  if (!value) {
+    return "No end date";
+  }
+
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(value));
+}
+
 type DiscountIconType = "tag" | "order" | "truck";
 
 function DiscountTypeIcon({
@@ -192,8 +204,7 @@ export default function PromotionsPage() {
     <s-page heading="Promotions">
       <div
         style={{
-          maxWidth: "1180px",
-          margin: "0 auto",
+          width: "100%",
         }}
       >
         <s-stack direction="block" gap="large">
@@ -270,6 +281,8 @@ export default function PromotionsPage() {
                 minmax(92px, 0.9fr)
                 minmax(92px, 0.85fr)
                 minmax(72px, 0.7fr)
+                minmax(96px, 0.85fr)
+                minmax(96px, 0.85fr)
                 64px;
               column-gap: 12px;
               align-items: center;
@@ -331,6 +344,8 @@ export default function PromotionsPage() {
                   minmax(90px, 0.85fr)
                   minmax(86px, 0.8fr)
                   minmax(68px, 0.65fr)
+                  minmax(88px, 0.8fr)
+                  minmax(88px, 0.8fr)
                   58px;
                 column-gap: 8px;
               }
@@ -446,6 +461,8 @@ export default function PromotionsPage() {
                   <div>Type</div>
                   <div>Website</div>
                   <div>Value</div>
+                  <div>Starts</div>
+                  <div>Ends</div>
                   <div />
                 </div>
 
@@ -534,6 +551,16 @@ export default function PromotionsPage() {
                       <div className="promotion-list-cell">
                         <span className="promotion-mobile-label">Value</span>
                         {getPromotionValue(promotion)}
+                      </div>
+
+                      <div className="promotion-list-cell">
+                        <span className="promotion-mobile-label">Starts</span>
+                        {formatDate(promotion.shopify.schedule.startsAt)}
+                      </div>
+
+                      <div className="promotion-list-cell">
+                        <span className="promotion-mobile-label">Ends</span>
+                        {formatDate(promotion.shopify.schedule.endsAt)}
                       </div>
 
                       <div
