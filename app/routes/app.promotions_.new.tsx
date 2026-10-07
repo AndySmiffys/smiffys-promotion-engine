@@ -536,6 +536,9 @@ export default function CreatePromotionPage() {
   >("none");
   const [minimumPurchaseAmount, setMinimumPurchaseAmount] = useState("");
   const [minimumQuantity, setMinimumQuantity] = useState("");
+  const [limitTotalUses, setLimitTotalUses] = useState(false);
+  const [totalUsageLimit, setTotalUsageLimit] = useState("");
+  const [limitOncePerCustomer, setLimitOncePerCustomer] = useState(false);
   const [eligibility, setEligibility] = useState<"all" | "segments" | "customers">("all");
   const [eligibilitySearch, setEligibilitySearch] = useState("");
   const [selectedEligibility, setSelectedEligibility] = useState<EligibilityResource[]>([]);
@@ -2409,10 +2412,56 @@ export default function CreatePromotionPage() {
                 )}
 
                 <FormSection title="Maximum discount uses">
-                  <s-stack direction="block" gap="small">
-                    <s-checkbox label="Limit number of times this discount can be used in total" />
-                    <s-checkbox label="Limit to one use per customer" />
-                  </s-stack>
+                  <div
+                    style={{
+                      display: "grid",
+                      gap: "10px",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "grid",
+                        gap: "8px",
+                      }}
+                    >
+                      <s-checkbox
+                        label="Limit number of times this discount can be used in total"
+                        checked={limitTotalUses}
+                        onChange={(event) =>
+                          setLimitTotalUses(event.currentTarget.checked)
+                        }
+                      />
+
+                      {limitTotalUses && (
+                        <div
+                          style={{
+                            maxWidth: "220px",
+                            marginLeft: "24px",
+                          }}
+                        >
+                          <s-number-field
+                            label="Maximum discount uses"
+                            labelAccessibilityVisibility="exclusive"
+                            min={1}
+                            step={1}
+                            value={totalUsageLimit}
+                            onInput={(event) =>
+                              setTotalUsageLimit(event.currentTarget.value)
+                            }
+                            details="Set the total number of times this discount can be used."
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    <s-checkbox
+                      label="Limit to one use per customer"
+                      checked={limitOncePerCustomer}
+                      onChange={(event) =>
+                        setLimitOncePerCustomer(event.currentTarget.checked)
+                      }
+                    />
+                  </div>
                 </FormSection>
 
                 <FormSection title="Combinations">
