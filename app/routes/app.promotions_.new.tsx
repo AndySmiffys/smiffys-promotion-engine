@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { useFetcher, useLoaderData, useSearchParams } from "react-router";
 
@@ -323,7 +323,7 @@ export default function CreatePromotionPage() {
   }
 
 
-  useMemo(() => {
+  useEffect(() => {
     const selectedImage = fileFetcher.data?.image;
 
     if (fileFetcher.data?.success && selectedImage) {
@@ -331,8 +331,6 @@ export default function CreatePromotionPage() {
       setBannerImagePreview(selectedImage.url);
       setBannerImageName(selectedImage.alt || "Shopify image");
     }
-
-    return null;
   }, [fileFetcher.data]);
 
   async function openShopifyImagePicker() {
