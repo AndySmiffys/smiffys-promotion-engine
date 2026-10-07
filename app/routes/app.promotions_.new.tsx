@@ -2313,88 +2313,97 @@ export default function CreatePromotionPage() {
                           label: "Minimum quantity of items",
                         },
                       ].map((option) => (
-                        <label
+                        <div
                           key={option.value}
                           style={{
-                            display: "flex",
-                            alignItems: "center",
+                            display: "grid",
                             gap: "8px",
-                            color: "#202223",
-                            fontSize: "13px",
-                            cursor: "pointer",
                           }}
                         >
-                          <input
-                            type="radio"
-                            name="minimumRequirement"
-                            value={option.value}
-                            checked={minimumRequirement === option.value}
-                            onChange={() =>
-                              setMinimumRequirement(
-                                option.value as
-                                  | "none"
-                                  | "amount"
-                                  | "quantity",
-                              )
-                            }
+                          <label
                             style={{
-                              width: "16px",
-                              height: "16px",
-                              margin: 0,
-                              accentColor: "#202223",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "8px",
+                              color: "#202223",
+                              fontSize: "13px",
                               cursor: "pointer",
                             }}
-                          />
-                          <span>{option.label}</span>
-                        </label>
+                          >
+                            <input
+                              type="radio"
+                              name="minimumRequirement"
+                              value={option.value}
+                              checked={minimumRequirement === option.value}
+                              onChange={() =>
+                                setMinimumRequirement(
+                                  option.value as
+                                    | "none"
+                                    | "amount"
+                                    | "quantity",
+                                )
+                              }
+                              style={{
+                                width: "16px",
+                                height: "16px",
+                                margin: 0,
+                                accentColor: "#202223",
+                                cursor: "pointer",
+                              }}
+                            />
+                            <span>{option.label}</span>
+                          </label>
+
+                          {option.value === "amount" &&
+                            minimumRequirement === "amount" && (
+                              <div
+                                style={{
+                                  maxWidth: "220px",
+                                  marginLeft: "24px",
+                                }}
+                              >
+                                <s-number-field
+                                  label="Minimum purchase amount"
+                                  labelAccessibilityVisibility="exclusive"
+                                  min={0}
+                                  step={0.01}
+                                  prefix="£"
+                                  value={minimumPurchaseAmount}
+                                  onInput={(event) =>
+                                    setMinimumPurchaseAmount(
+                                      event.currentTarget.value,
+                                    )
+                                  }
+                                  details="Customers must spend at least this amount to use the discount."
+                                />
+                              </div>
+                            )}
+
+                          {option.value === "quantity" &&
+                            minimumRequirement === "quantity" && (
+                              <div
+                                style={{
+                                  maxWidth: "220px",
+                                  marginLeft: "24px",
+                                }}
+                              >
+                                <s-number-field
+                                  label="Minimum quantity of items"
+                                  labelAccessibilityVisibility="exclusive"
+                                  min={1}
+                                  step={1}
+                                  value={minimumQuantity}
+                                  onInput={(event) =>
+                                    setMinimumQuantity(
+                                      event.currentTarget.value,
+                                    )
+                                  }
+                                  details="Customers must add at least this many eligible items to use the discount."
+                                />
+                              </div>
+                            )}
+                        </div>
                       ))}
-
-                      {minimumRequirement === "amount" && (
-                        <div
-                          style={{
-                            maxWidth: "220px",
-                            marginLeft: "24px",
-                          }}
-                        >
-                          <s-number-field
-                            label="Minimum purchase amount"
-                            labelAccessibilityVisibility="exclusive"
-                            min={0}
-                            step={0.01}
-                            prefix="£"
-                            value={minimumPurchaseAmount}
-                            onInput={(event) =>
-                              setMinimumPurchaseAmount(
-                                event.currentTarget.value,
-                              )
-                            }
-                            details="Customers must spend at least this amount to use the discount."
-                          />
-                        </div>
-                      )}
-
-                      {minimumRequirement === "quantity" && (
-                        <div
-                          style={{
-                            maxWidth: "220px",
-                            marginLeft: "24px",
-                          }}
-                        >
-                          <s-number-field
-                            label="Minimum quantity of items"
-                            labelAccessibilityVisibility="exclusive"
-                            min={1}
-                            step={1}
-                            value={minimumQuantity}
-                            onInput={(event) =>
-                              setMinimumQuantity(
-                                event.currentTarget.value,
-                              )
-                            }
-                            details="Customers must add at least this many eligible items to use the discount."
-                          />
-                        </div>
-                      )}
                     </div>
                   </FormSection>
                 )}
