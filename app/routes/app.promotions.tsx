@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import type { LoaderFunctionArgs } from "react-router";
-import { useLoaderData } from "react-router";
+import { useLoaderData, useNavigate } from "react-router";
 
 import { authenticate } from "../shopify.server";
 import { getDiscounts } from "../modules/promotions/services/discounts.server";
@@ -100,8 +100,10 @@ function getSummaryLines(summary: string): string[] {
 
 export default function PromotionsPage() {
   const { promotions } = useLoaderData<typeof loader>();
+  const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [showCreateDiscount, setShowCreateDiscount] = useState(false);
 
   const filteredPromotions = useMemo(() => {
     const normalisedQuery = query.trim().toLowerCase();
@@ -161,9 +163,26 @@ export default function PromotionsPage() {
               </div>
             </div>
 
-            <s-button href="shopify:admin/discounts" target="_blank">
-              Open Shopify discounts
-            </s-button>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+                flexWrap: "wrap",
+              }}
+            >
+              <s-button
+                type="button"
+                variant="primary"
+                onClick={() => setShowCreateDiscount(true)}
+              >
+                Create discount
+              </s-button>
+
+              <s-button href="shopify:admin/discounts" target="_blank">
+                Open Shopify discounts
+              </s-button>
+            </div>
           </div>
 
           <style>{`
@@ -457,6 +476,188 @@ export default function PromotionsPage() {
           </section>
         </s-stack>
       </div>
+
+      {showCreateDiscount && (
+        <div
+          role="presentation"
+          onClick={() => setShowCreateDiscount(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 100,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "24px",
+            background: "rgba(0, 0, 0, 0.48)",
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="create-discount-title"
+            onClick={(event) => event.stopPropagation()}
+            style={{
+              width: "min(100%, 560px)",
+              overflow: "hidden",
+              borderRadius: "16px",
+              background: "#ffffff",
+              boxShadow: "0 18px 48px rgba(0, 0, 0, 0.24)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "16px",
+                padding: "18px 20px 14px",
+              }}
+            >
+              <div
+                id="create-discount-title"
+                style={{
+                  color: "#202223",
+                  fontSize: "18px",
+                  fontWeight: 700,
+                }}
+              >
+                Select discount type
+              </div>
+
+              <button
+                type="button"
+                aria-label="Close"
+                onClick={() => setShowCreateDiscount(false)}
+                style={{
+                  width: "34px",
+                  height: "34px",
+                  border: "1px solid #dedede",
+                  borderRadius: "10px",
+                  background: "#ffffff",
+                  color: "#202223",
+                  fontSize: "20px",
+                  lineHeight: 1,
+                  cursor: "pointer",
+                }}
+              >
+                ×
+              </button>
+            </div>
+
+            {[
+              {
+                type: "product",
+                title: "Amount off products",
+                description: "Discount specific products or collections of products",
+                icon: "◇",
+              },
+              {
+                type: "bxgy",
+                title: "Buy X get Y",
+                description: "Discount specific products or collections of products",
+                icon: "◇",
+              },
+              {
+                type: "order",
+                title: "Amount off order",
+                description: "Discount the total order amount",
+                icon: "▭",
+              },
+              {
+                type: "shipping",
+                title: "Free shipping",
+                description: "Offer free shipping on an order",
+                icon: "♧",
+              },
+            ].map((discountType) => (
+              <button
+                key={discountType.type}
+                type="button"
+                onClick={() => {
+                  setShowCreateDiscount(false);
+                  navigate(`/app/promotions/new?type=${discountType.type}`);
+                }}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "28px minmax(0, 1fr) 20px",
+                  alignItems: "center",
+                  gap: "12px",
+                  width: "100%",
+                  padding: "15px 20px",
+                  border: "0",
+                  borderTop: "1px solid #eeeeee",
+                  background: "#ffffff",
+                  color: "#202223",
+                  textAlign: "left",
+                  cursor: "pointer",
+                }}
+              >
+                <span
+                  aria-hidden="true"
+                  style={{
+                    fontSize: "18px",
+                    textAlign: "center",
+                  }}
+                >
+                  {discountType.icon}
+                </span>
+
+                <span style={{ minWidth: 0 }}>
+                  <span
+                    style={{
+                      display: "block",
+                      fontSize: "14px",
+                      fontWeight: 650,
+                    }}
+                  >
+                    {discountType.title}
+                  </span>
+                  <span
+                    style={{
+                      display: "block",
+                      marginTop: "3px",
+                      color: "#616161",
+                      fontSize: "12px",
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    {discountType.description}
+                  </span>
+                </span>
+
+                <span
+                  aria-hidden="true"
+                  style={{
+                    color: "#616161",
+                    fontSize: "20px",
+                    textAlign: "right",
+                  }}
+                >
+                  ›
+                </span>
+              </button>
+            ))}
+
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                padding: "14px 20px 18px",
+                borderTop: "1px solid #eeeeee",
+              }}
+            >
+              <s-button
+                type="button"
+                variant="secondary"
+                onClick={() => setShowCreateDiscount(false)}
+              >
+                Cancel
+              </s-button>
+            </div>
+          </div>
+        </div>
+      )}
     </s-page>
   );
 }
