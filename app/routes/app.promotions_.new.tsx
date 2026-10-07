@@ -547,11 +547,9 @@ const [productCombinationMode, setProductCombinationMode] = useState<"best" | "m
 const [showCombinationTags, setShowCombinationTags] = useState(false);
 const [combinationTagSearch, setCombinationTagSearch] = useState("");
 const [selectedCombinationTags, setSelectedCombinationTags] = useState<string[]>([]);
-const [startDate, setStartDate] = useState("");
-const [startTime, setStartTime] = useState("");
+const [startDateTime, setStartDateTime] = useState("");
 const [hasEndDate, setHasEndDate] = useState(false);
-const [endDate, setEndDate] = useState("");
-const [endTime, setEndTime] = useState("");
+const [endDateTime, setEndDateTime] = useState("");
 const [eligibility, setEligibility] = useState<"all" | "segments" | "customers">("all");
 const [eligibilitySearch, setEligibilitySearch] = useState("");
 const [selectedEligibility, setSelectedEligibility] = useState<EligibilityResource[]>([]);
@@ -2561,27 +2559,21 @@ setLimitOncePerCustomer(event.currentTarget.checked)
 
 <FormSection title="Schedule">
 <div style={{display:"grid",gap:"12px"}}>
-<div style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) 150px",gap:"8px"}} className="schedule-date-time-row">
 <label style={{display:"grid",gap:"5px",fontSize:"12px",color:"#303030"}}>
-<span>Start date</span>
+<span>Start date and time</span>
+<div style={{position:"relative"}}>
 <input
-type="date"
-value={startDate}
-onChange={(event)=>setStartDate(event.currentTarget.value)}
-style={{width:"100%",minHeight:"38px",padding:"7px 10px",border:"1px solid #c9c9c9",borderRadius:"8px",background:"#fff",color:"#202223",font:"inherit",fontSize:"13px",boxSizing:"border-box"}}
-/>
-</label>
-<label style={{display:"grid",gap:"5px",fontSize:"12px",color:"#303030"}}>
-<span>Start time</span>
-<input
-type="time"
+type="datetime-local"
 step="60"
-value={startTime}
-onChange={(event)=>setStartTime(event.currentTarget.value)}
-style={{width:"100%",minHeight:"38px",padding:"7px 10px",border:"1px solid #c9c9c9",borderRadius:"8px",background:"#fff",color:"#202223",font:"inherit",fontSize:"13px",boxSizing:"border-box"}}
+value={startDateTime}
+onChange={(event)=>setStartDateTime(event.currentTarget.value)}
+style={{width:"100%",minHeight:"42px",padding:"8px 78px 8px 10px",border:"1px solid #c9c9c9",borderRadius:"8px",background:"#fff",color:"#202223",font:"inherit",fontSize:"13px",boxSizing:"border-box"}}
 />
-</label>
+<span style={{position:"absolute",right:"10px",top:"50%",transform:"translateY(-50%)",color:"#616161",fontSize:"11px",pointerEvents:"none"}}>
+Local time
+</span>
 </div>
+</label>
 
 <s-checkbox
 label="Set end date"
@@ -2589,35 +2581,28 @@ checked={hasEndDate}
 onChange={(event)=>{
 setHasEndDate(event.currentTarget.checked);
 if(!event.currentTarget.checked){
-setEndDate("");
-setEndTime("");
+setEndDateTime("");
 }
 }}
 />
 
 {hasEndDate&&(
-<div style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) 150px",gap:"8px"}} className="schedule-date-time-row">
 <label style={{display:"grid",gap:"5px",fontSize:"12px",color:"#303030"}}>
-<span>End date</span>
+<span>End date and time</span>
+<div style={{position:"relative"}}>
 <input
-type="date"
-value={endDate}
-min={startDate||undefined}
-onChange={(event)=>setEndDate(event.currentTarget.value)}
-style={{width:"100%",minHeight:"38px",padding:"7px 10px",border:"1px solid #c9c9c9",borderRadius:"8px",background:"#fff",color:"#202223",font:"inherit",fontSize:"13px",boxSizing:"border-box"}}
-/>
-</label>
-<label style={{display:"grid",gap:"5px",fontSize:"12px",color:"#303030"}}>
-<span>End time</span>
-<input
-type="time"
+type="datetime-local"
 step="60"
-value={endTime}
-onChange={(event)=>setEndTime(event.currentTarget.value)}
-style={{width:"100%",minHeight:"38px",padding:"7px 10px",border:"1px solid #c9c9c9",borderRadius:"8px",background:"#fff",color:"#202223",font:"inherit",fontSize:"13px",boxSizing:"border-box"}}
+value={endDateTime}
+min={startDateTime||undefined}
+onChange={(event)=>setEndDateTime(event.currentTarget.value)}
+style={{width:"100%",minHeight:"42px",padding:"8px 78px 8px 10px",border:"1px solid #c9c9c9",borderRadius:"8px",background:"#fff",color:"#202223",font:"inherit",fontSize:"13px",boxSizing:"border-box"}}
 />
-</label>
+<span style={{position:"absolute",right:"10px",top:"50%",transform:"translateY(-50%)",color:"#616161",fontSize:"11px",pointerEvents:"none"}}>
+Local time
+</span>
 </div>
+</label>
 )}
 </div>
 </FormSection>
