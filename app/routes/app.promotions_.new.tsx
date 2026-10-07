@@ -1,9 +1,144 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { useFetcher, useLoaderData, useSearchParams } from "react-router";
 import { useAppBridge } from "@shopify/app-bridge-react";
 
 import { authenticate } from "../shopify.server";
+
+
+function ScheduleDateTimeField({
+  label,
+  value,
+  onChange,
+  min,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  min?: string;
+}) {
+  const id = useId();
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [month, setMonth] = useState({ year: 2000, month: 0 });
+  const fieldRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    dialogRef.current?.focus();
+    function outside(event: PointerEvent) {
+      if (event.target instanceof Node && !fieldRef.current?.contains(event.target)) {
+        setOpen(false);
+      }
+    }
+    function escape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setOpen(false);
+        triggerRef.current?.focus();
+      }
+    }
+    document.addEventListener("pointerdown", outside);
+    document.addEventListener("keydown", escape);
+    return () => {
+      document.removeEventListener("pointerdown", outside);
+      document.removeEventListener("keydown", escape);
+    };
+  }, [open]);
+
+  function close() {
+    setOpen(false);
+    triggerRef.current?.focus();
+  }
+
+  function toggle() {
+    if (open) {
+      close();
+      return;
+    }
+    const initial = value || min || "";
+    const date = initial ? new Date(initial) : new Date();
+    setDraft(initial);
+    setMonth({ year: date.getFullYear(), month: date.getMonth() });
+    setOpen(true);
+  }
+
+  const datePart = draft.slice(0, 10);
+  const hour = draft.slice(11, 13) || "00";
+  const minute = draft.slice(14, 16) || "00";
+  const valid = Boolean(datePart) && (!min || draft >= min);
+  const firstDay = (new Date(month.year, month.month, 1).getDay() + 6) % 7;
+  const days = new Date(month.year, month.month + 1, 0).getDate();
+  const monthTitle = new Intl.DateTimeFormat("en-GB", { month: "long", year: "numeric" })
+    .format(new Date(month.year, month.month, 1));
+  const summary = value
+    ? new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value))
+    : "Select date and time";
+  const controlStyle = { padding: "8px", border: "1px solid #c9c9c9", borderRadius: "8px", background: "#fff", color: "#202223", font: "inherit", cursor: "pointer" };
+
+  function moveMonth(offset: number) {
+    const date = new Date(month.year, month.month + offset, 1);
+    setMonth({ year: date.getFullYear(), month: date.getMonth() });
+  }
+
+  return (
+    <div style={{ display: "grid", gap: "5px", fontSize: "12px", color: "#303030" }}>
+      <span id={id + "-label"}>{label}</span>
+      <div ref={fieldRef} style={{ position: "relative" }}>
+        {open && (
+          <div ref={dialogRef} id={id + "-editor"} role="dialog" aria-labelledby={id + "-title"} tabIndex={-1}
+            style={{ position: "absolute", zIndex: 50, bottom: "calc(100% + 8px)", left: 0, width: "min(340px, 100%)", maxHeight: "60vh", overflowY: "auto", boxSizing: "border-box", padding: "16px", border: "1px solid #c9c9c9", borderRadius: "12px", background: "#fff", boxShadow: "0 10px 28px rgba(0,0,0,.16)" }}>
+            <div id={id + "-title"} style={{ fontSize: "13px", fontWeight: 600, marginBottom: "12px" }}>{label}</div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", marginBottom: "10px" }}>
+              <button type="button" aria-label="Previous month" onClick={() => moveMonth(-1)} style={controlStyle}>‹</button>
+              <span aria-live="polite" style={{ fontWeight: 600 }}>{monthTitle}</span>
+              <button type="button" aria-label="Next month" onClick={() => moveMonth(1)} style={controlStyle}>›</button>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", gap: "3px" }}>
+              {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(day => <span key={day} style={{ textAlign: "center", fontSize: "10px", color: "#616161", padding: "5px 0" }}>{day}</span>)}
+              {Array.from({ length: firstDay }, (_, index) => <span key={"blank-" + index} />)}
+              {Array.from({ length: days }, (_, index) => {
+                const day = index + 1;
+                const dayValue = String(month.year).padStart(4, "0") + "-" + String(month.month + 1).padStart(2, "0") + "-" + String(day).padStart(2, "0");
+                const disabled = Boolean(min && dayValue < min.slice(0, 10));
+                const selected = dayValue === datePart;
+                return <button key={dayValue} type="button" disabled={disabled} aria-pressed={selected}
+                  aria-label={new Intl.DateTimeFormat("en-GB", { dateStyle: "full" }).format(new Date(month.year, month.month, day))}
+                  onClick={() => setDraft(dayValue + "T" + hour + ":" + minute)}
+                  style={{ ...controlStyle, padding: "7px 0", borderColor: selected ? "#202223" : "transparent", background: selected ? "#202223" : "#fff", color: selected ? "#fff" : disabled ? "#b5b5b5" : "#202223", cursor: disabled ? "default" : "pointer" }}>{day}</button>;
+              })}
+            </div>
+            <div style={{ display: "flex", gap: "8px", alignItems: "end", marginTop: "14px" }}>
+              <label htmlFor={id + "-hour"} style={{ display: "grid", gap: "5px", flex: 1 }}>Hour
+                <select id={id + "-hour"} disabled={!datePart} value={hour} onChange={event => setDraft(datePart + "T" + event.currentTarget.value + ":" + minute)} style={controlStyle}>
+                  {Array.from({ length: 24 }, (_, index) => { const option = String(index).padStart(2, "0"); return <option key={option} value={option}>{option}</option>; })}
+                </select>
+              </label>
+              <label htmlFor={id + "-minute"} style={{ display: "grid", gap: "5px", flex: 1 }}>Minute
+                <select id={id + "-minute"} disabled={!datePart} value={minute} onChange={event => setDraft(datePart + "T" + hour + ":" + event.currentTarget.value)} style={controlStyle}>
+                  {Array.from({ length: 60 }, (_, index) => { const option = String(index).padStart(2, "0"); return <option key={option} value={option}>{option}</option>; })}
+                </select>
+              </label>
+              <span style={{ color: "#616161", paddingBottom: "9px", fontSize: "11px" }}>Local time</span>
+            </div>
+            {datePart && !valid && <p role="alert" style={{ color: "#b42318", margin: "10px 0 0" }}>End date and time must be on or after the start.</p>}
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "14px" }}>
+              <button type="button" onClick={close} style={controlStyle}>Cancel</button>
+              <button type="button" disabled={!valid} onClick={() => { onChange(draft); close(); }}
+                style={{ ...controlStyle, background: valid ? "#202223" : "#eee", color: valid ? "#fff" : "#999", cursor: valid ? "pointer" : "default" }}>Done</button>
+            </div>
+          </div>
+        )}
+        <button ref={triggerRef} type="button" aria-labelledby={id + "-label"} aria-haspopup="dialog" aria-expanded={open}
+          aria-controls={open ? id + "-editor" : undefined} onClick={toggle}
+          style={{ ...controlStyle, display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", width: "100%", minHeight: "42px", padding: "8px 10px", fontSize: "13px", textAlign: "left", boxSizing: "border-box" }}>
+          <span>{summary}</span><span style={{ color: "#616161", fontSize: "11px" }}>Local time</span>
+        </button>
+      </div>
+    </div>
+  );
+}
 
 type LinkResource = {
 id: string;
@@ -2566,21 +2701,7 @@ setLimitOncePerCustomer(event.currentTarget.checked)
 
 <FormSection title="Schedule">
 <div style={{display:"grid",gap:"12px"}}>
-<label style={{display:"grid",gap:"5px",fontSize:"12px",color:"#303030"}}>
-<span>Start date and time</span>
-<div style={{position:"relative"}}>
-<input
-type="datetime-local"
-step="60"
-value={startDateTime}
-onChange={(event)=>setStartDateTime(event.currentTarget.value)}
-style={{width:"100%",minHeight:"42px",padding:"8px 78px 8px 10px",border:"1px solid #c9c9c9",borderRadius:"8px",background:"#fff",color:"#202223",font:"inherit",fontSize:"13px",boxSizing:"border-box"}}
-/>
-<span style={{position:"absolute",right:"10px",top:"50%",transform:"translateY(-50%)",color:"#616161",fontSize:"11px",pointerEvents:"none"}}>
-Local time
-</span>
-</div>
-</label>
+<ScheduleDateTimeField label="Start date and time" value={startDateTime} onChange={setStartDateTime} />
 
 <s-checkbox
 label="Set end date"
@@ -2594,22 +2715,7 @@ setEndDateTime("");
 />
 
 {hasEndDate&&(
-<label style={{display:"grid",gap:"5px",fontSize:"12px",color:"#303030"}}>
-<span>End date and time</span>
-<div style={{position:"relative"}}>
-<input
-type="datetime-local"
-step="60"
-value={endDateTime}
-min={startDateTime||undefined}
-onChange={(event)=>setEndDateTime(event.currentTarget.value)}
-style={{width:"100%",minHeight:"42px",padding:"8px 78px 8px 10px",border:"1px solid #c9c9c9",borderRadius:"8px",background:"#fff",color:"#202223",font:"inherit",fontSize:"13px",boxSizing:"border-box"}}
-/>
-<span style={{position:"absolute",right:"10px",top:"50%",transform:"translateY(-50%)",color:"#616161",fontSize:"11px",pointerEvents:"none"}}>
-Local time
-</span>
-</div>
-</label>
+<ScheduleDateTimeField label="End date and time" value={endDateTime} min={startDateTime||undefined} onChange={setEndDateTime} />
 )}
 </div>
 </FormSection>
