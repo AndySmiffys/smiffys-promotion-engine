@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import promotionUiScript from "../../../../extensions/promotion-engine/assets/promotion-ui.js?raw";
+import promotionUiScript from "../design/promotion-ui.js?raw";
 import { countdownParts, countdown, placements, safeLink, type Placement, type WebsiteDraft } from "../design/design";
 export type PreviewProduct = { id: string; title: string; image?: string | null; price?: string | null };
 export const promotionCss = `

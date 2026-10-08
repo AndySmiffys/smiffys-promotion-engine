@@ -1,3 +1,4 @@
+import { useEmbeddedAppUrl } from "../modules/navigation/embeddedAppUrl";
 import {
   useEffect,
   useMemo,
@@ -174,6 +175,7 @@ export async function action({
 }
 
 export default function PromotionDetailsPage() {
+  const appUrl = useEmbeddedAppUrl();
   const { promotion, coverage, previewProducts } =
     useLoaderData<typeof loader>();
 
@@ -217,7 +219,7 @@ export default function PromotionDetailsPage() {
             }}
           >
             <s-button
-              href="/app/promotions"
+              href={appUrl("/app/promotions")}
               variant="secondary"
             >
               Back to promotions

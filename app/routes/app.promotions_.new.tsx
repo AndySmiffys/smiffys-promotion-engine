@@ -1,3 +1,4 @@
+import { useEmbeddedAppUrl } from "../modules/navigation/embeddedAppUrl";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { useFetcher, useLoaderData, useSearchParams, useNavigate } from "react-router";
@@ -659,6 +660,7 @@ padding: "16px",
 }
 
 export default function CreatePromotionPage() {
+  const appUrl = useEmbeddedAppUrl();
 const { products } = useLoaderData<typeof loader>();
 const shopify = useAppBridge();
 const createFetcher = useFetcher<PromotionActionData>();
@@ -671,8 +673,8 @@ useEffect(() => { if (createFetcher.state === "idle") saveInFlight.current = fal
 const [createdDiscountId, setCreatedDiscountId] = useState<string | undefined>();
 useEffect(() => {
 if (createFetcher.data?.savedId) setCreatedDiscountId(createFetcher.data.savedId);
-if (createFetcher.data?.success && createFetcher.data.redirectId) navigate(`/app/promotions/${createFetcher.data.redirectId}`);
-}, [createFetcher.data, navigate]);
+if (createFetcher.data?.success && createFetcher.data.redirectId) navigate(appUrl(`/app/promotions/${createFetcher.data.redirectId}`));
+}, [createFetcher.data, navigate, appUrl]);
 const resourceFetcher = useFetcher<PromotionActionData>();
 const eligibilityFetcher = useFetcher<PromotionActionData>();
 const resourceSubmit = resourceFetcher.submit;
@@ -1034,7 +1036,7 @@ margin: 0,
 >
 <s-stack direction="block" gap="large">
 <div>
-<s-button href="/app/promotions" variant="secondary">
+<s-button href={appUrl("/app/promotions")} variant="secondary">
 Back to promotions
 </s-button>
 </div>

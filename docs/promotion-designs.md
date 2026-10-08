@@ -57,3 +57,9 @@ Run `shopify app dev` with the default public tunnel when testing this app. `--u
 The theme extension includes `locales/en.default.json` even though it currently has no Liquid translation keys. Keeping the file in Git ensures fresh clones contain the locales directory required by the CLI's theme checks.
 
 The `OrphanedSnippet` warning for `product-card-badge.liquid` is expected: this snippet is provided for explicit integration into a merchant's custom product-card theme markup, rather than being rendered by the extension's standard app block. It does not prevent the extension from building.
+
+### Embedded navigation and preview scripts
+
+Internal app links preserve the authenticated shop and the Shopify host/embedded parameters while retaining the destination's own query, such as the chosen discount type. Authentication tokens and signatures from the previous page are not copied to new URLs.
+
+The shared timer/copy script's source is `app/modules/promotions/design/promotion-ui.js`. The admin preview imports this file as raw text from the app directory: the Shopify development proxy routes `/extensions/` separately, so importing the extension asset directly caused a 404 and prevented create/detail route modules from loading. Run `npm run sync:promotion-ui` after editing the source to update the committed theme asset. Build, npm deployment and Shopify web predev also run this sync. Tests check that both copies match.

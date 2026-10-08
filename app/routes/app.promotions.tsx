@@ -1,3 +1,4 @@
+import { useEmbeddedAppUrl } from "../modules/navigation/embeddedAppUrl";
 import { useMemo, useState } from "react";
 import type { LoaderFunctionArgs } from "react-router";
 import { useLoaderData, useNavigate } from "react-router";
@@ -175,6 +176,7 @@ function getPromotionIconType(promotion: PromotionRecord): DiscountIconType {
 }
 
 export default function PromotionsPage() {
+  const appUrl = useEmbeddedAppUrl();
   const { promotions } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
@@ -489,7 +491,7 @@ export default function PromotionsPage() {
                           />
 
                           <div style={{ minWidth: 0 }}>
-                            <s-link href={`/app/promotions/${promotion.routeId}`}>
+                            <s-link href={appUrl(`/app/promotions/${promotion.routeId}`)}>
                               <span
                                 style={{
                                   color: "#202223",
@@ -568,7 +570,7 @@ export default function PromotionsPage() {
                         style={{ textAlign: "right" }}
                       >
                         <s-button
-                          href={`/app/promotions/${promotion.routeId}`}
+                          href={appUrl(`/app/promotions/${promotion.routeId}`)}
                           variant="secondary"
                         >
                           View
@@ -682,7 +684,7 @@ export default function PromotionsPage() {
                 type="button"
                 onClick={() => {
                   setShowCreateDiscount(false);
-                  navigate(`/app/promotions/new?type=${discountType.type}`);
+                  navigate(appUrl(`/app/promotions/new?type=${discountType.type}`));
                 }}
                 style={{
                   display: "grid",

@@ -1,3 +1,4 @@
+import { useEmbeddedAppUrl } from "../modules/navigation/embeddedAppUrl";
 type DashboardItemProps = {
   title: string;
   description: string;
@@ -65,6 +66,7 @@ function DashboardItem({
 }
 
 export default function DashboardPage() {
+  const appUrl = useEmbeddedAppUrl();
   return (
     <s-page heading="Home">
       <div
@@ -148,7 +150,7 @@ export default function DashboardPage() {
                 title="Promotions"
                 description="Review discounts, eligibility, conditions, schedules and website promotion settings."
                 status="Available"
-                href="/app/promotions"
+                href={appUrl("/app/promotions")}
               />
               <DashboardItem
                 title="Product tools"

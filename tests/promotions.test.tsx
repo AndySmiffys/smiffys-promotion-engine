@@ -1,3 +1,4 @@
+import { embeddedAppUrl } from "../app/modules/navigation/embeddedAppUrl";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -136,4 +137,28 @@ test("segmented product countdown includes seconds and ends cleanly", () => {
   assert.match(html, /data-pe-value="seconds">01/);
   assert.match(html, /aria-live="off"/);
   assert.doesNotMatch(renderToStaticMarkup(<PromotionOffer value={value} placement="product" now={now} endsAt="invalid" />), /data-pe-countdown/);
+});
+
+test("embedded navigation preserves shop and host without replaying tokens or page filters", () => {
+  const search = "?shop=dev.myshopify.com&host=YWRtaW4&embedded=1&id_token=secret&hmac=signature&timestamp=123&type=product";
+  for (const target of ["/app/promotions", "/app/promotions/123", "/app/promotions/new?type=shipping"]) {
+    const url = new URL(embeddedAppUrl(target, search), "https://app.example.com");
+    assert.equal(url.searchParams.get("shop"), "dev.myshopify.com");
+    assert.equal(url.searchParams.get("host"), "YWRtaW4");
+    assert.equal(url.searchParams.get("embedded"), "1");
+    for (const param of ["id_token", "hmac", "timestamp"]) assert.equal(url.searchParams.has(param), false);
+    assert.equal(url.searchParams.get("type"), target.includes("new") ? "shipping" : null);
+  }
+  const fallback = new URL(embeddedAppUrl("/app/promotions#offers", "", { shop: "verified.myshopify.com", host: "saved-host" }), "https://app.example.com");
+  assert.equal(fallback.searchParams.get("shop"), "verified.myshopify.com");
+  assert.equal(fallback.searchParams.get("host"), "saved-host");
+  assert.equal(fallback.hash, "#offers");
+  assert.equal(new URL(embeddedAppUrl("/app", search, { shop: "verified.myshopify.com" }), "https://app.example.com").searchParams.get("shop"), "verified.myshopify.com");
+  assert.equal(embeddedAppUrl("shopify:admin/discounts", search), "shopify:admin/discounts");
+  assert.equal(embeddedAppUrl("https://example.com", search), "https://example.com");
+});
+
+test("preview and theme share an identical runtime served from the app directory", () => {
+  assert.equal(readFileSync("app/modules/promotions/design/promotion-ui.js", "utf8"), readFileSync("extensions/promotion-engine/assets/promotion-ui.js", "utf8"));
+  assert.match(readFileSync("app/modules/promotions/components/PromotionPreview.tsx", "utf8"), /from "\.\.\/design\/promotion-ui\.js\?raw"/);
 });

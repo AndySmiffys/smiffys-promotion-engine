@@ -22,20 +22,25 @@ import {
   AppProvider,
 } from "@shopify/shopify-app-react-router/react";
 
+import { useEmbeddedAppUrl } from "../modules/navigation/embeddedAppUrl";
+
 import { authenticate } from "../shopify.server";
 
 export const loader = async ({
   request,
 }: LoaderFunctionArgs) => {
-  await authenticate.admin(request);
+  const { session } = await authenticate.admin(request);
 
   return {
+    shop: session.shop,
+    host: new URL(request.url).searchParams.get("host"),
     apiKey:
       process.env.SHOPIFY_API_KEY || "",
   };
 };
 
 export default function App() {
+  const appUrl = useEmbeddedAppUrl();
   const { apiKey } =
     useLoaderData<typeof loader>();
 
@@ -46,13 +51,13 @@ export default function App() {
     >
       <NavMenu>
         <Link
-          to="/app"
+          to={appUrl("/app")}
           rel="home"
         >
           Home
         </Link>
 
-        <Link to="/app/promotions">
+        <Link to={appUrl("/app/promotions")}>
           Promotions
         </Link>
       </NavMenu>

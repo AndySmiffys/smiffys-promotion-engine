@@ -2,6 +2,9 @@
   "name": "smiffys-promotion-engine",
   "private": true,
   "scripts": {
+    "sync:promotion-ui": "node scripts/sync-promotion-ui.mjs",
+    "prebuild": "npm run sync:promotion-ui",
+    "predeploy": "npm run sync:promotion-ui",
     "build": "react-router build",
     "dev": "shopify app dev",
     "config:link": "shopify app config link",
