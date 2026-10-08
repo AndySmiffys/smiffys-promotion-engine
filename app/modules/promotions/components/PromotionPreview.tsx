@@ -58,9 +58,9 @@ export function PromotionPreview({ value, products, endsAt, productOptions = [],
   return <section aria-label="Website preview" style={{ border: "1px solid #dedede", borderRadius: 12, padding: 12, background: "#fff", display: "grid", gap: 12, minWidth: 0 }}>
     <strong>Website preview</strong>
     <small style={{ color: "#616161" }}>{value.websiteEnabled && value.included ? "Website promotion enabled" : "Design preview — website promotion is disabled"}</small>
-    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>{enabled.map(p => <button type="button" key={p.id} aria-pressed={active === p.id} onClick={() => setPlacement(p.id)}>{p.title}</button>)}</div>
-    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>{(["desktop", "tablet", "mobile"] as const).map(item => <button type="button" key={item} aria-pressed={device === item} onClick={() => setDevice(item)}>{item[0].toUpperCase() + item.slice(1)}</button>)}</div>
-    {onProductChange && <label style={{ display: "grid", gap: 4, fontSize: 12 }}>Preview product<select value={selectedProductId} onChange={event => onProductChange(event.currentTarget.value)}><option value="">Use eligible products</option>{productOptions.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}</select></label>}
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>{enabled.map(p => <s-button type="button" variant={active === p.id ? "primary" : "secondary"} key={p.id} aria-pressed={active === p.id} onClick={() => setPlacement(p.id)}>{p.title}</s-button>)}</div>
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>{(["desktop", "tablet", "mobile"] as const).map(item => <s-button type="button" variant={device === item ? "primary" : "secondary"} key={item} aria-pressed={device === item} onClick={() => setDevice(item)}>{item[0].toUpperCase() + item.slice(1)}</s-button>)}</div>
+    {onProductChange && <s-select label="Preview product" value={selectedProductId} onChange={event => onProductChange(event.currentTarget.value)}><s-option value="">Use eligible products</s-option>{productOptions.map(p => <s-option key={p.id} value={p.id}>{p.title}</s-option>)}</s-select>}
     {loading && <small role="status">Loading eligible products…</small>}
     {sample && <small>Example product — select qualifying products or collections to preview eligibility.</small>}
     <div ref={ref} style={{ overflow: "auto", minWidth: 0, maxHeight: 650 }}>
