@@ -1,9 +1,16 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
-import { useFetcher, useLoaderData, useSearchParams } from "react-router";
+import { useFetcher, useLoaderData, useSearchParams, useNavigate } from "react-router";
 import { useAppBridge } from "@shopify/app-bridge-react";
 
 import { authenticate } from "../shopify.server";
+import { createShopifyPromotion, type CreateDiscountDraft } from "../modules/promotions/services/createPromotion.server";
+import { getDiscount } from "../modules/promotions/services/discount.server";
+import { updatePromotionWebsiteSettings } from "../modules/promotions/services/promotionSettings.server";
+import { defaultDesign, readWebsite, websiteStorage, validateWebsite, type WebsiteDraft } from "../modules/promotions/design/design";
+import { PromotionWebsiteEditor } from "../modules/promotions/components/PromotionWebsiteEditor";
+import { PromotionPreview, type PreviewProduct } from "../modules/promotions/components/PromotionPreview";
+import type { action as previewAction } from "./app.promotion-preview";
 
 
 function ScheduleDateTimeField({
@@ -186,6 +193,8 @@ secondary?: string | null;
 
 type PromotionActionData = {
 success: boolean;
+savedId?: string;
+redirectId?: string;
 image?: {
 id: string;
 url: string;
@@ -197,9 +206,29 @@ error?: string;
 };
 
 export async function action({ request }: ActionFunctionArgs): Promise<PromotionActionData> {
-const { admin } = await authenticate.admin(request);
+const { admin, session } = await authenticate.admin(request);
 const formData = await request.formData();
 const intent = formData.get("intent");
+if (intent === "createPromotion") {
+let savedId: string | undefined;
+try {
+const payload = JSON.parse(String(formData.get("payload") ?? "{}"));
+const website = readWebsite(payload.website);
+const errors = validateWebsite(website, payload.discount?.endsAt);
+if (errors.length) throw new Error(errors.join(" "));
+if (payload.savedId) {
+if (!/^gid:\/\/shopify\/DiscountNode\/\d+$/.test(payload.savedId) || !(await getDiscount(admin, payload.savedId))) throw new Error("The saved discount could not be found.");
+savedId = payload.savedId;
+} else {
+savedId = await createShopifyPromotion(admin, payload.discount as CreateDiscountDraft);
+}
+await updatePromotionWebsiteSettings(session.shop, savedId!, websiteStorage(website));
+return { success: true, savedId, redirectId: savedId!.split("/").pop() };
+} catch (error) {
+return { success: false, savedId, error: (savedId ? "The Shopify discount was created, but the website settings were not saved. Retry saving to finish. " : "") + (error instanceof Error ? error.message : "The promotion could not be saved.") };
+}
+}
+
 
 if (intent === "searchEligibility") {
 const eligibilityType = formData.get("eligibilityType");
@@ -579,7 +608,7 @@ function formatPreviewPrice(product?: LinkResource): string {
 const money = product?.priceRangeV2?.minVariantPrice;
 
 if (!money) {
-return "£29.99";
+return "Price unavailable";
 }
 
 const amount = Number.parseFloat(money.amount);
@@ -630,11 +659,24 @@ padding: "16px",
 }
 
 export default function CreatePromotionPage() {
-const { products, collections } = useLoaderData<typeof loader>();
+const { products } = useLoaderData<typeof loader>();
 const shopify = useAppBridge();
-const fileFetcher = useFetcher<PromotionActionData>();
+const createFetcher = useFetcher<PromotionActionData>();
+const previewFetcher = useFetcher<typeof previewAction>();
+const navigate = useNavigate();
+const [assetsBusy, setAssetsBusy] = useState(false);
+const [submissionError, setSubmissionError] = useState("");
+const saveInFlight = useRef(false);
+useEffect(() => { if (createFetcher.state === "idle") saveInFlight.current = false; }, [createFetcher.state]);
+const [createdDiscountId, setCreatedDiscountId] = useState<string | undefined>();
+useEffect(() => {
+if (createFetcher.data?.savedId) setCreatedDiscountId(createFetcher.data.savedId);
+if (createFetcher.data?.success && createFetcher.data.redirectId) navigate(`/app/promotions/${createFetcher.data.redirectId}`);
+}, [createFetcher.data, navigate]);
 const resourceFetcher = useFetcher<PromotionActionData>();
 const eligibilityFetcher = useFetcher<PromotionActionData>();
+const resourceSubmit = resourceFetcher.submit;
+const eligibilitySubmit = eligibilityFetcher.submit;
 const [searchParams] = useSearchParams();
 const rawType = searchParams.get("type");
 const discountType: DiscountType =
@@ -646,8 +688,7 @@ rawType === "shipping"
 : "product";
 
 const config = typeConfig[discountType];
-const previewProducts = products.filter((product) => product.featuredImage).slice(0, 3);
-const primaryPreviewProduct = previewProducts[0] ?? products[0];
+
 const [method, setMethod] = useState<"code" | "automatic">("code");
 const [discountCode, setDiscountCode] = useState("");
 const [automaticTitle, setAutomaticTitle] = useState("");
@@ -657,6 +698,13 @@ const [appliesTo, setAppliesTo] = useState<"products" | "collections">("collecti
 const [resourceSearch, setResourceSearch] = useState("");
 const [selectedProducts, setSelectedProducts] = useState<ResourceSearchItem[]>([]);
 const [selectedCollections, setSelectedCollections] = useState<ResourceSearchItem[]>([]);
+const [buySelection, setBuySelection] = useState<ResourceSearchItem[]>([]);
+const [getSelection, setGetSelection] = useState<ResourceSearchItem[]>([]);
+const [usesPerOrder, setUsesPerOrder] = useState("1");
+const [countryMode, setCountryMode] = useState("all");
+const [countryCodes, setCountryCodes] = useState("");
+const [excludeShippingPrice, setExcludeShippingPrice] = useState(false);
+const [maximumShippingPrice, setMaximumShippingPrice] = useState("");
 const [buyRequirement, setBuyRequirement] = useState<"quantity" | "amount">("quantity");
 const [buyQuantity, setBuyQuantity] = useState("1");
 const [buyAmount, setBuyAmount] = useState("");
@@ -733,17 +781,9 @@ const [buttonUrl, setButtonUrl] = useState("");
 const [backgroundColour, setBackgroundColour] = useState("#ffffff");
 const [textColour, setTextColour] = useState("#000000");
 const [badgeColour, setBadgeColour] = useState("#d72c0d");
-const [showLinkSelector, setShowLinkSelector] = useState(false);
-const [linkType, setLinkType] = useState<"collections" | "products" | "custom">("collections");
-const [linkSearch, setLinkSearch] = useState("");
-const [buttonLinkLabel, setButtonLinkLabel] = useState("");
-const [bannerImagePreview, setBannerImagePreview] = useState("");
-const [bannerImageName, setBannerImageName] = useState("");
-const [bannerShopifyFileId, setBannerShopifyFileId] = useState("");
-const [isBannerDragActive, setIsBannerDragActive] = useState(false);
-const [bannerImageLayout, setBannerImageLayout] = useState<
-"full" | "half-left" | "half-right"
->("half-right");
+const [design, setDesign] = useState(defaultDesign);
+const [priority, setPriority] = useState(0);
+const [previewProductId, setPreviewProductId] = useState("");
 const [isPreviewDrawerOpen, setIsPreviewDrawerOpen] = useState(false);
 
 function generateDiscountCode() {
@@ -757,89 +797,6 @@ setDiscountCode(code);
 
 
 useEffect(() => {
-const selectedImage = fileFetcher.data?.image;
-
-if (fileFetcher.data?.success && selectedImage) {
-setBannerShopifyFileId(selectedImage.id);
-setBannerImagePreview(selectedImage.url);
-setBannerImageName(selectedImage.alt || "Shopify image");
-}
-}, [fileFetcher.data]);
-
-async function openShopifyImagePicker() {
-const appBridge = (
-window as Window & {
-shopify?: {
-intents?: {
-invoke: (
-intent: string,
-options?: {
-data?: {
-mediaTypes?: string[];
-multiSelect?: boolean;
-selectedFiles?: string[];
-};
-},
-) => Promise<{
-complete: Promise<{
-code: string;
-data?: {
-ids?: string[];
-};
-}>;
-}>;
-};
-};
-}
-).shopify;
-
-if (!appBridge?.intents) {
-return;
-}
-
-const activity = await appBridge.intents.invoke(
-"pick:shopify/File",
-{
-data: {
-mediaTypes: ["MediaImage"],
-multiSelect: false,
-selectedFiles: bannerShopifyFileId
-? [bannerShopifyFileId]
-: [],
-},
-},
-);
-
-const response = await activity.complete;
-const selectedId = response.data?.ids?.[0];
-
-if (response.code !== "ok" || !selectedId) {
-return;
-}
-
-fileFetcher.submit(
-{
-intent: "resolveFile",
-fileId: selectedId,
-},
-{
-method: "post",
-},
-);
-}
-
-function useDroppedBannerImage(file: File | undefined) {
-if (!file || !file.type.startsWith("image/")) {
-return;
-}
-
-setBannerShopifyFileId("");
-setBannerImageName(file.name);
-setBannerImagePreview(URL.createObjectURL(file));
-}
-
-
-useEffect(() => {
 const query = resourceSearch.trim();
 
 if (query.length < 2) {
@@ -847,7 +804,7 @@ return;
 }
 
 const timeout = window.setTimeout(() => {
-resourceFetcher.submit(
+resourceSubmit(
 {
 intent: "searchResources",
 resourceType: appliesTo === "products" ? "product" : "collection",
@@ -860,7 +817,7 @@ method: "post",
 }, 250);
 
 return () => window.clearTimeout(timeout);
-}, [resourceSearch, appliesTo]);
+}, [resourceSearch, appliesTo, resourceSubmit]);
 
 async function browseDiscountResources() {
 const type = appliesTo === "products" ? "product" : "collection";
@@ -973,7 +930,7 @@ return;
 }
 
 const timeout = window.setTimeout(() => {
-eligibilityFetcher.submit(
+eligibilitySubmit(
 {
 intent: "searchEligibility",
 eligibilityType: eligibility,
@@ -986,13 +943,13 @@ method: "post",
 }, 250);
 
 return () => window.clearTimeout(timeout);
-}, [eligibilitySearch, eligibility]);
+}, [eligibilitySearch, eligibility, eligibilitySubmit]);
 
 function openEligibilityPicker() {
 setEligibilityPickerSearch("");
 setShowEligibilityPicker(true);
 
-eligibilityFetcher.submit(
+eligibilitySubmit(
 {
 intent: "searchEligibility",
 eligibilityType: eligibility,
@@ -1007,7 +964,7 @@ method: "post",
 function searchEligibilityPicker(value: string) {
 setEligibilityPickerSearch(value);
 
-eligibilityFetcher.submit(
+eligibilitySubmit(
 {
 intent: "searchEligibility",
 eligibilityType: eligibility,
@@ -1034,444 +991,37 @@ current.filter((item) => item.id !== id),
 }
 
 const details = useMemo(() => {
-const eligibilityDetail =
-eligibility === "all"
-? "All customers"
-: eligibility === "segments"
-? "Specific customer segments"
-: "Specific customers";
+const combinations = [combineProductDiscounts && "product", combineOrderDiscounts && "order", combineShippingDiscounts && "shipping"].filter(Boolean);
+return [eligibility === "all" ? "All customers" : `${selectedEligibility.length} selected ${eligibility === "segments" ? "customer segments" : "customers"}`, discountType === "product" ? `${(appliesTo === "products" ? selectedProducts : selectedCollections).length} selected ${appliesTo}` : config.typeLabel, discountType === "bxgy" ? `Buy ${buyRequirement === "amount" ? "£" + buyAmount : buyQuantity}, get ${getQuantity}` : minimumRequirement === "none" ? "No minimum purchase" : minimumRequirement === "amount" ? `Minimum spend £${minimumPurchaseAmount}` : `Minimum ${minimumQuantity} items`, method === "code" && limitTotalUses ? `${totalUsageLimit || "Not set"} total uses` : "No total usage limit", combinations.length ? `Combines with ${combinations.join(", ")} discounts` : "Cannot combine with other discounts", startDateTime ? `Starts ${new Date(startDateTime).toLocaleString("en-GB")}` : "Starts when saved", hasEndDate && endDateTime ? `Ends ${new Date(endDateTime).toLocaleString("en-GB")}` : "No end date"];
+}, [eligibility, selectedEligibility.length, discountType, appliesTo, selectedProducts, selectedCollections, config.typeLabel, buyRequirement, buyAmount, buyQuantity, getQuantity, minimumRequirement, minimumPurchaseAmount, minimumQuantity, method, limitTotalUses, totalUsageLimit, combineProductDiscounts, combineOrderDiscounts, combineShippingDiscounts, startDateTime, hasEndDate, endDateTime]);
 
-const base = [
-eligibilityDetail,
-"For Online Store",
-"No usage limits",
-"Can't combine with other discounts",
-"Active from today",
-];
-
-if (discountType !== "bxgy") {
-base.splice(2, 0, "No minimum purchase requirement");
+const websiteDraft: WebsiteDraft = { included, websiteEnabled, showProductPage, showCollectionPage, showProductBadge, showCountdown, showHeaderBanner, headline, body, badgeText, countdownText, buttonText, buttonUrl, backgroundColour, textColour, badgeColour, priority, design };
+function updateWebsite(value: WebsiteDraft) {
+setIncluded(value.included); setWebsiteEnabled(value.websiteEnabled); setShowProductPage(value.showProductPage); setShowCollectionPage(value.showCollectionPage); setShowProductBadge(value.showProductBadge); setShowCountdown(value.showCountdown); setShowHeaderBanner(value.showHeaderBanner);
+setHeadline(value.headline); setBody(value.body); setBadgeText(value.badgeText); setCountdownText(value.countdownText); setButtonText(value.buttonText); setButtonUrl(value.buttonUrl); setBackgroundColour(value.backgroundColour); setTextColour(value.textColour); setBadgeColour(value.badgeColour); setPriority(value.priority); setDesign(value.design);
 }
-
-if (discountType === "shipping") {
-base.splice(2, 0, "For all countries");
+const eligibleSelection = JSON.stringify({ productIds: discountType === "product" && appliesTo === "products" ? selectedProducts.map(p=>p.id) : discountType === "bxgy" && getAppliesTo === "products" ? getSelection.map(p=>p.id) : [], collectionIds: discountType === "product" && appliesTo === "collections" ? selectedCollections.map(p=>p.id) : discountType === "bxgy" && getAppliesTo === "collections" ? getSelection.map(p=>p.id) : [] });
+const previewSubmitRef = useRef(previewFetcher.submit); previewSubmitRef.current = previewFetcher.submit;
+useEffect(() => { previewSubmitRef.current({ selection: eligibleSelection }, { method: "post", action: "/app/promotion-preview" }); }, [eligibleSelection]);
+const productOptions: PreviewProduct[] = products.map(p=>({ id:p.id, title:p.title, image:p.featuredImage?.url, price:formatPreviewPrice(p) }));
+const eligibleProducts = previewFetcher.data?.key === eligibleSelection ? previewFetcher.data.products : [];
+const previewProducts = previewProductId ? productOptions.filter(p=>p.id===previewProductId) : eligibleProducts;
+const websitePreview = <PromotionPreview offerNote={method === "code" ? discountCode ? `Use code: ${discountCode}` : "Add a discount code" : "Applied automatically at checkout."} value={websiteDraft} products={previewProducts} endsAt={hasEndDate ? endDateTime : null} productOptions={productOptions} onProductChange={setPreviewProductId} selectedProductId={previewProductId} loading={previewFetcher.state !== "idle"} sample={eligibleSelection === '{"productIds":[],"collectionIds":[]}' && discountType !== "order" && discountType !== "shipping"} />;
+async function browseBxgy(scope: "buy" | "get") {
+const type = (scope === "buy" ? buyAppliesTo : getAppliesTo) === "products" ? "product" : "collection";
+const selected = await shopify.resourcePicker({ type, action: "select", multiple: true });
+if (!selected) return;
+const mapped: ResourceSearchItem[] = selected.map(item=>({ id:item.id, title:item.title, handle:item.handle, selectedVariantIds: "variants" in item && Array.isArray(item.variants) ? item.variants.flatMap(v=>v.id ? [v.id] : []) : undefined }));
+(scope === "buy" ? setBuySelection : setGetSelection)(mapped);
 }
-
-return base;
-}, [discountType, eligibility]);
-
-const websitePreview = (
-<FormSection title="Website preview">
-<div
-style={{
-overflow: "hidden",
-border: "1px solid #d9d9d9",
-borderRadius: "12px",
-background: "#eef2f4",
-}}
->
-<div
-style={{
-display: "flex",
-alignItems: "center",
-justifyContent: "space-between",
-gap: "10px",
-padding: "10px 12px",
-borderBottom: "1px solid #dde3e6",
-background: "#ffffff",
-}}
->
-<div>
-<div style={{ fontSize: "12px", fontWeight: 650 }}>
-Storefront preview
-</div>
-<div style={{ marginTop: "2px", color: "#616161", fontSize: "11px" }}>
-Uses live products from this Shopify store. Only selected placements are shown.
-</div>
-</div>
-<s-badge tone={websiteEnabled && included ? "success" : "neutral"}>
-{websiteEnabled && included ? "Enabled" : "Not enabled"}
-</s-badge>
-</div>
-
-<div style={{ padding: "14px" }}>
-{showHeaderBanner && (
-<section style={{ marginBottom: "12px" }}>
-<div style={{ marginBottom: "6px", fontSize: "11px", fontWeight: 700 }}>
-Header banner
-</div>
-<div
-style={{
-display: "grid",
-gridTemplateColumns: "minmax(0, 1fr) auto auto",
-gap: "12px",
-alignItems: "center",
-padding: "10px 14px",
-borderRadius: "8px",
-background: backgroundColour,
-color: textColour,
-boxShadow: "0 1px 2px rgba(0,0,0,0.08)",
-}}
->
-<div style={{ fontSize: "12px", fontWeight: 700 }}>
-{headline || "Promotion headline"}
-</div>
-{showCountdown && (
-<div style={{ fontSize: "10px", fontWeight: 600 }}>
-{countdownText || "Ends in 02D 14H 36M"}
-</div>
-)}
-{buttonText && buttonUrl && (
-<div
-style={{
-padding: "6px 10px",
-borderRadius: "5px",
-background: textColour,
-color: backgroundColour,
-fontSize: "10px",
-fontWeight: 700,
-}}
->
-{buttonText}
-</div>
-)}
-</div>
-</section>
-)}
-
-{showCollectionPage && (
-<section style={{ marginBottom: "12px" }}>
-<div style={{ marginBottom: "6px", fontSize: "11px", fontWeight: 700 }}>
-Collection page
-</div>
-<div
-style={{
-overflow: "hidden",
-border: "1px solid #dde3e6",
-borderRadius: "10px",
-background: "#ffffff",
-}}
->
-<div
-style={{
-padding: "8px 12px",
-borderBottom: "1px solid #eeeeee",
-fontSize: "10px",
-color: "#616161",
-}}
->
-Home / Costumes / Promotion
-</div>
-
-{bannerImageLayout === "full" ? (
-<div
-style={{
-position: "relative",
-minHeight: "160px",
-display: "flex",
-alignItems: "center",
-padding: "22px",
-backgroundImage: bannerImagePreview
-? `linear-gradient(90deg, rgba(0,0,0,0.58), rgba(0,0,0,0.18)), url("${bannerImagePreview}")`
-: primaryPreviewProduct?.featuredImage?.url
-? `linear-gradient(90deg, rgba(0,0,0,0.58), rgba(0,0,0,0.18)), url("${primaryPreviewProduct.featuredImage.url}")`
-: "linear-gradient(135deg, #444, #777)",
-backgroundSize: "cover",
-backgroundPosition: "center",
-color: "#ffffff",
-}}
->
-<div style={{ maxWidth: "58%" }}>
-<div style={{ fontSize: "17px", fontWeight: 750 }}>
-{headline || "Promotion headline"}
-</div>
-<div style={{ marginTop: "5px", fontSize: "11px" }}>
-{body || "Limited time only. Subject to availability."}
-</div>
-{buttonText && buttonUrl && (
-<div
-style={{
-width: "fit-content",
-marginTop: "12px",
-padding: "6px 12px",
-borderRadius: "5px",
-background: backgroundColour,
-color: textColour,
-fontSize: "10px",
-fontWeight: 700,
-}}
->
-{buttonText}
-</div>
-)}
-</div>
-</div>
-) : (
-<div
-className="website-preview-collection-banner"
-style={{
-minHeight: "160px",
-display: "grid",
-gridTemplateColumns:
-bannerImageLayout === "half-left"
-? "minmax(180px, 42%) minmax(0, 1fr)"
-: "minmax(0, 1fr) minmax(180px, 42%)",
-background: "#f7f7f7",
-}}
->
-{bannerImageLayout === "half-left" && (
-<div
-style={{
-minHeight: "160px",
-backgroundImage: bannerImagePreview
-? `url("${bannerImagePreview}")`
-: primaryPreviewProduct?.featuredImage?.url
-? `url("${primaryPreviewProduct.featuredImage.url}")`
-: "linear-gradient(135deg, #dedede, #f0f0f0)",
-backgroundSize: "cover",
-backgroundPosition: "center",
-}}
-/>
-)}
-
-<div
-style={{
-padding: "22px",
-display: "flex",
-flexDirection: "column",
-justifyContent: "center",
-}}
->
-<div style={{ fontSize: "17px", fontWeight: 750 }}>
-{headline || "Promotion headline"}
-</div>
-<div style={{ marginTop: "5px", color: "#555", fontSize: "11px" }}>
-{body || "Limited time only. Subject to availability."}
-</div>
-{buttonText && buttonUrl && (
-<div
-style={{
-width: "fit-content",
-marginTop: "12px",
-padding: "6px 12px",
-borderRadius: "5px",
-background: backgroundColour,
-color: textColour,
-fontSize: "10px",
-fontWeight: 700,
-}}
->
-{buttonText}
-</div>
-)}
-</div>
-
-{bannerImageLayout === "half-right" && (
-<div
-style={{
-minHeight: "160px",
-backgroundImage: bannerImagePreview
-? `url("${bannerImagePreview}")`
-: primaryPreviewProduct?.featuredImage?.url
-? `url("${primaryPreviewProduct.featuredImage.url}")`
-: "linear-gradient(135deg, #dedede, #f0f0f0)",
-backgroundSize: "cover",
-backgroundPosition: "center",
-}}
-/>
-)}
-</div>
-)}
-</div>
-</section>
-)}
-
-{showProductBadge && (
-<section style={{ marginBottom: "12px" }}>
-<div style={{ marginBottom: "6px", fontSize: "11px", fontWeight: 700 }}>
-Product cards
-</div>
-<div
-style={{
-padding: "12px",
-border: "1px solid #dde3e6",
-borderRadius: "10px",
-background: "#ffffff",
-}}
->
-<div
-style={{
-display: "grid",
-gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-gap: "8px",
-}}
->
-{(previewProducts.length > 0 ? previewProducts : products.slice(0, 3)).map((product) => (
-<div
-key={product.id}
-style={{
-position: "relative",
-overflow: "hidden",
-border: "1px solid #eeeeee",
-borderRadius: "8px",
-background: "#ffffff",
-}}
->
-<div style={{ aspectRatio: "4 / 5", background: "#f5f5f5" }}>
-{product.featuredImage?.url && (
-<img
-src={product.featuredImage.url}
-alt={product.featuredImage.altText || product.title}
-style={{
-width: "100%",
-height: "100%",
-objectFit: "cover",
-}}
-/>
-)}
-</div>
-<div
-style={{
-position: "absolute",
-top: "7px",
-left: "7px",
-padding: "3px 6px",
-borderRadius: "5px",
-background: badgeColour,
-color: "#ffffff",
-fontSize: "8px",
-fontWeight: 750,
-}}
->
-{badgeText || "PROMOTION"}
-</div>
-<div style={{ padding: "8px" }}>
-<div style={{ fontSize: "9px", fontWeight: 650, lineHeight: 1.35 }}>
-{product.title}
-</div>
-<div style={{ marginTop: "4px", fontSize: "10px", fontWeight: 700 }}>
-{formatPreviewPrice(product)}
-</div>
-</div>
-</div>
-))}
-</div>
-</div>
-</section>
-)}
-
-{showProductPage && (
-<section>
-<div style={{ marginBottom: "6px", fontSize: "11px", fontWeight: 700 }}>
-Product page
-</div>
-<div
-className="website-preview-product-page"
-style={{
-display: "grid",
-gridTemplateColumns: "minmax(220px, 0.9fr) minmax(0, 1.1fr)",
-gap: "16px",
-padding: "12px",
-border: "1px solid #dde3e6",
-borderRadius: "10px",
-background: "#ffffff",
-}}
->
-<div
-style={{
-overflow: "hidden",
-borderRadius: "8px",
-background: "#f5f5f5",
-}}
->
-{primaryPreviewProduct?.featuredImage?.url && (
-<img
-src={primaryPreviewProduct.featuredImage.url}
-alt={primaryPreviewProduct.featuredImage.altText || primaryPreviewProduct.title}
-style={{
-width: "100%",
-height: "100%",
-minHeight: "260px",
-objectFit: "cover",
-}}
-/>
-)}
-</div>
-
-<div style={{ padding: "8px 4px" }}>
-<div style={{ fontSize: "17px", fontWeight: 700 }}>
-{primaryPreviewProduct?.title || "Example product"}
-</div>
-<div style={{ marginTop: "6px", fontSize: "13px", fontWeight: 700 }}>
-{formatPreviewPrice(primaryPreviewProduct)}
-</div>
-
-<div
-style={{
-marginTop: "16px",
-padding: "13px",
-borderRadius: "8px",
-background: backgroundColour,
-color: textColour,
-}}
->
-<div style={{ fontSize: "12px", fontWeight: 750 }}>
-{headline || "Promotion headline"}
-</div>
-{body && (
-<div style={{ marginTop: "5px", fontSize: "10px", lineHeight: 1.45 }}>
-{body}
-</div>
-)}
-{showCountdown && (
-<div style={{ marginTop: "8px", fontSize: "10px", fontWeight: 650 }}>
-{countdownText || "Offer ends soon"}
-</div>
-)}
-{buttonText && buttonUrl && (
-<div
-style={{
-marginTop: "10px",
-padding: "7px 9px",
-borderRadius: "5px",
-background: textColour,
-color: backgroundColour,
-textAlign: "center",
-fontSize: "10px",
-fontWeight: 750,
-}}
->
-{buttonText}
-</div>
-)}
-</div>
-</div>
-</div>
-</section>
-)}
-
-{!showHeaderBanner &&
-!showProductPage &&
-!showCollectionPage &&
-!showProductBadge && (
-<div
-style={{
-padding: "14px",
-border: "1px dashed #c9c9c9",
-borderRadius: "8px",
-background: "#ffffff",
-color: "#616161",
-fontSize: "12px",
-textAlign: "center",
-}}
->
-Select one or more website placements above to preview the promotion.
-</div>
-)}
-</div>
-</div>
-</FormSection>
-);
+function savePromotion() {
+if (saveInFlight.current || createFetcher.state !== "idle" || assetsBusy) return;
+if (hasEndDate && !endDateTime) { setSubmissionError("Choose an end date and time, or turn off the end date."); return; }
+setSubmissionError("");
+saveInFlight.current = true;
+const discount: CreateDiscountDraft = { discountType, method, discountCode, automaticTitle, valueType, discountValue, appliesTo, selectedProducts, selectedCollections, buyRequirement, buyQuantity, buyAmount, buyAppliesTo, buySelection, getQuantity, getAppliesTo, getSelection, rewardType, rewardValue, maxUsesPerOrder, usesPerOrder, minimumRequirement, minimumPurchaseAmount, minimumQuantity, limitTotalUses, totalUsageLimit, limitOncePerCustomer, combineProductDiscounts, combineOrderDiscounts, combineShippingDiscounts, productCombinationMode, selectedCombinationTags, startsAt: startDateTime ? new Date(startDateTime).toISOString() : null, endsAt: hasEndDate && endDateTime ? new Date(endDateTime).toISOString() : null, eligibility, selectedEligibility, countryMode: countryMode as "all" | "selected", excludeShippingPrice, countries: countryMode === "selected" ? countryCodes.split(",").map(c=>c.trim().toUpperCase()).filter(Boolean) : [], maximumShippingPrice: excludeShippingPrice ? maximumShippingPrice : "" };
+createFetcher.submit({ intent:"createPromotion", payload:JSON.stringify({ discount, website:websiteDraft, savedId:createdDiscountId }) }, { method:"post" });
+}
 
 return (
 <s-page heading="Create discount" inlineSize="large">
@@ -2028,9 +1578,7 @@ setBuyAmount(event.currentTarget.value)
 label="Any items from"
 value={buyAppliesTo}
 onChange={(event) =>
-setBuyAppliesTo(
-event.currentTarget.value as "products" | "collections",
-)
+(setBuySelection([]), setBuyAppliesTo(event.currentTarget.value as "products" | "collections"))
 }
 >
 <s-option value="products">Specific products</s-option>
@@ -2038,23 +1586,7 @@ event.currentTarget.value as "products" | "collections",
 </s-select>
 </div>
 
-<div
-style={{
-display: "grid",
-gridTemplateColumns: "minmax(0, 1fr) auto",
-gap: "8px",
-alignItems: "end",
-}}
->
-<s-text-field
-label={buyAppliesTo === "products" ? "Search products" : "Search collections"}
-labelAccessibilityVisibility="exclusive"
-placeholder={buyAppliesTo === "products" ? "Search products" : "Search collections"}
-/>
-<s-button type="button" variant="secondary">
-Browse
-</s-button>
-</div>
+<div><s-button type="button" variant="secondary" onClick={()=>browseBxgy("buy")}>Select buy items</s-button><ul>{buySelection.map(item=><li key={item.id}>{item.title}</li>)}</ul></div>
 </s-stack>
 </div>
 
@@ -2107,9 +1639,7 @@ setGetQuantity(event.currentTarget.value)
 label="Any items from"
 value={getAppliesTo}
 onChange={(event) =>
-setGetAppliesTo(
-event.currentTarget.value as "products" | "collections",
-)
+(setGetSelection([]), setGetAppliesTo(event.currentTarget.value as "products" | "collections"))
 }
 >
 <s-option value="products">Specific products</s-option>
@@ -2117,23 +1647,7 @@ event.currentTarget.value as "products" | "collections",
 </s-select>
 </div>
 
-<div
-style={{
-display: "grid",
-gridTemplateColumns: "minmax(0, 1fr) auto",
-gap: "8px",
-alignItems: "end",
-}}
->
-<s-text-field
-label={getAppliesTo === "products" ? "Search products" : "Search collections"}
-labelAccessibilityVisibility="exclusive"
-placeholder={getAppliesTo === "products" ? "Search products" : "Search collections"}
-/>
-<s-button type="button" variant="secondary">
-Browse
-</s-button>
-</div>
+<div><s-button type="button" variant="secondary" onClick={()=>browseBxgy("get")}>Select get items</s-button><ul>{getSelection.map(item=><li key={item.id}>{item.title}</li>)}</ul></div>
 
 <div
 style={{
@@ -2222,6 +1736,7 @@ onChange={(event) =>
 setMaxUsesPerOrder(event.currentTarget.checked)
 }
 />
+{maxUsesPerOrder && <s-number-field label="Maximum uses per order" min={1} step={1} value={usesPerOrder} onInput={event=>setUsesPerOrder(event.currentTarget.value)} />}
 </div>
 </s-stack>
 </div>
@@ -2232,13 +1747,13 @@ setMaxUsesPerOrder(event.currentTarget.checked)
 {discountType === "shipping" && (
 <FormSection title="Countries">
 <s-stack direction="block" gap="base">
-<s-select label="Countries" value="all">
+<s-select label="Countries" value={countryMode} onChange={event=>setCountryMode(event.currentTarget.value)}>
 <s-option value="all">All countries</s-option>
 <s-option value="selected">Selected countries</s-option>
 </s-select>
-<s-checkbox
-label="Exclude shipping rates over a certain amount"
-/>
+{countryMode === "selected" && <s-text-field label="Country codes" details="Two-letter codes separated by commas, for example GB, IE." value={countryCodes} onInput={event=>setCountryCodes(event.currentTarget.value)} />}
+<s-checkbox label="Exclude shipping rates over a certain amount" checked={excludeShippingPrice} onChange={event=>setExcludeShippingPrice(event.currentTarget.checked)} />
+{excludeShippingPrice && <s-number-field label="Maximum shipping rate" min={0.01} prefix="£" value={maximumShippingPrice} onInput={event=>setMaximumShippingPrice(event.currentTarget.value)} />}
 </s-stack>
 </FormSection>
 )}
@@ -2584,6 +2099,7 @@ details="Customers must add at least this many eligible items to use the discoun
 </FormSection>
 )}
 
+{method === "code" && (
 <FormSection title="Maximum discount uses">
 <div
 style={{
@@ -2628,6 +2144,7 @@ details="Set the total number of times this discount can be used."
 </div>
 
 <s-checkbox
+disabled={method !== "code"}
 label="Limit to one use per customer"
 checked={limitOncePerCustomer}
 onChange={(event) =>
@@ -2636,6 +2153,7 @@ setLimitOncePerCustomer(event.currentTarget.checked)
 />
 </div>
 </FormSection>
+)}
 
 <section style={{padding:"16px",border:"1px solid #dedede",borderRadius:"12px",background:"#fff"}}>
 <div id="combinations-label" style={{color:"#202223",fontSize:"14px",fontWeight:650,marginBottom:"8px"}}>Combinations</div>
@@ -2720,398 +2238,12 @@ setEndDateTime("");
 </div>
 </FormSection>
 
-<FormSection title="Website promotion">
-<s-stack direction="block" gap="base">
-<div>
-<div
-style={{
-marginBottom: "8px",
-color: "#303030",
-fontSize: "12px",
-fontWeight: 650,
-}}
->
-Promotion banner image
-</div>
+<PromotionWebsiteEditor value={websiteDraft} onChange={updateWebsite} endsAt={hasEndDate ? endDateTime : null} onBusyChange={setAssetsBusy} />
+{previewFetcher.data?.error && <s-banner tone="warning">{previewFetcher.data.error}</s-banner>}
+{submissionError && <s-banner tone="critical">{submissionError}</s-banner>}
+{createFetcher.data?.error && <s-banner tone="critical">{createFetcher.data.error}</s-banner>}
+<s-button type="button" variant="primary" loading={createFetcher.state !== "idle"} disabled={assetsBusy || createFetcher.state !== "idle" || validateWebsite(websiteDraft, hasEndDate ? endDateTime : null).length > 0} onClick={savePromotion}>{createdDiscountId ? "Retry saving website design" : "Create promotion"}</s-button>
 
-<div
-style={{
-display: "flex",
-alignItems: "flex-start",
-gap: "16px",
-flexWrap: "wrap",
-}}
->
-<button
-type="button"
-onClick={openShopifyImagePicker}
-onDragEnter={(event) => {
-event.preventDefault();
-setIsBannerDragActive(true);
-}}
-onDragOver={(event) => {
-event.preventDefault();
-setIsBannerDragActive(true);
-}}
-onDragLeave={(event) => {
-event.preventDefault();
-setIsBannerDragActive(false);
-}}
-onDrop={(event) => {
-event.preventDefault();
-setIsBannerDragActive(false);
-useDroppedBannerImage(event.dataTransfer.files?.[0]);
-}}
-style={{
-position: "relative",
-width: "164px",
-height: "164px",
-flex: "0 0 auto",
-overflow: "hidden",
-border: `1px dashed ${isBannerDragActive ? "#005bd3" : "#8c8c8c"}`,
-borderRadius: "18px",
-background: isBannerDragActive ? "#f1f7ff" : "#ffffff",
-color: "#303030",
-cursor: "pointer",
-padding: 0,
-}}
-aria-label="Select promotion banner image"
->
-{bannerImagePreview ? (
-<>
-<img
-src={bannerImagePreview}
-alt={bannerImageName || "Selected promotion banner"}
-style={{
-width: "100%",
-height: "100%",
-objectFit: "cover",
-}}
-/>
-<span
-style={{
-position: "absolute",
-inset: "auto 8px 8px 8px",
-padding: "5px 7px",
-borderRadius: "6px",
-background: "rgba(255,255,255,0.92)",
-color: "#202223",
-fontSize: "10px",
-fontWeight: 650,
-textAlign: "center",
-}}
->
-Change image
-</span>
-</>
-) : (
-<span
-style={{
-position: "absolute",
-inset: 0,
-display: "flex",
-flexDirection: "column",
-alignItems: "center",
-justifyContent: "center",
-gap: "8px",
-}}
->
-<svg
-width="24"
-height="24"
-viewBox="0 0 24 24"
-fill="none"
-stroke="currentColor"
-strokeWidth="1.8"
-strokeLinecap="round"
-strokeLinejoin="round"
->
-<path d="M12 16V4" />
-<path d="m7 9 5-5 5 5" />
-<path d="M5 20h14" />
-</svg>
-<span style={{ fontSize: "11px", fontWeight: 650 }}>
-Add image
-</span>
-</span>
-)}
-</button>
-
-<div
-style={{
-flex: "1 1 220px",
-paddingTop: "6px",
-}}
->
-<div
-style={{
-color: "#303030",
-fontSize: "12px",
-fontWeight: 650,
-}}
->
-Drag an image here or click to select
-</div>
-<div
-style={{
-marginTop: "5px",
-color: "#616161",
-fontSize: "11px",
-lineHeight: 1.5,
-}}
->
-Clicking opens Shopify’s standard file picker so you can search existing Content files or add a new image. Dragged local images are previewed immediately and will be uploaded to Shopify Files when the promotion is saved.
-</div>
-
-{bannerImageName && (
-<div
-style={{
-marginTop: "8px",
-color: "#303030",
-fontSize: "11px",
-}}
->
-Selected: {bannerImageName}
-</div>
-)}
-
-{fileFetcher.data?.error && (
-<div
-style={{
-marginTop: "8px",
-color: "#8a1f11",
-fontSize: "11px",
-}}
->
-{fileFetcher.data.error}
-</div>
-)}
-
-{bannerImagePreview && (
-<button
-type="button"
-onClick={() => {
-setBannerImagePreview("");
-setBannerImageName("");
-setBannerShopifyFileId("");
-}}
-style={{
-marginTop: "8px",
-border: 0,
-padding: 0,
-background: "transparent",
-color: "#8a1f11",
-font: "inherit",
-fontSize: "11px",
-cursor: "pointer",
-}}
->
-Remove image
-</button>
-)}
-</div>
-</div>
-
-<div style={{ marginTop: "14px", maxWidth: "320px" }}>
-<s-select
-label="Banner image layout"
-value={bannerImageLayout}
-onChange={(event) =>
-setBannerImageLayout(
-event.currentTarget.value as
-| "full"
-| "half-left"
-| "half-right",
-)
-}
->
-<s-option value="full">Full background</s-option>
-<s-option value="half-left">Half image — left</s-option>
-<s-option value="half-right">Half image — right</s-option>
-</s-select>
-</div>
-</div>
-<s-checkbox
-label="Include in promotion sync"
-checked={included}
-onChange={(event) => setIncluded(event.currentTarget.checked)}
-/>
-<s-checkbox
-label="Enable website promotion"
-checked={websiteEnabled}
-onChange={(event) => setWebsiteEnabled(event.currentTarget.checked)}
-/>
-<s-checkbox
-label="Show on product pages"
-checked={showProductPage}
-onChange={(event) => setShowProductPage(event.currentTarget.checked)}
-/>
-<s-checkbox
-label="Show on collection pages"
-checked={showCollectionPage}
-onChange={(event) => setShowCollectionPage(event.currentTarget.checked)}
-/>
-<s-checkbox
-label="Show product badge"
-checked={showProductBadge}
-onChange={(event) => setShowProductBadge(event.currentTarget.checked)}
-/>
-<s-checkbox
-label="Show countdown"
-checked={showCountdown}
-onChange={(event) => setShowCountdown(event.currentTarget.checked)}
-/>
-<s-checkbox
-label="Show header banner"
-checked={showHeaderBanner}
-onChange={(event) => setShowHeaderBanner(event.currentTarget.checked)}
-/>
-</s-stack>
-</FormSection>
-
-<FormSection title="Messages and styling">
-<s-stack direction="block" gap="base">
-<s-text-field
-label="Headline"
-value={headline}
-onInput={(event) => setHeadline(event.currentTarget.value)}
-/>
-<s-text-area
-label="Body"
-rows={4}
-value={body}
-onInput={(event) => setBody(event.currentTarget.value)}
-/>
-<s-text-field
-label="Badge text"
-value={badgeText}
-onInput={(event) => setBadgeText(event.currentTarget.value)}
-/>
-<s-text-field
-label="Countdown text"
-value={countdownText}
-onInput={(event) => setCountdownText(event.currentTarget.value)}
-/>
-<s-text-field
-label="Button text"
-value={buttonText}
-onInput={(event) => setButtonText(event.currentTarget.value)}
-/>
-<div>
-<div
-style={{
-marginBottom: "6px",
-color: "#303030",
-fontSize: "12px",
-fontWeight: 650,
-}}
->
-Button link
-</div>
-
-<div
-style={{
-display: "grid",
-gridTemplateColumns: "minmax(0, 1fr) auto",
-gap: "8px",
-alignItems: "center",
-}}
->
-<div
-style={{
-minHeight: "34px",
-display: "flex",
-alignItems: "center",
-padding: "0 10px",
-border: "1px solid #c9c9c9",
-borderRadius: "8px",
-background: "#ffffff",
-color: buttonUrl ? "#202223" : "#8c8c8c",
-fontSize: "13px",
-overflow: "hidden",
-textOverflow: "ellipsis",
-whiteSpace: "nowrap",
-}}
->
-{buttonLinkLabel || buttonUrl || "No link selected"}
-</div>
-
-<s-button
-type="button"
-variant="secondary"
-onClick={() => setShowLinkSelector(true)}
->
-{buttonUrl ? "Change" : "Select"}
-</s-button>
-</div>
-
-{buttonUrl && (
-<div
-style={{
-display: "flex",
-alignItems: "center",
-justifyContent: "space-between",
-gap: "10px",
-marginTop: "6px",
-}}
->
-<div
-style={{
-minWidth: 0,
-color: "#616161",
-fontSize: "11px",
-overflow: "hidden",
-textOverflow: "ellipsis",
-whiteSpace: "nowrap",
-}}
->
-{buttonUrl}
-</div>
-
-<button
-type="button"
-onClick={() => {
-setButtonUrl("");
-setButtonLinkLabel("");
-}}
-style={{
-border: 0,
-padding: 0,
-background: "transparent",
-color: "#8a1f11",
-font: "inherit",
-fontSize: "11px",
-cursor: "pointer",
-}}
->
-Remove
-</button>
-</div>
-)}
-</div>
-<s-color-field
-label="Background colour"
-value={backgroundColour}
-onInput={(event) => setBackgroundColour(event.currentTarget.value)}
-/>
-<s-color-field
-label="Text colour"
-value={textColour}
-onInput={(event) => setTextColour(event.currentTarget.value)}
-/>
-<s-color-field
-label="Badge colour"
-value={badgeColour}
-onInput={(event) => setBadgeColour(event.currentTarget.value)}
-/>
-</s-stack>
-</FormSection>
-
-
-
-<s-banner tone="info">
-The creation form layout is now in place. Shopify discount creation and Promotion Engine saving will be connected in the next implementation pass.
-</s-banner>
 </s-stack>
 </div>
 
@@ -3184,15 +2316,13 @@ Preview
 {isPreviewDrawerOpen && (
 <div
 className="preview-drawer-backdrop"
-role="presentation"
-onClick={() => setIsPreviewDrawerOpen(false)}
 >
+<button type="button" aria-label="Close preview backdrop" onClick={()=>setIsPreviewDrawerOpen(false)} style={{position:"absolute",inset:0,border:0,background:"transparent"}} />
 <aside
 className="preview-drawer"
 role="dialog"
 aria-modal="true"
 aria-label="Storefront preview"
-onClick={(event) => event.stopPropagation()}
 >
 <div className="preview-drawer-header">
 <div>
@@ -3232,8 +2362,7 @@ cursor: "pointer",
 
 {showEligibilityPicker && (
 <div
-role="presentation"
-onClick={() => setShowEligibilityPicker(false)}
+
 style={{
 position: "fixed",
 inset: 0,
@@ -3245,12 +2374,13 @@ padding: "24px",
 background: "rgba(0, 0, 0, 0.45)",
 }}
 >
+<button type="button" aria-label="Close customer selector backdrop" onClick={()=>setShowEligibilityPicker(false)} style={{position:"absolute",inset:0,border:0,background:"transparent"}} />
 <div
 role="dialog"
 aria-modal="true"
 aria-labelledby="eligibility-picker-title"
-onClick={(event) => event.stopPropagation()}
 style={{
+position: "relative",
 width: "min(100%, 620px)",
 maxHeight: "78vh",
 display: "flex",
@@ -3416,216 +2546,6 @@ Done
 </div>
 )}
 
-{showLinkSelector && (
-<div
-role="presentation"
-onClick={() => setShowLinkSelector(false)}
-style={{
-position: "fixed",
-inset: 0,
-zIndex: 120,
-display: "flex",
-alignItems: "center",
-justifyContent: "center",
-padding: "24px",
-background: "rgba(0, 0, 0, 0.45)",
-}}
->
-<div
-role="dialog"
-aria-modal="true"
-aria-labelledby="link-selector-title"
-onClick={(event) => event.stopPropagation()}
-style={{
-width: "min(100%, 560px)",
-maxHeight: "78vh",
-overflow: "hidden",
-borderRadius: "14px",
-background: "#ffffff",
-boxShadow: "0 18px 48px rgba(0,0,0,0.24)",
-}}
->
-<div
-style={{
-display: "flex",
-alignItems: "center",
-justifyContent: "space-between",
-gap: "12px",
-padding: "16px 18px",
-borderBottom: "1px solid #eeeeee",
-}}
->
-<div id="link-selector-title" style={{ fontSize: "16px", fontWeight: 700 }}>
-Select link
-</div>
-
-<button
-type="button"
-aria-label="Close"
-onClick={() => setShowLinkSelector(false)}
-style={{
-width: "32px",
-height: "32px",
-border: "1px solid #dedede",
-borderRadius: "8px",
-background: "#ffffff",
-fontSize: "18px",
-cursor: "pointer",
-}}
->
-×
-</button>
-</div>
-
-<div
-style={{
-display: "grid",
-gridTemplateColumns: "150px minmax(0, 1fr)",
-minHeight: "360px",
-}}
-className="link-selector-layout"
->
-<div
-style={{
-padding: "10px",
-borderRight: "1px solid #eeeeee",
-background: "#fafafa",
-}}
->
-{[
-["collections", "Collections"],
-["products", "Products"],
-["custom", "Custom URL"],
-].map(([value, label]) => (
-<button
-key={value}
-type="button"
-onClick={() => {
-setLinkType(value as "collections" | "products" | "custom");
-setLinkSearch("");
-}}
-style={{
-width: "100%",
-marginBottom: "4px",
-padding: "9px 10px",
-border: 0,
-borderRadius: "8px",
-background: linkType === value ? "#e8e8e8" : "transparent",
-color: "#202223",
-textAlign: "left",
-font: "inherit",
-fontSize: "12px",
-fontWeight: linkType === value ? 650 : 500,
-cursor: "pointer",
-}}
->
-{label}
-</button>
-))}
-</div>
-
-<div
-style={{
-minWidth: 0,
-display: "flex",
-flexDirection: "column",
-}}
->
-{linkType === "custom" ? (
-<div style={{ padding: "16px" }}>
-<s-url-field
-label="URL"
-placeholder="https://example.com or /pages/example"
-value={buttonUrl}
-onInput={(event) => setButtonUrl(event.currentTarget.value)}
-/>
-<div style={{ marginTop: "12px", textAlign: "right" }}>
-<s-button
-type="button"
-variant="primary"
-onClick={() => {
-setButtonLinkLabel(buttonUrl);
-setShowLinkSelector(false);
-}}
->
-Select
-</s-button>
-</div>
-</div>
-) : (
-<>
-<div style={{ padding: "12px", borderBottom: "1px solid #eeeeee" }}>
-<s-text-field
-label={linkType === "collections" ? "Search collections" : "Search products"}
-labelAccessibilityVisibility="exclusive"
-placeholder={linkType === "collections" ? "Search collections" : "Search products"}
-value={linkSearch}
-onInput={(event) => setLinkSearch(event.currentTarget.value)}
-/>
-</div>
-
-<div
-style={{
-overflowY: "auto",
-padding: "6px",
-}}
->
-{(linkType === "collections" ? collections : products)
-.filter((item) =>
-item.title.toLowerCase().includes(linkSearch.trim().toLowerCase()),
-)
-.map((item) => (
-<button
-key={item.id}
-type="button"
-onClick={() => {
-const url =
-linkType === "collections"
-? `/collections/${item.handle}`
-: `/products/${item.handle}`;
-
-setButtonUrl(url);
-setButtonLinkLabel(item.title);
-setShowLinkSelector(false);
-}}
-style={{
-display: "flex",
-alignItems: "center",
-justifyContent: "space-between",
-gap: "12px",
-width: "100%",
-padding: "10px 12px",
-border: 0,
-borderBottom: "1px solid #f1f1f1",
-background: "#ffffff",
-color: "#202223",
-textAlign: "left",
-font: "inherit",
-cursor: "pointer",
-}}
->
-<span
-style={{
-minWidth: 0,
-overflow: "hidden",
-textOverflow: "ellipsis",
-whiteSpace: "nowrap",
-fontSize: "12px",
-}}
->
-{item.title}
-</span>
-<span style={{ color: "#8c8c8c" }}>›</span>
-</button>
-))}
-</div>
-</>
-)}
-</div>
-</div>
-</div>
-</div>
-)}
 
 <style>{`
 .preview-drawer-toggle {

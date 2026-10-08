@@ -1,0 +1,22 @@
+{% assign placement = block.settings.placement %}
+{% assign preview_product = block.settings.product | default: product %}
+<promotion-engine
+  data-placement="{{ placement | escape }}"
+  data-product-id="{{ preview_product.id }}"
+  data-collection-id="{{ collection.id }}"
+  data-variant-id="{{ preview_product.selected_or_first_available_variant.id }}"
+  data-proxy-path="{{ block.settings.proxy_path | escape }}"
+  {{ block.shopify_attributes }}
+></promotion-engine>
+{% schema %}
+{
+  "name": "Promotion Engine",
+  "target": "section",
+  "javascript": "promotion-engine.js",
+  "settings": [
+    {"type":"select","id":"placement","label":"Placement","default":"product","options":[{"value":"header","label":"Header announcement"},{"value":"collection","label":"Collection banner"},{"value":"product","label":"Product offer"},{"value":"badge","label":"Product badge"}]},
+    {"type":"product","id":"product","label":"Product (optional)","info":"Leave blank to use the current product."},
+    {"type":"text","id":"proxy_path","label":"Promotion URL","default":"/apps/promotion-engine","info":"Update only if the app proxy URL was customised."}
+  ]
+}
+{% endschema %}

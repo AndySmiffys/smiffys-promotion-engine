@@ -23,9 +23,10 @@ type DiscountResponse = {
 export async function getDiscount(
   admin: ShopifyAdminClient,
   discountNodeId: string,
+  selectionLimit = 50,
 ): Promise<ShopifyDiscountNode | null> {
   const response = await admin.graphql(
-    GET_DISCOUNT,
+    selectionLimit === 250 ? GET_DISCOUNT.replaceAll("first: 50", "first: 250") : GET_DISCOUNT,
     {
       variables: {
         id: discountNodeId,

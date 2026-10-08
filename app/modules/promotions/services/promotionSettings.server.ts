@@ -27,6 +27,8 @@ type StoredPromotionSettings = {
   textColour: string | null;
   badgeColour: string | null;
 
+  designJson?: string | null;
+
   priority: number;
 
   lastSyncedAt: Date | null;
@@ -57,6 +59,7 @@ function mapStoredSettings(
     textColour: settings.textColour,
     badgeColour: settings.badgeColour,
 
+    designJson: settings.designJson ?? null,
     priority: settings.priority,
 
     lastSyncedAt:
@@ -131,6 +134,8 @@ export type UpdatePromotionWebsiteSettingsInput = {
   textColour: string | null;
   badgeColour: string | null;
 
+  designJson?: string | null;
+
   priority: number;
 };
 
@@ -175,6 +180,7 @@ export async function updatePromotionWebsiteSettings(
       textColour: input.textColour,
       badgeColour: input.badgeColour,
 
+      ...(input.designJson !== undefined ? { designJson: input.designJson } : {}),
       priority: input.priority,
     },
 
@@ -203,6 +209,7 @@ export async function updatePromotionWebsiteSettings(
       textColour: input.textColour,
       badgeColour: input.badgeColour,
 
+      ...(input.designJson !== undefined ? { designJson: input.designJson } : {}),
       priority: input.priority,
     },
   });

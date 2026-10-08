@@ -99,11 +99,14 @@ export class ProductProvider extends PromotionProvider {
         items.productVariants?.nodes.map((variant) => ({
           id: variant.id,
           title: variant.title,
+          productId: variant.product?.id ?? null,
+          productTitle: variant.product?.title ?? null,
         })) ?? [],
       collections:
         items.collections?.nodes.map((collection) => ({
           id: collection.id,
           title: collection.title,
+          productCount: collection.productsCount?.count ?? null,
         })) ?? [],
     };
   }

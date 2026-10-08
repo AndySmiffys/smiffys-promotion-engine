@@ -59,6 +59,8 @@ model PromotionSettings {
   textColour         String?
   badgeColour        String?
 
+  designJson         String?
+
   priority           Int      @default(0)
 
   lastSyncedAt       DateTime?

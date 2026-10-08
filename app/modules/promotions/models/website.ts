@@ -19,6 +19,8 @@ export type PromotionWebsiteSettings = {
   textColour: string | null;
   badgeColour: string | null;
 
+  designJson?: string | null;
+
   priority: number;
 
   lastSyncedAt: string | null;
