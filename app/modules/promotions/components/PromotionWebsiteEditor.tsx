@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { PromotionImageField } from "./PromotionImageField";
-import { contrastRatio, copyLimits, placements, presetDesign, validateWebsite, type Placement, type PromotionDesign, type WebsiteDraft } from "../design/design";
+import { contrastRatio, copyLimits, placements, presetDesign, validateWebsite, type PromotionDesign, type WebsiteDraft } from "../design/design";
 
 const sectionStyle = { border: "1px solid #dedede", borderRadius: 12, background: "#fff", padding: 16, display: "grid", gap: 14 };
 const helpStyle = { color: "#616161", fontSize: 12, lineHeight: 1.5 };
@@ -34,7 +34,6 @@ const numberSettings = {
 };
 export function PromotionWebsiteEditor({ value, onChange, endsAt, onBusyChange }: { value: WebsiteDraft; onChange: (value: WebsiteDraft) => void; endsAt?: string | null; onBusyChange: (busy: boolean) => void }) {
   const shopify = useAppBridge();
-  const [placement, setPlacement] = useState<Placement>("header");
   const [busySlots, setBusySlots] = useState({ desktop: false, mobile: false });
   const busyRef = useRef(onBusyChange); busyRef.current = onBusyChange;
   useEffect(() => { busyRef.current(busySlots.desktop || busySlots.mobile); }, [busySlots]);
@@ -42,7 +41,7 @@ export function PromotionWebsiteEditor({ value, onChange, endsAt, onBusyChange }
   const [linkError, setLinkError] = useState("");
   const latestValue = useRef(value); latestValue.current = value;
   function set<K extends keyof WebsiteDraft>(name: K, next: WebsiteDraft[K]) { latestValue.current = { ...latestValue.current, [name]: next }; onChange(latestValue.current); }
-  function design<K extends keyof PromotionDesign>(name: K, next: PromotionDesign[K]) { set("design", { ...value.design, [name]: next }); }
+  function design<K extends keyof PromotionDesign>(name: K, next: PromotionDesign[K]) { set("design", { ...latestValue.current.design, [name]: next }); }
   async function chooseLink() {
     try {
       const selected = await shopify.resourcePicker({ type: linkType, multiple: false, action: "select" });
@@ -113,8 +112,23 @@ export function PromotionWebsiteEditor({ value, onChange, endsAt, onBusyChange }
         {numberField("spacing")}
         {numberField("radius")}
       </ControlGroup>
-      <ControlGroup title="Placement wording" description="Use a shorter message for the header or product panel, or a different badge label.">
-        <details><summary style={{ cursor: "pointer", fontWeight: 600 }}>Text overrides by placement</summary><div style={{ display: "grid", gap: 12, marginTop: 12 }}><s-select label="Placement to customise" value={placement} onChange={event => setPlacement(event.currentTarget.value as Placement)}>{placements.map(p => <s-option key={p.id} value={p.id}>{p.title}</s-option>)}</s-select>{(["headline", "body", "buttonText"] as const).filter(name => placement !== "badge" || name === "headline").map(name => <TextField key={placement + name} label={placement === "badge" ? "Badge text override" : `${name === "headline" ? "Headline" : name === "body" ? "Body" : "Button text"} override`} value={value.design.overrides[placement][name]} maxLength={placement === "badge" ? 40 : copyLimits[name]} multiline={name === "body"} onChange={next => design("overrides", { ...value.design.overrides, [placement]: { ...value.design.overrides[placement], [name]: next } })} />)}<small style={helpStyle}>Leave blank to use the shared message. Links and colours stay the same across placements.</small></div></details>
+      <ControlGroup title="Placement wording" description="Open as many sections as you need. Overrides for every section are saved together; blank fields use the shared message.">
+        {placements.map(p => {
+          const names: Array<"headline" | "body" | "buttonText"> = p.id === "badge" ? ["headline"] : ["headline", "body", "buttonText"];
+          const copy = value.design.overrides[p.id];
+          const hasOverrides = names.some(name => Boolean(copy[name]));
+          return <details key={p.id} style={{ border: "1px solid #dedede", borderRadius: 8, background: "#fff" }}>
+            <summary style={{ cursor: "pointer", fontWeight: 600, padding: 12 }}>
+              <span style={{ display: "inline-flex", width: "calc(100% - 20px)", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8, verticalAlign: "middle" }}><span>{p.title}</span><s-badge tone={hasOverrides ? "info" : "neutral"}>{hasOverrides ? "Custom wording" : "Shared wording"}</s-badge></span>
+            </summary>
+            <div style={{ display: "grid", gap: 12, padding: "0 12px 12px", borderTop: "1px solid #ebebeb", paddingTop: 12 }}>
+              <small style={helpStyle}>{p.description}</small>
+              {!value[p.flag] && <small style={helpStyle}>This placement is not selected. Its overrides will apply when you select it in Website promotion.</small>}
+              {names.map(name => <TextField key={name} label={p.id === "badge" ? "Badge text override" : `${name === "headline" ? "Headline" : name === "body" ? "Body" : "Button text"} override`} value={copy[name]} maxLength={p.id === "badge" ? copyLimits.badgeText : copyLimits[name]} multiline={name === "body"} onChange={next => design("overrides", { ...latestValue.current.design.overrides, [p.id]: { ...latestValue.current.design.overrides[p.id], [name]: next } })} />)}
+              <small style={helpStyle}>Leave blank to use the shared message. Links and colours stay the same across placements.</small>
+            </div>
+          </details>;
+        })}
       </ControlGroup>
       <ControlGroup title="Display priority" description="Choose which offer appears when more than one promotion qualifies for the same placement.">
         <s-number-field label="Promotion priority" details="Higher numbers are shown first. Use 0 for normal priority and a larger number for an offer you want to take precedence." min={0} max={9999} step={1} value={String(value.priority)} onInput={event => set("priority",Math.max(0,Number(event.currentTarget.value) || 0))} />
