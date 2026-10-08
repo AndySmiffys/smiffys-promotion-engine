@@ -4,6 +4,8 @@
   class PromotionEngine extends HTMLElement {
     connectedCallback() {
       if (!this.shadowRoot) this.attachShadow({ mode: 'open' });
+      this.uiReady = () => { this.cleanupUI?.(); this.cleanupUI = window.SmiffysPromotionUI?.mount(this.shadowRoot); };
+      window.addEventListener('promotion-ui:ready', this.uiReady);
       this.media = matchMedia('(max-width:600px)');
       this.refresh = () => this.load();
       this.variantChanged = event => {
@@ -19,6 +21,8 @@
       this.load();
     }
     disconnectedCallback() {
+      this.cleanupUI?.();
+      window.removeEventListener('promotion-ui:ready', this.uiReady);
       clearInterval(this.timer);
       clearTimeout(this.expiryTimer);
       this.media?.removeEventListener('change', this.refresh);
@@ -48,12 +52,14 @@
         content.innerHTML = result.html || '';
         // Badge positioning belongs to the product card, not the shadow DOM.
         if (this.dataset.placement === 'badge') { style.textContent += '.pe-badge{position:static;display:inline-block}'; }
+        this.cleanupUI?.();
         this.shadowRoot.replaceChildren(style, content);
+        this.cleanupUI = window.SmiffysPromotionUI?.mount(content);
         this.hidden = !result.html;
         clearTimeout(this.expiryTimer);
         const delay = result.endsAt ? Date.parse(result.endsAt) - Date.now() : 0;
-        if (delay > 0 && delay <= 2147483647) this.expiryTimer = setTimeout(() => { this.hidden = true; this.shadowRoot.replaceChildren(); }, delay);
-      } catch { if (version === this.requestVersion) { this.shadowRoot.replaceChildren(); this.hidden = true; } }
+        if (delay > 0 && delay <= 2147483647) this.expiryTimer = setTimeout(() => { this.hidden = true; this.cleanupUI?.(); this.shadowRoot.replaceChildren(); }, delay);
+      } catch { if (version === this.requestVersion) { this.cleanupUI?.(); this.shadowRoot.replaceChildren(); this.hidden = true; } }
     }
   }
   customElements.define('promotion-engine', PromotionEngine);

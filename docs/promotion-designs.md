@@ -39,3 +39,13 @@ The signed app proxy checks current Shopify discount status, dates, saved placem
 The app uses the same offer markup/CSS in the preview and storefront. Surrounding theme layout and fonts can differ. Customer responses are not publicly cached. Uploaded files are not deleted on Discard because they remain reusable in Shopify Files.
 
 The design is stored alongside the discount in the `PromotionSettings.designJson` column. Native Shopify discount creation and the local settings write are separate operations. If the settings write fails, the form retains the created discount ID and retries settings only, avoiding creation of another discount.
+
+### Product offer appearance
+
+In Messages and styling → Product offer, choose Solid background, Single line border or Double line border. Border styles have a transparent background and their own border colour. Text colour, padding and corner radius remain shared design settings. These settings are stored in design JSON; existing promotions keep their solid background and need no database migration.
+
+Enable Show copy code button to place a copy action beside the product offer's actual discount code. Automatic discounts never display this button. Successful copying is announced, and browsers that block clipboard access show a manual-copy message instead of claiming success.
+
+When Countdown is enabled and an end date is set, product offers display compact days, hours, minutes and seconds tiles. Preview and storefront use the same live timer and copying script. Header and collection countdowns retain their compact text format. Theme typography is inherited on the storefront.
+
+Pull the branch and restart Shopify app dev to load the editor changes. Refresh the storefront preview so the updated extension assets load. Production storefronts require the app and theme extension release to be deployed.

@@ -332,7 +332,7 @@ export default function PromotionDetailsPage() {
           <input type="hidden" name="website" value={JSON.stringify(website)} />
           <div style={{ display: activeTab === "website" || activeTab === "messages" ? "grid" : "none", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,360px),1fr))", gap: 20 }}>
             <PromotionWebsiteEditor value={website} onChange={setWebsite} endsAt={promotion.endsAt} onBusyChange={setAssetsBusy} />
-            <div style={{ alignSelf: "start", position: "sticky", top: 20 }}><PromotionPreview offerNote={promotion.code ? `Use code: ${promotion.code}` : "Applied automatically at checkout."} value={website} products={previewProducts} endsAt={promotion.endsAt} /></div>
+            <div style={{ alignSelf: "start", position: "sticky", top: 20 }}><PromotionPreview discountCode={promotion.code} offerNote={promotion.code ? `Use code: ${promotion.code}` : "Applied automatically at checkout."} value={website} products={previewProducts} endsAt={promotion.endsAt} /></div>
           </div>
 
           {(hasUnsavedChanges || isSaving || actionData?.error) && (

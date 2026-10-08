@@ -102,6 +102,14 @@ export function PromotionWebsiteEditor({ value, onChange, endsAt, onBusyChange }
         <ColourField label="Button background colour" value={value.design.buttonBackground} onChange={next => design("buttonBackground", next)} details="Fill colour behind the button label." />
         <ColourField label="Button text colour" value={value.design.buttonColour} onChange={next => design("buttonColour", next)} details="Colour of the button label. Choose a colour that is easy to read against the button background." />
       </ControlGroup>
+      <ControlGroup title="Product offer" description="Style the offer beside product details. Border styles use the page background; the solid style uses the promotion background colour.">
+        <s-select label="Offer appearance" value={value.design.productOfferStyle} onChange={event => design("productOfferStyle", event.currentTarget.value as PromotionDesign["productOfferStyle"])}>
+          <s-option value="solid">Solid background</s-option><s-option value="single">Single line border</s-option><s-option value="double">Double line border</s-option>
+        </s-select>
+        {value.design.productOfferStyle !== "solid" && <ColourField label="Offer border colour" details="Colour of the single or double outline around the product offer." value={value.design.productBorderColour} onChange={next => design("productBorderColour", next)} />}
+        <s-checkbox label="Show copy code button" checked={value.design.copyCodeEnabled} onChange={event => design("copyCodeEnabled", event.currentTarget.checked)} />
+        <small style={helpStyle}>Displays beside the discount code on product offers. Automatic discounts do not show a copy button. The countdown uses days, hours, minutes and seconds when enabled with an end date.</small>
+      </ControlGroup>
       <ControlGroup title="Product badge" description="A short label on eligible product cards. The badge has its own text and colour settings.">
         <TextField label="Badge text" value={value.badgeText} maxLength={copyLimits.badgeText} details="Keep it short, for example ‘20% OFF’ or ‘MULTIBUY’." onChange={next => set("badgeText", next)} />
         <ColourField label="Badge background colour" value={value.badgeColour} onChange={next => set("badgeColour", next)} details="Fill colour of the label on the product card." />

@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
-import { defaultDesign, readDesign, readWebsite, websiteStorage, websiteFromSettings, validateWebsite, countdown, contrastRatio, presetDesign, type WebsiteDraft } from "../app/modules/promotions/design/design";
+import { defaultDesign, readDesign, readWebsite, websiteStorage, websiteFromSettings, validateWebsite, countdownParts, countdown, contrastRatio, presetDesign, type WebsiteDraft } from "../app/modules/promotions/design/design";
 import { buildDiscountMutation, createShopifyPromotion, type CreateDiscountDraft } from "../app/modules/promotions/services/createPromotion.server";
 import { resolvePromotionImage, uploadPromotionImage } from "../app/modules/promotions/services/promotionAssets.server";
 import { PromotionOffer } from "../app/modules/promotions/components/PromotionPreview";
@@ -97,4 +97,42 @@ test("theme blocks have valid schemas and proxy loader is declared", () => {
     const schema = JSON.parse(liquid.split("{% schema %}")[1].split("{% endschema %}")[0]);
     assert.equal(schema.javascript, "promotion-engine.js");
   }
+});
+
+test("product styles and copy preference survive storage with safe legacy defaults", () => {
+  assert.equal(readDesign({}).productOfferStyle, "solid");
+  assert.equal(readDesign({}).copyCodeEnabled, false);
+  for (const style of ["solid", "single", "double"] as const) {
+    const value = website();
+    value.design = { ...value.design, productOfferStyle: style, productBorderColour: "#123456", copyCodeEnabled: true };
+    assert.deepEqual(websiteFromSettings(websiteStorage(value)), value);
+    assert.match(renderToStaticMarkup(<PromotionOffer value={value} placement="product" now={0} />), new RegExp(`pe-offer-${style}`));
+  }
+  assert.throws(() => readDesign({ productOfferStyle: "invalid" }));
+  assert.throws(() => readDesign({ productBorderColour: "red" }));
+  assert.throws(() => readDesign({ copyCodeEnabled: "false" }));
+});
+test("product copy button is optional, code-only and escapes merchant content", () => {
+  const value = website();
+  const render = (code?: string) => renderToStaticMarkup(<PromotionOffer value={value} placement="product" now={0} discountCode={code} offerNote="Applied automatically at checkout." />);
+  assert.doesNotMatch(render("SAVE20"), /data-pe-copy-code/);
+  value.design.copyCodeEnabled = true;
+  assert.match(render('SAVE<20"'), /data-pe-copy-code="SAVE&lt;20&quot;"/);
+  assert.doesNotMatch(render(), /data-pe-copy-code/);
+  assert.match(render(), /Applied automatically at checkout/);
+  assert.doesNotMatch(render("SAVE20"), /Applied automatically/);
+  assert.doesNotMatch(renderToStaticMarkup(<PromotionOffer value={value} placement="collection" now={0} discountCode="SAVE20" />), /data-pe-copy-code/);
+});
+test("segmented product countdown includes seconds and ends cleanly", () => {
+  const end = "2026-10-10T00:00:00Z";
+  const now = Date.parse(end) - 90061000;
+  assert.deepEqual(countdownParts(end, now), { ended: false, days: 1, hours: 1, minutes: 1, seconds: 1 });
+  assert.equal(countdownParts("invalid", now), null);
+  assert.equal(countdownParts(null, now), null);
+  assert.equal(countdownParts(end, Date.parse(end))?.ended, true);
+  const value = website(); value.showCountdown = true;
+  const html = renderToStaticMarkup(<PromotionOffer value={value} placement="product" now={now} endsAt={end} />);
+  assert.match(html, /data-pe-value="seconds">01/);
+  assert.match(html, /aria-live="off"/);
+  assert.doesNotMatch(renderToStaticMarkup(<PromotionOffer value={value} placement="product" now={now} endsAt="invalid" />), /data-pe-countdown/);
 });

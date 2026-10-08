@@ -54,7 +54,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       }
       if (!matchesStorefront(promotion, { placement, productId, collectionId, variantId, productCollectionIds, customerId, memberSegmentIds, now: Date.now() })) continue;
       const value = websiteFromSettings(promotion.settings);
-      const html = renderToStaticMarkup(<PromotionOffer offerNote={promotion.code ? `Use code: ${promotion.code}` : "Applied automatically at checkout."} value={value} placement={placement} endsAt={promotion.endsAt} now={Date.now()} mobile={url.searchParams.get("mobile") === "1"} />);
+      const html = renderToStaticMarkup(<PromotionOffer discountCode={promotion.code} offerNote={promotion.code ? `Use code: ${promotion.code}` : "Applied automatically at checkout."} value={value} placement={placement} endsAt={promotion.endsAt} now={Date.now()} mobile={url.searchParams.get("mobile") === "1"} />);
       return Response.json({ html, css: promotionCss, endsAt: promotion.endsAt }, { headers: { "Cache-Control": "private, no-store" } });
     }
   } catch (error) { console.error("Promotion storefront render failed:", error); }

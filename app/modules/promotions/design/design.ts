@@ -2,6 +2,9 @@ export type Placement = "header" | "collection" | "product" | "badge";
 export type PlacementCopy = { headline: string; body: string; buttonText: string };
 export type PromotionDesign = {
   version: 1;
+  productOfferStyle: "solid" | "single" | "double";
+  productBorderColour: string;
+  copyCodeEnabled: boolean;
   preset: "simple" | "campaign" | "compact";
   desktopImage: string;
   desktopImageId: string;
@@ -34,7 +37,7 @@ export type WebsiteDraft = {
 };
 const emptyCopy = (): PlacementCopy => ({ headline: "", body: "", buttonText: "" });
 export function defaultDesign(): PromotionDesign {
-  return { version: 1, preset: "simple", desktopImage: "", desktopImageId: "", mobileImage: "", mobileImageId: "", imageAlt: "", imageLayout: "half-right", focalX: 50, focalY: 50, overlay: 45, alignment: "left", bannerHeight: 280, spacing: 24, radius: 8, headingSize: 28, bodySize: 16, buttonBackground: "#202223", buttonColour: "#ffffff", badgeTextColour: "#ffffff", overrides: { header: emptyCopy(), collection: emptyCopy(), product: emptyCopy(), badge: emptyCopy() } };
+  return { version: 1, productOfferStyle: "solid", productBorderColour: "#202223", copyCodeEnabled: false, preset: "simple", desktopImage: "", desktopImageId: "", mobileImage: "", mobileImageId: "", imageAlt: "", imageLayout: "half-right", focalX: 50, focalY: 50, overlay: 45, alignment: "left", bannerHeight: 280, spacing: 24, radius: 8, headingSize: 28, bodySize: 16, buttonBackground: "#202223", buttonColour: "#ffffff", badgeTextColour: "#ffffff", overrides: { header: emptyCopy(), collection: emptyCopy(), product: emptyCopy(), badge: emptyCopy() } };
 }
 export const placements: Array<{ id: Placement; title: string; flag: keyof WebsiteDraft; description: string }> = [
   { id: "header", title: "Header", flag: "showHeaderBanner", description: "A short announcement above the site content." },
@@ -53,7 +56,7 @@ export function readDesign(value: unknown): PromotionDesign {
   if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error("The promotion design is invalid.");
   const source = input as Record<string, unknown>;
   const design = { ...defaults };
-  for (const name of ["desktopImage", "desktopImageId", "mobileImage", "mobileImageId", "imageAlt", "buttonBackground", "buttonColour", "badgeTextColour"] as const) {
+  for (const name of ["desktopImage", "desktopImageId", "mobileImage", "mobileImageId", "imageAlt", "buttonBackground", "buttonColour", "badgeTextColour", "productBorderColour"] as const) {
     if (source[name] !== undefined) {
       if (typeof source[name] !== "string") throw new Error("Invalid design field: " + name);
       design[name] = (source[name] as string).trim();
@@ -61,7 +64,7 @@ export function readDesign(value: unknown): PromotionDesign {
   }
   if (design.imageAlt.length > 250) throw new Error("Image description must be 250 characters or fewer.");
   for (const name of ["desktopImage", "mobileImage"] as const) if (!safeImage(design[name])) throw new Error("Images must use secure Shopify file URLs.");
-  for (const name of ["buttonBackground", "buttonColour", "badgeTextColour"] as const) if (!/^#[\da-f]{6}$/i.test(design[name])) throw new Error("Use six-digit hex colours.");
+  for (const name of ["buttonBackground", "buttonColour", "badgeTextColour", "productBorderColour"] as const) if (!/^#[\da-f]{6}$/i.test(design[name])) throw new Error("Use six-digit hex colours.");
   const ranges = { focalX: [0, 100], focalY: [0, 100], overlay: [0, 90], bannerHeight: [160, 600], spacing: [12, 60], radius: [0, 32], headingSize: [18, 48], bodySize: [12, 24] } as const;
   for (const name of Object.keys(ranges) as Array<keyof typeof ranges>) {
     if (source[name] !== undefined) {
@@ -70,11 +73,15 @@ export function readDesign(value: unknown): PromotionDesign {
       design[name] = number;
     }
   }
-  for (const [name, options] of [["preset", ["simple", "campaign", "compact"]], ["imageLayout", ["full", "half-left", "half-right"]], ["alignment", ["left", "center", "right"]]] as const) {
+  for (const [name, options] of [["productOfferStyle", ["solid", "single", "double"]], ["preset", ["simple", "campaign", "compact"]], ["imageLayout", ["full", "half-left", "half-right"]], ["alignment", ["left", "center", "right"]]] as const) {
     if (source[name] !== undefined) {
       if (!(options as readonly unknown[]).includes(source[name])) throw new Error("Invalid design field: " + name);
       Object.assign(design, { [name]: source[name] });
     }
+  }
+  if (source.copyCodeEnabled !== undefined) {
+    if (typeof source.copyCodeEnabled !== "boolean") throw new Error("Invalid design field: copyCodeEnabled");
+    design.copyCodeEnabled = source.copyCodeEnabled;
   }
   design.overrides = { ...defaults.overrides };
   for (const placement of placements) {
@@ -112,6 +119,11 @@ export function countdown(endsAt: string | null | undefined, now: number): strin
   if (remaining <= 0) return "Offer ended";
   const minutes = Math.ceil(remaining / 60000);
   return `${Math.floor(minutes / 1440)}d ${Math.floor(minutes % 1440 / 60)}h ${minutes % 60}m`;
+}
+export function countdownParts(endsAt: string | null | undefined, now: number) {
+  if (!endsAt || !Number.isFinite(Date.parse(endsAt))) return null;
+  const seconds = Math.max(0, Math.ceil((Date.parse(endsAt) - now) / 1000));
+  return { ended: seconds === 0, days: Math.floor(seconds / 86400), hours: Math.floor(seconds % 86400 / 3600), minutes: Math.floor(seconds % 3600 / 60), seconds: seconds % 60 };
 }
 export function validateWebsite(value: WebsiteDraft, endsAt?: string | null): string[] {
   const errors: string[] = [];
