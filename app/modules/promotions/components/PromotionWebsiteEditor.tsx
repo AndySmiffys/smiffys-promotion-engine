@@ -59,10 +59,10 @@ export function PromotionWebsiteEditor({ value, onChange, endsAt, onBusyChange }
   return <div style={{ display: "grid", gap: 20 }}>
     <section aria-label="Website promotion" style={sectionStyle}>
       <h2 style={{ fontSize: 16, margin: 0 }}>Website promotion</h2>
+      <s-select label="Website promotion status" details="Enabled allows eligible offers to appear on the storefront. Draft saves the design while keeping it hidden." value={value.websiteEnabled ? "enabled" : "draft"} onChange={event => set("websiteEnabled", event.currentTarget.value === "enabled")}><s-option value="enabled">Enabled</s-option><s-option value="draft">Draft</s-option></s-select>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>{(["simple", "campaign", "compact"] as const).map(preset => <s-button key={preset} type="button" variant={value.design.preset === preset ? "primary" : "secondary"} aria-pressed={value.design.preset === preset} onClick={() => set("design", presetDesign(preset, value.design))}>{preset === "simple" ? "Simple offer" : preset === "campaign" ? "Image campaign" : "Compact offer"}</s-button>)}</div>
       <small style={helpStyle}>Presets adjust the design and keep your messages, images and placements.</small>
-      <s-checkbox label="Include in promotion sync" checked={value.included} onChange={event => set("included", event.currentTarget.checked)} />
-      <s-checkbox label="Enable website promotion" checked={value.websiteEnabled} onChange={event => set("websiteEnabled", event.currentTarget.checked)} />
+      <s-checkbox label="Include in promotion sync" details="Required for storefront display, alongside Enabled status." checked={value.included} onChange={event => set("included", event.currentTarget.checked)} />
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 8 }}>
         {placements.map(p => <div key={p.id} style={{ border: "1px solid #dedede", borderRadius: 8, padding: 10, display: "grid", gap: 6 }}><s-checkbox label={p.title} checked={Boolean(value[p.flag])} onChange={event => set(p.flag, event.currentTarget.checked)} /><small style={helpStyle}>{p.description}</small></div>)}
       </div>

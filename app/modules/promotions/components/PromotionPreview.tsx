@@ -56,8 +56,10 @@ export function PromotionPreview({ value, products, endsAt, productOptions = [],
   const markup = active ? renderToStaticMarkup(<PromotionMarkup value={value} placement={active} products={products} endsAt={endsAt} now={now} mobile={device === "mobile"} offerNote={offerNote} />) : "";
   const document = `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>${promotionCss}</style></head><body>${markup}</body></html>`;
   return <section aria-label="Website preview" style={{ border: "1px solid #dedede", borderRadius: 12, padding: 12, background: "#fff", display: "grid", gap: 12, minWidth: 0 }}>
-    <strong>Website preview</strong>
-    <small style={{ color: "#616161" }}>{value.websiteEnabled && value.included ? "Website promotion enabled" : "Design preview — website promotion is disabled"}</small>
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+      <strong>Website preview</strong>
+      <span role="status" aria-live="polite" aria-label={`Website promotion status: ${value.websiteEnabled ? "Enabled" : "Draft"}`}><s-badge tone={value.websiteEnabled ? "success" : "neutral"}>{value.websiteEnabled ? "Enabled" : "Draft"}</s-badge></span>
+    </div>
     <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>{enabled.map(p => <s-button type="button" variant={active === p.id ? "primary" : "secondary"} key={p.id} aria-pressed={active === p.id} onClick={() => setPlacement(p.id)}>{p.title}</s-button>)}</div>
     <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>{(["desktop", "tablet", "mobile"] as const).map(item => <s-button type="button" variant={device === item ? "primary" : "secondary"} key={item} aria-pressed={device === item} onClick={() => setDevice(item)}>{item[0].toUpperCase() + item.slice(1)}</s-button>)}</div>
     {onProductChange && <s-select label="Preview product" value={selectedProductId} onChange={event => onProductChange(event.currentTarget.value)}><s-option value="">Use eligible products</s-option>{productOptions.map(p => <s-option key={p.id} value={p.id}>{p.title}</s-option>)}</s-select>}
