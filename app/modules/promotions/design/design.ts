@@ -4,6 +4,9 @@ export type PromotionDesign = {
   version: 1;
   productOfferStyle: "solid" | "single" | "double";
   productBorderColour: string;
+  productBorderWidth: number;
+  copyCodeBackground: string;
+  copyCodeColour: string;
   copyCodeEnabled: boolean;
   preset: "simple" | "campaign" | "compact";
   desktopImage: string;
@@ -37,7 +40,7 @@ export type WebsiteDraft = {
 };
 const emptyCopy = (): PlacementCopy => ({ headline: "", body: "", buttonText: "" });
 export function defaultDesign(): PromotionDesign {
-  return { version: 1, productOfferStyle: "solid", productBorderColour: "#202223", copyCodeEnabled: false, preset: "simple", desktopImage: "", desktopImageId: "", mobileImage: "", mobileImageId: "", imageAlt: "", imageLayout: "half-right", focalX: 50, focalY: 50, overlay: 45, alignment: "left", bannerHeight: 280, spacing: 24, radius: 8, headingSize: 28, bodySize: 16, buttonBackground: "#202223", buttonColour: "#ffffff", badgeTextColour: "#ffffff", overrides: { header: emptyCopy(), collection: emptyCopy(), product: emptyCopy(), badge: emptyCopy() } };
+  return { version: 1, productOfferStyle: "solid", productBorderColour: "#202223", productBorderWidth: 1, copyCodeBackground: "#202223", copyCodeColour: "#ffffff", copyCodeEnabled: false, preset: "simple", desktopImage: "", desktopImageId: "", mobileImage: "", mobileImageId: "", imageAlt: "", imageLayout: "half-right", focalX: 50, focalY: 50, overlay: 45, alignment: "left", bannerHeight: 280, spacing: 24, radius: 8, headingSize: 28, bodySize: 16, buttonBackground: "#202223", buttonColour: "#ffffff", badgeTextColour: "#ffffff", overrides: { header: emptyCopy(), collection: emptyCopy(), product: emptyCopy(), badge: emptyCopy() } };
 }
 export const placements: Array<{ id: Placement; title: string; flag: keyof WebsiteDraft; description: string }> = [
   { id: "header", title: "Header", flag: "showHeaderBanner", description: "A short announcement above the site content." },
@@ -56,7 +59,7 @@ export function readDesign(value: unknown): PromotionDesign {
   if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error("The promotion design is invalid.");
   const source = input as Record<string, unknown>;
   const design = { ...defaults };
-  for (const name of ["desktopImage", "desktopImageId", "mobileImage", "mobileImageId", "imageAlt", "buttonBackground", "buttonColour", "badgeTextColour", "productBorderColour"] as const) {
+  for (const name of ["desktopImage", "desktopImageId", "mobileImage", "mobileImageId", "imageAlt", "buttonBackground", "buttonColour", "badgeTextColour", "productBorderColour", "copyCodeBackground", "copyCodeColour"] as const) {
     if (source[name] !== undefined) {
       if (typeof source[name] !== "string") throw new Error("Invalid design field: " + name);
       design[name] = (source[name] as string).trim();
@@ -64,8 +67,8 @@ export function readDesign(value: unknown): PromotionDesign {
   }
   if (design.imageAlt.length > 250) throw new Error("Image description must be 250 characters or fewer.");
   for (const name of ["desktopImage", "mobileImage"] as const) if (!safeImage(design[name])) throw new Error("Images must use secure Shopify file URLs.");
-  for (const name of ["buttonBackground", "buttonColour", "badgeTextColour", "productBorderColour"] as const) if (!/^#[\da-f]{6}$/i.test(design[name])) throw new Error("Use six-digit hex colours.");
-  const ranges = { focalX: [0, 100], focalY: [0, 100], overlay: [0, 90], bannerHeight: [160, 600], spacing: [12, 60], radius: [0, 32], headingSize: [18, 48], bodySize: [12, 24] } as const;
+  for (const name of ["buttonBackground", "buttonColour", "badgeTextColour", "productBorderColour", "copyCodeBackground", "copyCodeColour"] as const) if (!/^#[\da-f]{6}$/i.test(design[name])) throw new Error("Use six-digit hex colours.");
+  const ranges = { productBorderWidth: [1, 12], focalX: [0, 100], focalY: [0, 100], overlay: [0, 90], bannerHeight: [160, 600], spacing: [12, 60], radius: [0, 32], headingSize: [18, 48], bodySize: [12, 24] } as const;
   for (const name of Object.keys(ranges) as Array<keyof typeof ranges>) {
     if (source[name] !== undefined) {
       const number = Number(source[name]);
@@ -79,6 +82,10 @@ export function readDesign(value: unknown): PromotionDesign {
       Object.assign(design, { [name]: source[name] });
     }
   }
+  if (source.productBorderWidth === undefined) design.productBorderWidth = design.productOfferStyle === "double" ? 4 : 1;
+  if (design.productOfferStyle === "double" && design.productBorderWidth < 3) throw new Error("Double borders must be at least 3px thick.");
+  if (source.copyCodeBackground === undefined) design.copyCodeBackground = design.buttonBackground;
+  if (source.copyCodeColour === undefined) design.copyCodeColour = design.buttonColour;
   if (source.copyCodeEnabled !== undefined) {
     if (typeof source.copyCodeEnabled !== "boolean") throw new Error("Invalid design field: copyCodeEnabled");
     design.copyCodeEnabled = source.copyCodeEnabled;

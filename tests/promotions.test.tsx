@@ -6,7 +6,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { defaultDesign, readDesign, readWebsite, websiteStorage, websiteFromSettings, validateWebsite, countdownParts, countdown, contrastRatio, presetDesign, type WebsiteDraft } from "../app/modules/promotions/design/design";
 import { buildDiscountMutation, createShopifyPromotion, type CreateDiscountDraft } from "../app/modules/promotions/services/createPromotion.server";
 import { resolvePromotionImage, uploadPromotionImage } from "../app/modules/promotions/services/promotionAssets.server";
-import { PromotionOffer } from "../app/modules/promotions/components/PromotionPreview";
+import { PromotionOffer, promotionCss } from "../app/modules/promotions/components/PromotionPreview";
 import { matchesStorefront, type StorefrontContext } from "../app/modules/promotions/services/storefrontEligibility.server";
 import { mapDiscountToPromotion } from "../app/modules/promotions/mappers/promotionMapper";
 import type { ShopifyDiscountNode } from "../app/modules/promotions/types/discount";
@@ -106,7 +106,7 @@ test("product styles and copy preference survive storage with safe legacy defaul
   assert.equal(readDesign({}).copyCodeEnabled, false);
   for (const style of ["solid", "single", "double"] as const) {
     const value = website();
-    value.design = { ...value.design, productOfferStyle: style, productBorderColour: "#123456", copyCodeEnabled: true };
+    value.design = { ...value.design, productOfferStyle: style, productBorderWidth: style === "double" ? 4 : 1, productBorderColour: "#123456", copyCodeEnabled: true };
     assert.deepEqual(websiteFromSettings(websiteStorage(value)), value);
     assert.match(renderToStaticMarkup(<PromotionOffer value={value} placement="product" now={0} />), new RegExp(`pe-offer-${style}`));
   }
@@ -161,4 +161,26 @@ test("embedded navigation preserves shop and host without replaying tokens or pa
 test("preview and theme share an identical runtime served from the app directory", () => {
   assert.equal(readFileSync("app/modules/promotions/design/promotion-ui.js", "utf8"), readFileSync("extensions/promotion-engine/assets/promotion-ui.js", "utf8"));
   assert.match(readFileSync("app/modules/promotions/components/PromotionPreview.tsx", "utf8"), /from "\.\.\/design\/promotion-ui\.js\?raw"/);
+});
+
+test("copy colours and border width persist independently with compatible legacy defaults", () => {
+  const legacy = readDesign({ productOfferStyle: "double", buttonBackground: "#123456", buttonColour: "#fedcba" });
+  assert.equal(legacy.productBorderWidth, 4);
+  assert.equal(legacy.copyCodeBackground, "#123456");
+  assert.equal(legacy.copyCodeColour, "#fedcba");
+  assert.equal(readDesign({}).productBorderWidth, 1);
+  const value = website();
+  value.design = { ...value.design, productOfferStyle: "double", productBorderWidth: 6, copyCodeEnabled: true, copyCodeBackground: "#abcdef", copyCodeColour: "#123456" };
+  assert.deepEqual(websiteFromSettings(websiteStorage(value)), value);
+  const html = renderToStaticMarkup(<PromotionOffer value={value} placement="product" now={0} discountCode="SAVE20" />);
+  assert.match(html, /--pe-border-width:6px/);
+  assert.match(html, /--pe-copy-bg:#abcdef/);
+  assert.match(html, /--pe-copy-fg:#123456/);
+  assert.match(html, /--pe-button-bg:#202223/);
+  assert.match(promotionCss, /border:var\(--pe-border-width\) double/);
+  assert.match(promotionCss, /background:var\(--pe-copy-bg\);color:var\(--pe-copy-fg\)/);
+  for (const width of [0, 13, NaN]) assert.throws(() => readDesign({ productBorderWidth: width }));
+  assert.throws(() => readDesign({ productOfferStyle: "double", productBorderWidth: 2 }));
+  assert.throws(() => readDesign({ copyCodeBackground: "red" }));
+  assert.throws(() => readDesign({ copyCodeColour: "invalid" }));
 });

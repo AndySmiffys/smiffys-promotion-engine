@@ -50,7 +50,7 @@ export function PromotionWebsiteEditor({ value, onChange, endsAt, onBusyChange }
     } catch { setLinkError("The selector could not be opened. Enter the button link below."); }
   }
   const errors = validateWebsite(value, endsAt);
-  const contrastIssues = [["Promotion text", value.textColour, value.backgroundColour], ["Button text", value.design.buttonColour, value.design.buttonBackground], ["Badge text", value.design.badgeTextColour, value.badgeColour]].filter(([,a,b]) => contrastRatio(a,b) < 4.5);
+  const contrastIssues = [["Promotion text", value.textColour, value.backgroundColour], ["Button text", value.design.buttonColour, value.design.buttonBackground], ["Badge text", value.design.badgeTextColour, value.badgeColour], ...(value.design.copyCodeEnabled ? [["Copy code button text", value.design.copyCodeColour, value.design.copyCodeBackground]] : [])].filter(([,a,b]) => contrastRatio(a,b) < 4.5);
   function numberField(name: keyof typeof numberSettings) {
     const setting = numberSettings[name];
     return <s-number-field label={setting.label} details={setting.details} min={setting.min} max={setting.max} value={String(value.design[name])} onInput={event => { const next = Number(event.currentTarget.value); if (event.currentTarget.value && Number.isFinite(next)) design(name,next); }} />;
@@ -103,11 +103,16 @@ export function PromotionWebsiteEditor({ value, onChange, endsAt, onBusyChange }
         <ColourField label="Button text colour" value={value.design.buttonColour} onChange={next => design("buttonColour", next)} details="Colour of the button label. Choose a colour that is easy to read against the button background." />
       </ControlGroup>
       <ControlGroup title="Product offer" description="Style the offer beside product details. Border styles use the page background; the solid style uses the promotion background colour.">
-        <s-select label="Offer appearance" value={value.design.productOfferStyle} onChange={event => design("productOfferStyle", event.currentTarget.value as PromotionDesign["productOfferStyle"])}>
+        <s-select label="Offer appearance" value={value.design.productOfferStyle} onChange={event => { const style = event.currentTarget.value as PromotionDesign["productOfferStyle"]; const current = latestValue.current.design; set("design", { ...current, productOfferStyle: style, productBorderWidth: style === "double" ? Math.max(3, current.productBorderWidth) : current.productBorderWidth }); }}>
           <s-option value="solid">Solid background</s-option><s-option value="single">Single line border</s-option><s-option value="double">Double line border</s-option>
         </s-select>
         {value.design.productOfferStyle !== "solid" && <ColourField label="Offer border colour" details="Colour of the single or double outline around the product offer." value={value.design.productBorderColour} onChange={next => design("productBorderColour", next)} />}
+        {value.design.productOfferStyle !== "solid" && <s-number-field label="Offer border thickness (px)" details={value.design.productOfferStyle === "double" ? "Total width of both lines and the gap. Use 3–12px so both lines remain visible." : "Width of the outline around the product offer. Choose 1–12px."} min={value.design.productOfferStyle === "double" ? 3 : 1} max={12} value={String(value.design.productBorderWidth)} onInput={event => { const next = Number(event.currentTarget.value); if (event.currentTarget.value && Number.isFinite(next)) design("productBorderWidth", next); }} />}
         <s-checkbox label="Show copy code button" checked={value.design.copyCodeEnabled} onChange={event => design("copyCodeEnabled", event.currentTarget.checked)} />
+        {value.design.copyCodeEnabled && <>
+          <ColourField label="Copy code button background" value={value.design.copyCodeBackground} onChange={next => design("copyCodeBackground", next)} details="Fill colour of the copy-code button. The main promotion button has separate colours." />
+          <ColourField label="Copy code button text colour" value={value.design.copyCodeColour} onChange={next => design("copyCodeColour", next)} details="Colour of the copy label and icon. Choose a colour that is easy to read against the button background." />
+        </>}
         <small style={helpStyle}>Displays beside the discount code on product offers. Automatic discounts do not show a copy button. The countdown uses days, hours, minutes and seconds when enabled with an end date.</small>
       </ControlGroup>
       <ControlGroup title="Product badge" description="A short label on eligible product cards. The badge has its own text and colour settings.">

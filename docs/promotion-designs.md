@@ -63,3 +63,9 @@ The `OrphanedSnippet` warning for `product-card-badge.liquid` is expected: this 
 Internal app links preserve the authenticated shop and the Shopify host/embedded parameters while retaining the destination's own query, such as the chosen discount type. Authentication tokens and signatures from the previous page are not copied to new URLs.
 
 The shared timer/copy script's source is `app/modules/promotions/design/promotion-ui.js`. The admin preview imports this file as raw text from the app directory: the Shopify development proxy routes `/extensions/` separately, so importing the extension asset directly caused a 404 and prevented create/detail route modules from loading. Run `npm run sync:promotion-ui` after editing the source to update the committed theme asset. Build, npm deployment and Shopify web predev also run this sync. Tests check that both copies match.
+
+### Copy button colours and border thickness
+
+Product offer controls include independent copy-button background and text/icon colour pickers when Show copy code button is enabled. Existing saved designs initially inherit their previous main-button colours. Changes to these copy colours do not affect the main call-to-action button.
+
+Single borders support 1–12px thickness; double borders support 3–12px total thickness, including both lines and their gap. Switching to a double border raises a thinner value to 3px. Existing saved double borders retain their previous 4px width. Thickness is hidden for solid backgrounds and stored with the design for later use.
