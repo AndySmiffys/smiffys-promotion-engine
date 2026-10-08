@@ -49,3 +49,11 @@ Enable Show copy code button to place a copy action beside the product offer's a
 When Countdown is enabled and an end date is set, product offers display compact days, hours, minutes and seconds tiles. Preview and storefront use the same live timer and copying script. Header and collection countdowns retain their compact text format. Theme typography is inherited on the storefront.
 
 Pull the branch and restart Shopify app dev to load the editor changes. Refresh the storefront preview so the updated extension assets load. Production storefronts require the app and theme extension release to be deployed.
+
+### Local development networking
+
+Run `shopify app dev` with the default public tunnel when testing this app. `--use-localhost` is incompatible with Shopify app proxies, so it fails with `app_proxy requires a public host`. The storefront calls the app proxy to load eligible offers; localhost cannot accept those Shopify requests. If a default tunnel is unavailable, configure a public HTTPS tunnel using Shopify CLI's `--tunnel-url` option.
+
+The theme extension includes `locales/en.default.json` even though it currently has no Liquid translation keys. Keeping the file in Git ensures fresh clones contain the locales directory required by the CLI's theme checks.
+
+The `OrphanedSnippet` warning for `product-card-badge.liquid` is expected: this snippet is provided for explicit integration into a merchant's custom product-card theme markup, rather than being rendered by the extension's standard app block. It does not prevent the extension from building.

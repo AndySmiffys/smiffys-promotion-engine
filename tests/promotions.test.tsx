@@ -91,7 +91,8 @@ test("invalid image uploads do not make Shopify requests", async () => {
   assert.equal(calls, 0);
   await assert.rejects(() => resolvePromotionImage({ graphql: async () => Response.json({ data: { node: { fileStatus: "PROCESSING" } } }) }, "gid://shopify/MediaImage/1"), /processing/);
 });
-test("theme blocks have valid schemas and proxy loader is declared", () => {
+test("theme blocks have valid schemas, default locales and proxy loader is declared", () => {
+  assert.deepEqual(JSON.parse(readFileSync("extensions/promotion-engine/locales/en.default.json", "utf8")), {});
   for (const file of ["promotion", "promotion-loader"]) {
     const liquid = readFileSync(`extensions/promotion-engine/blocks/${file}.liquid`, "utf8");
     const schema = JSON.parse(liquid.split("{% schema %}")[1].split("{% endschema %}")[0]);
