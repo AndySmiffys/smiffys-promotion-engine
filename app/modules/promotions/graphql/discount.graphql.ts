@@ -55,6 +55,7 @@ export const GET_DISCOUNT = `#graphql
             ...DiscountContextFields
           }
 
+          codesCount { count }
           codes(first: 5) {
             nodes {
               code
@@ -107,6 +108,7 @@ export const GET_DISCOUNT = `#graphql
             ...DiscountContextFields
           }
 
+          codesCount { count }
           codes(first: 5) {
             nodes {
               code
@@ -174,6 +176,7 @@ export const GET_DISCOUNT = `#graphql
           appliesOnOneTimePurchase
           appliesOnSubscription
 
+          codesCount { count }
           codes(first: 5) {
             nodes {
               code

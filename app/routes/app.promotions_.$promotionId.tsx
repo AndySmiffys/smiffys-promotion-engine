@@ -1,3 +1,4 @@
+import { getPromotionCodeBatch } from "../modules/promotions/services/promotionCodeBatches.server";
 import { getEditableDiscount } from "../modules/promotions/services/editableDiscount.server";
 import { PromotionEditor } from "../modules/promotions/components/PromotionEditor";
 import { discountToEditorDraft, type EditorDiscountDraft } from "../modules/promotions/design/editorDraft";
@@ -13,6 +14,7 @@ import {
 } from "react";
 
 import type {
+  ShouldRevalidateFunctionArgs,
   ActionFunctionArgs,
   LoaderFunctionArgs,
 } from "react-router";
@@ -121,8 +123,10 @@ export async function loader({
   let editorDiscount: EditorDiscountDraft | null = null;
   let editRulesMessage: string | null = null;
   try { editorDiscount = discountToEditorDraft(discountNode); } catch (error) { editRulesMessage = error instanceof Error ? error.message : "Edit this discount's rules in Shopify."; }
+  const codeBatch = await getPromotionCodeBatch(session.shop, discountNode.id);
+  if (editorDiscount && codeBatch) Object.assign(editorDiscount, { codeMode: "bulk", codeCount: String(codeBatch.total), codePrefix: codeBatch.prefix, codeSuffix: codeBatch.suffix, codeListTitle: codeBatch.title });
   const resources = editorDiscount ? await getPromotionEditorResources(admin) : { products: [], collections: [] };
-  return { promotion, coverage, previewProducts, editorDiscount, editRulesMessage, products: resources.products };
+  return { promotion, coverage, previewProducts, editorDiscount, editRulesMessage, products: resources.products, codeBatch };
 }
 export async function action({
   request,
@@ -151,6 +155,7 @@ export async function action({
       if (!node) throw new Error("This discount no longer exists.");
       const payload = JSON.parse(String(formData.get("payload") ?? "{}"));
       const website = readWebsite(payload.website);
+      if (website.websiteEnabled && ((node.discount.codesCount?.count ?? node.discount.codes?.nodes.length ?? 0) > 1 || await getPromotionCodeBatch(session.shop, node.id))) throw new Error("Individual code lists must stay in website Draft status.");
       const errors = validateWebsite(website, payload.updateRules === false ? node.discount.endsAt : payload.discount?.endsAt);
       if (errors.length) throw new Error(errors.join(" "));
       if (payload.updateRules !== false) {
@@ -182,6 +187,7 @@ export async function action({
     const discount = await getDiscount(admin, shopifyDiscountId);
     if (!discount) throw new Error("This discount no longer exists.");
     const website = readWebsite(JSON.parse(String(formData.get("website") ?? "{}")));
+    if (website.websiteEnabled && ((discount.discount.codesCount?.count ?? discount.discount.codes?.nodes.length ?? 0) > 1 || await getPromotionCodeBatch(session.shop, shopifyDiscountId))) throw new Error("Individual code lists must stay in website Draft status.");
     const errors = validateWebsite(website, discount.discount.endsAt);
     if (errors.length) throw new Error(errors.join(" "));
     await updatePromotionWebsiteSettings(session.shop, shopifyDiscountId, websiteStorage(website));
@@ -206,7 +212,7 @@ export async function action({
 
 export default function PromotionDetailsPage() {
   const appUrl = useEmbeddedAppUrl();
-  const { promotion, coverage, previewProducts, editorDiscount, editRulesMessage, products } =
+  const { promotion, coverage, previewProducts, editorDiscount, editRulesMessage, products, codeBatch } =
     useLoaderData<typeof loader>();
 
   const general = promotion.shopify.general;
@@ -228,7 +234,7 @@ export default function PromotionDetailsPage() {
   function resetFormState() { setWebsite(savedWebsite); }
   const hasUnsavedChanges = JSON.stringify(website) !== JSON.stringify(savedWebsite);
 
-  if (editorDiscount) return <PromotionEditor key={`${promotion.id}-${editorVersion}`} products={products} initialDiscount={editorDiscount} initialWebsite={savedWebsite} promotionId={promotion.id} shopifyStatus={general.status} onDiscard={() => setEditorVersion(version => version + 1)} />;
+  if (editorDiscount) return <PromotionEditor key={`${promotion.id}-${editorVersion}`} products={products} initialDiscount={editorDiscount} initialWebsite={savedWebsite} promotionId={promotion.id} shopifyStatus={general.status} codeBatch={codeBatch} onDiscard={() => setEditorVersion(version => version + 1)} />;
 
   return (
     <s-page heading={general.title}>
@@ -452,4 +458,9 @@ export default function PromotionDetailsPage() {
       </div>
     </s-page>
   );
+}
+
+export function shouldRevalidate({ formAction, defaultShouldRevalidate }: ShouldRevalidateFunctionArgs) {
+  if (formAction && new URL(formAction, "https://app.example").pathname === "/app/promotion-codes") return false;
+  return defaultShouldRevalidate;
 }

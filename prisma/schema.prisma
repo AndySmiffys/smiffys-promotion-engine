@@ -72,3 +72,25 @@ model PromotionSettings {
   @@unique([shop, shopifyDiscountId])
   @@index([shop])
 }
+
+model PromotionCodeBatch {
+  id                   String   @id @default(cuid())
+  shop                 String
+  requestKey           String
+  shopifyDiscountId    String?
+  configurationJson    String
+  codesJson            String
+  confirmedJson        String   @default("[]")
+  pendingJson          String   @default("[]")
+  activeJobId          String?
+  reconciliationCursor String?
+  reconciliationJson   String   @default("[]")
+  status               String   @default("NEW")
+  error                String?
+  leaseToken           String?
+  leaseUntil           DateTime?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  @@unique([shop, requestKey])
+  @@index([shop, shopifyDiscountId])
+}

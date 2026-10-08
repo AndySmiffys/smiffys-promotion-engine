@@ -1,3 +1,4 @@
+import { PolarisSelect, PolarisCheckbox } from "../app/modules/promotions/components/PolarisControls";
 import { discountToEditorDraft, toLocalDateTime } from "../app/modules/promotions/design/editorDraft";
 import { buildUpdateDiscountMutation, updateShopifyPromotion } from "../app/modules/promotions/services/updatePromotion.server";
 import { getEditableDiscount } from "../app/modules/promotions/services/editableDiscount.server";
@@ -70,7 +71,7 @@ test("shared renderer escapes copy, honours colours/overrides and switches mobil
   const header = renderToStaticMarkup(<PromotionOffer value={value} placement="header" now={Date.now()} />);
   assert.ok(header.includes("Short headline"));
 });
-const node = (): ShopifyDiscountNode => ({ id: "gid://shopify/DiscountNode/1", events: { nodes: [] }, discount: { __typename: "DiscountCodeBasic", title: "Save", status: "ACTIVE", startsAt: "2026-10-01", endsAt: "2026-10-31", discountClasses: ["PRODUCT"], context: { __typename: "DiscountBuyerSelectionAll", all: "ALL" }, customerGets: { value: { __typename: "DiscountPercentage", percentage: .2 }, items: { __typename: "DiscountCollections", collections: { nodes: [{ id: "gid://shopify/Collection/1", title: "Sale" }] } } } } });
+const node = (): ShopifyDiscountNode => ({ id: "gid://shopify/DiscountNode/1", events: { nodes: [] }, discount: { __typename: "DiscountCodeBasic", codes: { nodes: [{ code: "SAVE20" }] }, title: "Save", status: "ACTIVE", startsAt: "2026-10-01", endsAt: "2026-10-31", discountClasses: ["PRODUCT"], context: { __typename: "DiscountBuyerSelectionAll", all: "ALL" }, customerGets: { value: { __typename: "DiscountPercentage", percentage: .2 }, items: { __typename: "DiscountCollections", collections: { nodes: [{ id: "gid://shopify/Collection/1", title: "Sale" }] } } } } });
 const context = (): StorefrontContext => ({ placement: "product", productId: "gid://shopify/Product/1", variantId: "gid://shopify/ProductVariant/3", collectionId: null, productCollectionIds: ["gid://shopify/Collection/1"], customerId: null, memberSegmentIds: [], now: Date.parse("2026-10-08") });
 test("storefront eligibility checks active dates, products and signed customer/segment membership", () => {
   const p = mapDiscountToPromotion(node()); Object.assign(p.settings, websiteStorage(website()));
@@ -268,4 +269,11 @@ test("saved dates retain their instant when opened in the local date/time editor
   const iso = "2026-10-10T13:24:59Z";
   assert.equal(new Date(toLocalDateTime(iso)).toISOString(), new Date(iso).toISOString());
   assert.equal(toLocalDateTime(null), "");
+});
+
+test("React 18 Polaris controls retain their markup without false boolean attributes", () => {
+  const checkbox = renderToStaticMarkup(<PolarisCheckbox label="Optional limit" checked={false} disabled={false} />);
+  assert.match(checkbox, /<s-checkbox/); assert.doesNotMatch(checkbox, /checked=|disabled=/);
+  const select = renderToStaticMarkup(<PolarisSelect label="Code format" value="single" disabled={false}><s-option value="single">Shared</s-option></PolarisSelect>);
+  assert.match(select, /value="single"/); assert.doesNotMatch(select, /disabled=/);
 });

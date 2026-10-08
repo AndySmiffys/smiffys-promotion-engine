@@ -1,7 +1,8 @@
+import { normalizeSharedCode, type CodeOptions } from "../design/codeGeneration";
 import type { ShopifyAdminClient } from "./discount.server";
 
 type Selection = { id: string; selectedVariantIds?: string[]; variants?: Array<{ id: string }> };
-export type CreateDiscountDraft = {
+export type CreateDiscountDraft = CodeOptions & {
   discountType: "product" | "order" | "bxgy" | "shipping";
   method: "code" | "automatic"; discountCode: string; automaticTitle: string;
   valueType: "percentage" | "fixed"; discountValue: string;
@@ -40,7 +41,8 @@ function items(type: string, resources: Selection[]) {
 export function buildDiscountMutation(d: CreateDiscountDraft, now = new Date()): { query: string; variables: Record<string, unknown> } {
   if (!["product", "order", "bxgy", "shipping"].includes(d.discountType) || !["code", "automatic"].includes(d.method)) throw new Error("Choose a valid discount type and method.");
   const code = d.method === "code";
-  const title = (code ? d.discountCode : d.automaticTitle)?.trim();
+  const redeemCode = code ? normalizeSharedCode(d.discountCode) : null;
+  const title = (code ? d.codeMode === "bulk" ? d.codeListTitle : redeemCode : d.automaticTitle)?.trim();
   if (!title || title.length > 255) throw new Error(code ? "Enter a discount code (up to 255 characters)." : "Enter a discount title (up to 255 characters).");
   const startsAt = d.startsAt || now.toISOString();
   if (!Number.isFinite(Date.parse(startsAt)) || (d.endsAt && (!Number.isFinite(Date.parse(d.endsAt)) || Date.parse(d.endsAt) <= Date.parse(startsAt)))) throw new Error("The end must be after the promotion start.");
@@ -49,7 +51,7 @@ export function buildDiscountMutation(d: CreateDiscountDraft, now = new Date()):
   const combinesWith = { productDiscounts: Boolean(d.combineProductDiscounts), orderDiscounts: Boolean(d.combineOrderDiscounts), shippingDiscounts: Boolean(d.combineShippingDiscounts), ...(d.combineProductDiscounts && d.productCombinationMode === "multiple" ? { productDiscountsWithTagsOnSameCartLine: { add: d.selectedCombinationTags } } : {}) };
   if (d.combineProductDiscounts && d.productCombinationMode === "multiple" && (!Array.isArray(d.selectedCombinationTags) || !d.selectedCombinationTags.length)) throw new Error("Select combination tags for discounts on the same product.");
   const input: Record<string, unknown> = { title, startsAt, endsAt: d.endsAt || null, context, combinesWith, tags: [d.discountType === "shipping" ? "FREE SHIPPING" : d.discountType.toUpperCase()] };
-  if (code) Object.assign(input, { code: title, appliesOncePerCustomer: Boolean(d.limitOncePerCustomer), usageLimit: d.limitTotalUses ? positive(d.totalUsageLimit, "usage limit", true) : null });
+  if (code) Object.assign(input, { code: redeemCode, appliesOncePerCustomer: Boolean(d.limitOncePerCustomer), usageLimit: d.limitTotalUses ? positive(d.totalUsageLimit, "usage limit", true) : null });
   if (d.discountType !== "bxgy") {
     if (d.minimumRequirement === "amount") input.minimumRequirement = { subtotal: { greaterThanOrEqualToSubtotal: String(positive(d.minimumPurchaseAmount, "minimum amount")) } };
     else if (d.minimumRequirement === "quantity") input.minimumRequirement = { quantity: { greaterThanOrEqualToQuantity: String(positive(d.minimumQuantity, "minimum quantity", true)) } };
@@ -91,7 +93,7 @@ export async function createShopifyPromotion(admin: ShopifyAdminClient, draft: C
   const request = buildDiscountMutation(draft);
   const response = await admin.graphql(request.query, { variables: request.variables });
   const result = await response.json();
-  const errors = result.errors ?? result.data?.result?.userErrors;
+  const errors = [...(result.errors ?? []), ...(result.data?.result?.userErrors ?? [])];
   if (errors?.length) throw new Error(errors.map((error: { message: string }) => error.message).join(", "));
   const id = result.data?.result?.codeDiscountNode?.id ?? result.data?.result?.automaticDiscountNode?.id;
   if (!id) throw new Error("Shopify did not return a discount ID.");

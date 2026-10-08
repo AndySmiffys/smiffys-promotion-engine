@@ -1,3 +1,4 @@
+import { PolarisSelect } from "./PolarisControls";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import promotionUiScript from "../design/promotion-ui.js?raw";
@@ -67,7 +68,7 @@ export function PromotionPreview({ value, products, endsAt, productOptions = [],
     </div>
     <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>{enabled.map(p => <s-button type="button" variant={active === p.id ? "primary" : "secondary"} key={p.id} aria-pressed={active === p.id} onClick={() => setPlacement(p.id)}>{p.title}</s-button>)}</div>
     <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>{(["desktop", "tablet", "mobile"] as const).map(item => <s-button type="button" variant={device === item ? "primary" : "secondary"} key={item} aria-pressed={device === item} onClick={() => setDevice(item)}>{item[0].toUpperCase() + item.slice(1)}</s-button>)}</div>
-    {onProductChange && <s-select label="Preview product" value={selectedProductId} onChange={event => onProductChange(event.currentTarget.value)}><s-option value="">Use eligible products</s-option>{productOptions.map(p => <s-option key={p.id} value={p.id}>{p.title}</s-option>)}</s-select>}
+    {onProductChange && <PolarisSelect label="Preview product" value={selectedProductId} onChange={event => onProductChange(event.currentTarget.value)}><s-option value="">Use eligible products</s-option>{productOptions.map(p => <s-option key={p.id} value={p.id}>{p.title}</s-option>)}</PolarisSelect>}
     {loading && <small role="status">Loading eligible products…</small>}
     {sample && <small>Example product — select qualifying products or collections to preview eligibility.</small>}
     <div ref={ref} style={{ overflow: "auto", minWidth: 0, maxHeight: 650 }}>

@@ -2,6 +2,7 @@ import type { PromotionRecord } from "../models/promotion";
 import type { Placement } from "../design/design";
 export type StorefrontContext = { placement: Placement; productId: string | null; variantId: string | null; collectionId: string | null; productCollectionIds: string[]; customerId: string | null; memberSegmentIds: string[]; now: number };
 export function matchesStorefront(promotion: PromotionRecord, context: StorefrontContext): boolean {
+  if (promotion.method === "Code" && !promotion.code) return false;
   if (promotion.status !== "ACTIVE" || !promotion.settings.included || !promotion.settings.websiteEnabled) return false;
   if (promotion.startsAt && Date.parse(promotion.startsAt) > context.now) return false;
   if (promotion.endsAt && Date.parse(promotion.endsAt) <= context.now) return false;

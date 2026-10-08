@@ -45,6 +45,7 @@ export function discountToEditorDraft(node: ShopifyDiscountNode): EditorDiscount
   if ((context?.customers?.length ?? 0) > 250 || (context?.segments?.length ?? 0) > 250) throw new Error("This discount has more selected buyers than the editor can save. Edit its rules in Shopify.");
   const tags = d.combinesWith?.productDiscountsWithTagsOnSameCartLine ?? [];
   return {
+    codeMode: (d.codesCount?.count ?? d.codes?.nodes.length ?? 0) > 1 ? "bulk" : "single", codeCount: String(d.codesCount?.count ?? d.codes?.nodes.length ?? 1), codeListTitle: d.title ?? "",
     discountType, method: d.__typename.includes("Automatic") ? "automatic" : "code", discountCode: d.codes?.nodes[0]?.code ?? "", automaticTitle: d.title ?? "",
     valueType: value?.__typename === "DiscountAmount" ? "fixed" : "percentage", discountValue: value?.amount?.amount ?? (value?.percentage !== undefined ? String(Number((value.percentage * 100).toFixed(8))) : ""),
     appliesTo: gets.type, selectedProducts: gets.type === "products" ? gets.resources : [], selectedCollections: gets.type === "collections" ? gets.resources : [],

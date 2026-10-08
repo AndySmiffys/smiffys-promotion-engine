@@ -51,6 +51,7 @@ export type ShopifyDiscountNode = {
       }>;
     };
 
+    codesCount?: { count: number } | null;
     codes?: {
       nodes: Array<{
         code: string;
@@ -189,6 +190,7 @@ export function getDiscountMethod(
 export function getDiscountCode(
   node: ShopifyDiscountNode,
 ): string | null {
+  if ((node.discount.codesCount?.count ?? node.discount.codes?.nodes.length ?? 0) > 1) return null;
   return node.discount.codes?.nodes[0]?.code ?? null;
 }
 

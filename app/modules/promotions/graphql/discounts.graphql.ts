@@ -46,6 +46,7 @@ export const GET_DISCOUNTS = `#graphql
             endsAt
             discountClasses
 
+            codesCount { count }
             codes(first: 5) {
               nodes {
                 code
@@ -82,6 +83,7 @@ export const GET_DISCOUNTS = `#graphql
             endsAt
             discountClasses
 
+            codesCount { count }
             codes(first: 5) {
               nodes {
                 code
@@ -114,6 +116,7 @@ export const GET_DISCOUNTS = `#graphql
             endsAt
             discountClasses
 
+            codesCount { count }
             codes(first: 5) {
               nodes {
                 code

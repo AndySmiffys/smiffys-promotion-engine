@@ -45,6 +45,7 @@ secondary?: string | null;
 export type PromotionActionData = {
 success: boolean;
 savedId?: string;
+codeListLocked?: boolean;
 redirectId?: string;
 image?: {
 id: string;

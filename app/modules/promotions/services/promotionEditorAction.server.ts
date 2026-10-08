@@ -1,3 +1,5 @@
+import db from "../../../db.server";
+import { createPromotionCodeBatch } from "./promotionCodeBatches.server";
 import { authenticate } from "../../../shopify.server";
 import { createShopifyPromotion, type CreateDiscountDraft } from "./createPromotion.server";
 import { getDiscount } from "./discount.server";
@@ -10,11 +12,20 @@ const formData = await request.formData();
 const intent = formData.get("intent");
 if (intent === "createPromotion") {
 let savedId: string | undefined;
+let requestKey: string | undefined;
+let codeListLocked = false;
 try {
 const payload = JSON.parse(String(formData.get("payload") ?? "{}"));
 const website = readWebsite(payload.website);
 const errors = validateWebsite(website, payload.discount?.endsAt);
 if (errors.length) throw new Error(errors.join(" "));
+if (payload.discount?.codeMode === "bulk") {
+requestKey = payload.requestKey;
+const batch = await createPromotionCodeBatch(admin, session.shop, requestKey!, payload.discount as CreateDiscountDraft, website);
+savedId = batch.shopifyDiscountId!;
+await updatePromotionWebsiteSettings(session.shop, savedId, websiteStorage({ ...website, websiteEnabled: false }));
+return { success: true, savedId, redirectId: savedId.split("/").pop() };
+}
 if (payload.savedId) {
 if (!/^gid:\/\/shopify\/DiscountNode\/\d+$/.test(payload.savedId) || !(await getDiscount(admin, payload.savedId))) throw new Error("The saved discount could not be found.");
 savedId = payload.savedId;
@@ -24,7 +35,8 @@ savedId = await createShopifyPromotion(admin, payload.discount as CreateDiscount
 await updatePromotionWebsiteSettings(session.shop, savedId!, websiteStorage(website));
 return { success: true, savedId, redirectId: savedId!.split("/").pop() };
 } catch (error) {
-return { success: false, savedId, error: (savedId ? "The Shopify discount was created, but the website settings were not saved. Retry saving to finish. " : "") + (error instanceof Error ? error.message : "The promotion could not be saved.") };
+if (requestKey) { const batch = await db.promotionCodeBatch.findUnique({ where: { shop_requestKey: { shop: session.shop, requestKey } } }); savedId = batch?.shopifyDiscountId ?? undefined; codeListLocked = Boolean(batch); }
+return { success: false, savedId, codeListLocked, error: (savedId ? "The Shopify discount was created, but the website settings were not saved. Retry saving to finish. " : "") + (error instanceof Error ? error.message : "The promotion could not be saved.") };
 }
 }
 

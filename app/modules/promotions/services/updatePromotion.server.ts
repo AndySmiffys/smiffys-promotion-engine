@@ -27,7 +27,7 @@ export function buildUpdateDiscountMutation(node: ShopifyDiscountNode, draft: Cr
   // Preserve codes, names and searchable tags not represented by this editor.
   delete input.tags;
   delete input.code;
-  if (draft.method === "code") input.title = node.discount.title;
+  if (draft.method === "code") input.title = previous.codeMode !== "bulk" && node.discount.title?.toUpperCase() === draft.discountCode.toUpperCase() ? draft.discountCode.trim().toUpperCase() : node.discount.title;
   if (draft.discountType !== "bxgy" && draft.minimumRequirement === "none") input.minimumRequirement = null;
   const gets = input.customerGets as GetsInput | undefined;
   if (gets) {
