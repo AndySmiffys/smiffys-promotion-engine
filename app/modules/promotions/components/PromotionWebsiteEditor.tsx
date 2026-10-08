@@ -68,7 +68,7 @@ export function PromotionWebsiteEditor({ value, onChange, endsAt, onBusyChange }
       </div>
       <s-checkbox label="Show countdown to the promotion end date" details="Requires an end date in Schedule. The timer appears in the header, collection banner and product panel." checked={value.showCountdown} onChange={event => set("showCountdown", event.currentTarget.checked)} />
       <ControlGroup title="Banner images" description="Images appear in the collection banner. Choose a layout, then adjust the crop and readability together.">
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", alignItems: "start", gap: 12 }}>
           <PromotionImageField label="Desktop banner image" url={value.design.desktopImage} fileId={value.design.desktopImageId} onBusy={busy => setBusySlots(current => ({ ...current, desktop: busy }))} onChange={image => set("design", { ...latestValue.current.design, desktopImage: image?.url ?? "", desktopImageId: image?.id ?? "" })} />
           <PromotionImageField label="Mobile banner image" url={value.design.mobileImage} fileId={value.design.mobileImageId} onBusy={busy => setBusySlots(current => ({ ...current, mobile: busy }))} onChange={image => set("design", { ...latestValue.current.design, mobileImage: image?.url ?? "", mobileImageId: image?.id ?? "" })} />
         </div>
