@@ -1,3 +1,6 @@
+import { discountToEditorDraft, toLocalDateTime } from "../app/modules/promotions/design/editorDraft";
+import { buildUpdateDiscountMutation, updateShopifyPromotion } from "../app/modules/promotions/services/updatePromotion.server";
+import { getEditableDiscount } from "../app/modules/promotions/services/editableDiscount.server";
 import { embeddedAppUrl } from "../app/modules/navigation/embeddedAppUrl";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -183,4 +186,86 @@ test("copy colours and border width persist independently with compatible legacy
   assert.throws(() => readDesign({ productOfferStyle: "double", productBorderWidth: 2 }));
   assert.throws(() => readDesign({ copyCodeBackground: "red" }));
   assert.throws(() => readDesign({ copyCodeColour: "invalid" }));
+});
+
+test("all eight existing discount types map to prefilled drafts and update their original IDs", () => {
+  for (const method of ["code", "automatic"] as const) for (const type of ["product", "order", "bxgy", "shipping"] as const) {
+    const n = node();
+    const suffix = type === "bxgy" ? "Bxgy" : type === "shipping" ? "FreeShipping" : "Basic";
+    n.discount.__typename = `Discount${method === "code" ? "Code" : "Automatic"}${suffix}`;
+    n.discount.codes = { nodes: [{ code: "SAVE20" }] };
+    n.discount.discountClasses = [type === "order" ? "ORDER" : type === "shipping" ? "SHIPPING" : "PRODUCT"];
+    n.discount.usageLimit = 12; n.discount.appliesOncePerCustomer = true;
+    n.discount.combinesWith = { productDiscounts: true, orderDiscounts: false, shippingDiscounts: true, productDiscountsWithTagsOnSameCartLine: ["VIP"] };
+    if (type === "order") n.discount.customerGets!.items = { __typename: "AllDiscountItems", allItems: true };
+    if (type === "shipping") { n.discount.destinationSelection = { __typename: "DiscountCountries", countries: ["GB", "IE"] }; n.discount.maximumShippingPrice = { amount: "10.00", currencyCode: "GBP" }; }
+    if (type === "bxgy") { n.discount.customerBuys = { value: { __typename: "DiscountQuantity", quantity: "2" }, items: n.discount.customerGets!.items }; n.discount.customerGets!.value = { __typename: "DiscountOnQuantity", quantity: { quantity: "1" }, effect: { __typename: "DiscountPercentage", percentage: 1 } }; n.discount.usesPerOrderLimit = "3"; }
+    const d = discountToEditorDraft(n);
+    assert.equal(d.discountType, type); assert.equal(d.method, method);
+    assert.equal(d.limitTotalUses, true); assert.equal(d.totalUsageLimit, "12"); assert.equal(d.limitOncePerCustomer, true);
+    assert.equal(d.combineShippingDiscounts, true); assert.deepEqual(d.selectedCombinationTags, ["VIP"]);
+    const result = buildUpdateDiscountMutation(n, d);
+    assert.match(result.query, new RegExp(`discount${method === "code" ? "Code" : "Automatic"}${suffix}Update\\(id: \\$id`));
+    assert.equal(result.variables.id, `gid://shopify/${method === "code" ? "DiscountCodeNode" : "DiscountAutomaticNode"}/1`);
+    const input = result.variables.input as Record<string, unknown>;
+    assert.equal("tags" in input, false); assert.equal("code" in input, false);
+    if (type === "bxgy") { assert.equal(d.buyQuantity, "2"); assert.equal(d.getQuantity, "1"); assert.equal(d.rewardType, "free"); assert.equal(d.usesPerOrder, "3"); }
+    if (type === "shipping") { assert.equal(d.countryMode, "selected"); assert.equal(d.maximumShippingPrice, "10.00"); }
+  }
+});
+test("editing removes old product, variant, buyer and combination selections and can clear limits", () => {
+  const n = node(); n.discount.codes = { nodes: [{ code: "SAVE20" }] };
+  n.discount.customerGets!.items = { __typename: "DiscountProducts", products: { nodes: [{ id: "gid://shopify/Product/1", title: "Old" }] }, productVariants: { nodes: [{ id: "gid://shopify/ProductVariant/3", title: "Small", product: { id: "gid://shopify/Product/2", title: "Partial" } }] } };
+  n.discount.context = { __typename: "DiscountCustomers", customers: [{ id: "gid://shopify/Customer/1", displayName: "Old buyer" }] };
+  n.discount.combinesWith = { productDiscounts: true, orderDiscounts: false, shippingDiscounts: false, productDiscountsWithTagsOnSameCartLine: ["OLD"] };
+  const d = discountToEditorDraft(n);
+  assert.deepEqual(d.selectedProducts[1].selectedVariantIds, ["gid://shopify/ProductVariant/3"]);
+  d.selectedProducts = [{ id: "gid://shopify/Product/4", title: "New", handle: "new" }];
+  d.selectedEligibility = [{ id: "gid://shopify/Customer/2", name: "New buyer" }]; d.productCombinationMode = "best";
+  const input = buildUpdateDiscountMutation(n, d).variables.input as { customerGets: { items: { products: Record<string, string[]> } }; context: { customers: { add: string[]; remove: string[] } }; minimumRequirement: null; usageLimit: null; combinesWith: { productDiscountsWithTagsOnSameCartLine: { add: string[]; remove: string[] } } };
+  assert.deepEqual(input.customerGets.items.products.productsToRemove, ["gid://shopify/Product/1"]);
+  assert.deepEqual(input.customerGets.items.products.productVariantsToRemove, ["gid://shopify/ProductVariant/3"]);
+  assert.deepEqual(input.customerGets.items.products.productsToAdd, ["gid://shopify/Product/4"]);
+  assert.deepEqual(input.context.customers.remove, ["gid://shopify/Customer/1"]);
+  assert.deepEqual(input.combinesWith.productDiscountsWithTagsOnSameCartLine, { add: [], remove: ["OLD"] });
+  assert.equal(input.minimumRequirement, null); assert.equal(input.usageLimit, null);
+});
+test("editing preserves whole products, fixed-amount allocation and subscription settings", () => {
+  const n = node(); n.discount.codes = { nodes: [{ code: "SAVE20" }] };
+  n.discount.customerGets = { appliesOnOneTimePurchase: false, appliesOnSubscription: true, value: { __typename: "DiscountAmount", amount: { amount: "5.00", currencyCode: "GBP" }, appliesOnEachItem: false }, items: { __typename: "DiscountProducts", products: { nodes: [{ id: "gid://shopify/Product/1", title: "Whole" }] }, productVariants: { nodes: [{ id: "gid://shopify/ProductVariant/3", title: "Small", product: { id: "gid://shopify/Product/1", title: "Whole" } }] } } };
+  const d = discountToEditorDraft(n); assert.equal(d.selectedProducts.length, 1); assert.equal(d.selectedProducts[0].selectedVariantIds, undefined);
+  const input = buildUpdateDiscountMutation(n, d).variables.input as { customerGets: { appliesOnOneTimePurchase: boolean; appliesOnSubscription: boolean; value: { discountAmount: { appliesOnEachItem: boolean } } } };
+  assert.equal(input.customerGets.appliesOnOneTimePurchase, false); assert.equal(input.customerGets.appliesOnSubscription, true); assert.equal(input.customerGets.value.discountAmount.appliesOnEachItem, false);
+});
+test("unsupported or incomplete selections cannot be silently replaced, and update errors surface", async () => {
+  const n = node(); n.discount.codes = { nodes: [{ code: "SAVE20" }] };
+  const d = discountToEditorDraft(n);
+  assert.throws(() => buildUpdateDiscountMutation(n, { ...d, method: "automatic" }), /method cannot/);
+  assert.throws(() => buildUpdateDiscountMutation(n, { ...d, discountCode: "CHANGED" }), /codes in Shopify/);
+  assert.throws(() => discountToEditorDraft({ ...n, discount: { ...n.discount, __typename: "DiscountCodeApp" } }), /another app/);
+  n.discount.customerGets!.items.collections!.pageInfo = { hasNextPage: true };
+  assert.throws(() => discountToEditorDraft(n), /more selected items/);
+  n.discount.customerGets!.items.collections!.pageInfo = { hasNextPage: false };
+  await assert.rejects(() => updateShopifyPromotion({ graphql: async () => Response.json({ data: { result: { userErrors: [{ message: "Cannot update this discount" }] } } }) }, n, d), /Cannot update/);
+  assert.equal(await updateShopifyPromotion({ graphql: async () => Response.json({ data: { result: { codeDiscountNode: { id: "gid://shopify/DiscountCodeNode/1" }, userErrors: [] } } }) }, n, d), n.id);
+});
+test("edit selection loading follows connection cursors before populating the form", async () => {
+  const n = node(); n.discount.codes = { nodes: [{ code: "SAVE20" }] };
+  n.discount.customerGets!.items.collections!.pageInfo = { hasNextPage: true, endCursor: "first" };
+  let calls = 0;
+  const loaded = await getEditableDiscount({ graphql: async (query, options) => {
+    calls++;
+    if (calls === 1) return Response.json({ data: { discountNode: n } });
+    assert.match(query, /collections\(first: \$first, after: \$cursor\)/);
+    assert.equal(options?.variables?.cursor, "first");
+    return Response.json({ data: { discountNode: { discount: { customerGets: { items: { __typename: "DiscountCollections", collections: { nodes: [{ id: "gid://shopify/Collection/2", title: "Second" }], pageInfo: { hasNextPage: false, endCursor: "last" } } } } } } } });
+  } }, n.id);
+  assert.equal(calls, 2);
+  assert.equal(discountToEditorDraft(loaded!).selectedCollections.length, 2);
+});
+
+test("saved dates retain their instant when opened in the local date/time editor", () => {
+  const iso = "2026-10-10T13:24:59Z";
+  assert.equal(new Date(toLocalDateTime(iso)).toISOString(), new Date(iso).toISOString());
+  assert.equal(toLocalDateTime(null), "");
 });

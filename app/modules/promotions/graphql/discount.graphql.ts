@@ -27,6 +27,7 @@ export const GET_DISCOUNT = `#graphql
           startsAt
           endsAt
           discountClasses
+          combinesWith { productDiscounts orderDiscounts shippingDiscounts productDiscountsWithTagsOnSameCartLine }
           context {
             ...DiscountContextFields
           }
@@ -41,12 +42,15 @@ export const GET_DISCOUNT = `#graphql
         }
 
         ... on DiscountCodeBasic {
+          usageLimit
+          appliesOncePerCustomer
           title
           status
           summary
           startsAt
           endsAt
           discountClasses
+          combinesWith { productDiscounts orderDiscounts shippingDiscounts productDiscountsWithTagsOnSameCartLine }
           context {
             ...DiscountContextFields
           }
@@ -67,12 +71,14 @@ export const GET_DISCOUNT = `#graphql
         }
 
         ... on DiscountAutomaticBxgy {
+          usesPerOrderLimit
           title
           status
           summary
           startsAt
           endsAt
           discountClasses
+          combinesWith { productDiscounts orderDiscounts shippingDiscounts productDiscountsWithTagsOnSameCartLine }
           context {
             ...DiscountContextFields
           }
@@ -87,12 +93,16 @@ export const GET_DISCOUNT = `#graphql
         }
 
         ... on DiscountCodeBxgy {
+          usesPerOrderLimit
+          usageLimit
+          appliesOncePerCustomer
           title
           status
           summary
           startsAt
           endsAt
           discountClasses
+          combinesWith { productDiscounts orderDiscounts shippingDiscounts productDiscountsWithTagsOnSameCartLine }
           context {
             ...DiscountContextFields
           }
@@ -119,6 +129,7 @@ export const GET_DISCOUNT = `#graphql
           startsAt
           endsAt
           discountClasses
+          combinesWith { productDiscounts orderDiscounts shippingDiscounts productDiscountsWithTagsOnSameCartLine }
           context {
             ...DiscountContextFields
           }
@@ -148,12 +159,15 @@ export const GET_DISCOUNT = `#graphql
         }
 
         ... on DiscountCodeFreeShipping {
+          usageLimit
+          appliesOncePerCustomer
           title
           status
           summary
           startsAt
           endsAt
           discountClasses
+          combinesWith { productDiscounts orderDiscounts shippingDiscounts productDiscountsWithTagsOnSameCartLine }
           context {
             ...DiscountContextFields
           }
@@ -232,6 +246,8 @@ export const GET_DISCOUNT = `#graphql
   }
 
   fragment CustomerGetsFields on DiscountCustomerGets {
+    appliesOnOneTimePurchase
+    appliesOnSubscription
     value {
       __typename
 
@@ -286,6 +302,7 @@ export const GET_DISCOUNT = `#graphql
 
     ... on DiscountProducts {
       products(first: 50) {
+        pageInfo { hasNextPage endCursor }
         nodes {
           id
           title
@@ -293,6 +310,7 @@ export const GET_DISCOUNT = `#graphql
       }
 
       productVariants(first: 50) {
+        pageInfo { hasNextPage endCursor }
         nodes {
           id
           title
@@ -306,6 +324,7 @@ export const GET_DISCOUNT = `#graphql
 
     ... on DiscountCollections {
       collections(first: 50) {
+        pageInfo { hasNextPage endCursor }
         nodes {
           id
           title

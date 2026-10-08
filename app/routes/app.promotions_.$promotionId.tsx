@@ -1,3 +1,10 @@
+import { getEditableDiscount } from "../modules/promotions/services/editableDiscount.server";
+import { PromotionEditor } from "../modules/promotions/components/PromotionEditor";
+import { discountToEditorDraft, type EditorDiscountDraft } from "../modules/promotions/design/editorDraft";
+import { getPromotionEditorResources } from "../modules/promotions/services/promotionEditorResources.server";
+import { promotionEditorAction } from "../modules/promotions/services/promotionEditorAction.server";
+import { updateShopifyPromotion } from "../modules/promotions/services/updatePromotion.server";
+import type { CreateDiscountDraft } from "../modules/promotions/services/createPromotion.server";
 import { useEmbeddedAppUrl } from "../modules/navigation/embeddedAppUrl";
 import {
   useEffect,
@@ -70,10 +77,7 @@ export async function loader({
     );
   }
 
-  const discountNode = await getDiscount(
-    admin,
-    getDiscountNodeId(promotionId),
-  );
+  const discountNode = await getEditableDiscount(admin, getDiscountNodeId(promotionId));
 
   if (!discountNode) {
     throw new Response(
@@ -114,7 +118,11 @@ export async function loader({
       : null;
 
   const previewProducts = await getPreviewProducts(admin, [...promotion.shopify.products.products.map(p=>p.id), ...promotion.shopify.products.variants.flatMap(v=>v.productId ? [v.productId] : [])], selectedCollections.map(c=>c.id));
-  return { promotion, coverage, previewProducts };
+  let editorDiscount: EditorDiscountDraft | null = null;
+  let editRulesMessage: string | null = null;
+  try { editorDiscount = discountToEditorDraft(discountNode); } catch (error) { editRulesMessage = error instanceof Error ? error.message : "Edit this discount's rules in Shopify."; }
+  const resources = editorDiscount ? await getPromotionEditorResources(admin) : { products: [], collections: [] };
+  return { promotion, coverage, previewProducts, editorDiscount, editRulesMessage, products: resources.products };
 }
 export async function action({
   request,
@@ -132,7 +140,29 @@ export async function action({
     };
   }
 
+  const delegatedRequest = request.clone();
   const formData = await request.formData();
+  const intent = formData.get("intent");
+  if (["searchResources", "searchEligibility", "resolveFile"].includes(String(intent))) return promotionEditorAction({ request: delegatedRequest });
+  if (intent === "updatePromotion") {
+    let discountUpdated = false;
+    try {
+      const node = await getEditableDiscount(admin, getDiscountNodeId(promotionId));
+      if (!node) throw new Error("This discount no longer exists.");
+      const payload = JSON.parse(String(formData.get("payload") ?? "{}"));
+      const website = readWebsite(payload.website);
+      const errors = validateWebsite(website, payload.updateRules === false ? node.discount.endsAt : payload.discount?.endsAt);
+      if (errors.length) throw new Error(errors.join(" "));
+      if (payload.updateRules !== false) {
+        await updateShopifyPromotion(admin, node, payload.discount as CreateDiscountDraft);
+        discountUpdated = true;
+      }
+      await updatePromotionWebsiteSettings(session.shop, node.id, websiteStorage(website));
+      return { success: true, savedId: node.id };
+    } catch (error) {
+      return { success: false, error: (discountUpdated ? "The Shopify discount was updated, but the website design was not saved. Retry saving to finish. " : "") + (error instanceof Error ? error.message : "The promotion could not be saved.") };
+    }
+  }
 
   const shopifyDiscountId =
     formData.get("shopifyDiscountId");
@@ -176,7 +206,7 @@ export async function action({
 
 export default function PromotionDetailsPage() {
   const appUrl = useEmbeddedAppUrl();
-  const { promotion, coverage, previewProducts } =
+  const { promotion, coverage, previewProducts, editorDiscount, editRulesMessage, products } =
     useLoaderData<typeof loader>();
 
   const general = promotion.shopify.general;
@@ -192,10 +222,13 @@ export default function PromotionDetailsPage() {
   const savedWebsite = useMemo(() => websiteFromSettings(promotion.settings), [promotion.settings]);
   const [website, setWebsite] = useState(savedWebsite);
   const [assetsBusy, setAssetsBusy] = useState(false);
+  const [editorVersion, setEditorVersion] = useState(0);
   const [activeTab, setActiveTab] = useState<PromotionTab>("general");
   useEffect(() => { setWebsite(savedWebsite); }, [savedWebsite]);
   function resetFormState() { setWebsite(savedWebsite); }
   const hasUnsavedChanges = JSON.stringify(website) !== JSON.stringify(savedWebsite);
+
+  if (editorDiscount) return <PromotionEditor key={`${promotion.id}-${editorVersion}`} products={products} initialDiscount={editorDiscount} initialWebsite={savedWebsite} promotionId={promotion.id} shopifyStatus={general.status} onDiscard={() => setEditorVersion(version => version + 1)} />;
 
   return (
     <s-page heading={general.title}>
@@ -256,6 +289,7 @@ export default function PromotionDetailsPage() {
             </div>
           </div>
 
+          {editRulesMessage && <s-banner tone="info">{editRulesMessage}</s-banner>}
           <PromotionTabs
           activeTab={activeTab}
           onChange={setActiveTab}

@@ -69,3 +69,11 @@ The shared timer/copy script's source is `app/modules/promotions/design/promotio
 Product offer controls include independent copy-button background and text/icon colour pickers when Show copy code button is enabled. Existing saved designs initially inherit their previous main-button colours. Changes to these copy colours do not affect the main call-to-action button.
 
 Single borders support 1–12px thickness; double borders support 3–12px total thickness, including both lines and their gap. Switching to a double border raises a thinner value to 3px. Existing saved double borders retain their previous 4px width. Thickness is hidden for solid backgrounds and stored with the design for later use.
+
+### Editing existing promotions
+
+Supported native Shopify discounts open in the same shared editor as creation, with their saved rules and website design prefilled. The editor includes the responsive preview, grouped website controls and discount summary. Save promotion updates the existing Shopify discount rather than creating a replacement; Discard changes restores the latest loader values. Website-only changes skip the native discount update.
+
+The discount type, code/automatic method and existing codes are retained. Use Edit in Shopify to manage discount codes. Product and variant targeting, customer eligibility, minimum requirements, limits, combinations, dates and shipping destinations are editable. Updates explicitly remove deselected resources and preserve purchase/subscription settings and fixed-amount allocation not exposed by the form. Dates preserve the existing instant when displayed and saved in local time.
+
+The loader paginates selected products, variants and collections. Discounts with selections beyond the Shopify input limit, unsupported buyer contexts or app-managed rules retain the original detail view and website editor, with an explanation and Shopify editing link. Partial saves report when native rules succeeded but website settings need retrying.

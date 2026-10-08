@@ -31,6 +31,12 @@ export type ShopifyDiscountNode = {
     startsAt?: string | null;
     endsAt?: string | null;
     discountClasses?: string[];
+    usageLimit?: number | null;
+    appliesOncePerCustomer?: boolean;
+    usesPerOrderLimit?: string | number | null;
+    combinesWith?: { productDiscounts: boolean; orderDiscounts: boolean; shippingDiscounts: boolean; productDiscountsWithTagsOnSameCartLine?: string[] | null };
+    customerBuys?: { value: { __typename: string; quantity?: string; amount?: string }; items: NonNullable<ShopifyDiscountNode["discount"]["customerGets"]>["items"] };
+
 
     context?: {
       __typename: string;
@@ -52,8 +58,12 @@ export type ShopifyDiscountNode = {
     };
 
     customerGets?: {
+      appliesOnOneTimePurchase?: boolean;
+      appliesOnSubscription?: boolean;
       value: {
         __typename: string;
+        quantity?: { quantity: string };
+        effect?: { __typename: string; percentage?: number; amount?: { amount: string; currencyCode: string }; appliesOnEachItem?: boolean };
         percentage?: number;
         amount?: {
           amount: string;
@@ -66,12 +76,14 @@ export type ShopifyDiscountNode = {
         __typename: string;
         allItems?: boolean;
         products?: {
+          pageInfo?: { hasNextPage: boolean; endCursor?: string | null };
           nodes: Array<{
             id: string;
             title: string;
           }>;
         };
         productVariants?: {
+          pageInfo?: { hasNextPage: boolean; endCursor?: string | null };
           nodes: Array<{
             id: string;
             title: string;
@@ -82,6 +94,7 @@ export type ShopifyDiscountNode = {
           }>;
         };
         collections?: {
+          pageInfo?: { hasNextPage: boolean; endCursor?: string | null };
           nodes: Array<{
             id: string;
             title: string;
