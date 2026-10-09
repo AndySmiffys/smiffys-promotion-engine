@@ -1,0 +1,25 @@
+<script src="{{ 'promotion-ui.js' | asset_url }}" defer></script>
+{% assign current_product = closest.product | default: product %}
+<promotion-engine
+  hidden
+  style="box-sizing:border-box;width:100%;min-width:0;padding-block:{{ block.settings.spacing | default: 0 }}px"
+  data-placement="product"
+  data-product-id="{{ current_product.id }}"
+  data-variant-id="{{ current_product.selected_or_first_available_variant.id }}"
+  data-proxy-path="/apps/promotion-engine"
+  {{ block.shopify_attributes }}
+></promotion-engine>
+{% schema %}
+{
+  "name": "Product promotion",
+  "target": "section",
+  "enabled_on": {"templates": ["product"]},
+  "class": "pe-product-app-block",
+  "javascript": "promotion-engine.js",
+  "stylesheet": "promotion-layout.css",
+  "settings": [
+    {"type":"paragraph","content":"Place beside the product details. Uses the current product and selected variant. Promotion content and styling are managed in the app."},
+    {"type":"range","id":"spacing","label":"Space above and below","min":0,"max":64,"step":4,"unit":"px","default":0}
+  ]
+}
+{% endschema %}

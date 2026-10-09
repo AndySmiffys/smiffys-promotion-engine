@@ -10,8 +10,8 @@ A countdown requires an end date. Buttons require a relative shop link or an HTT
 
 1. Run `npm install` and `npx prisma migrate deploy`, then rebuild/restart the app.
 2. Deploy the app configuration and theme extension with `shopify app deploy --config smiffys-promotion-engine`. Existing installations need to approve the added discount, file and app-proxy scopes. No discount is created by deployment; creation happens when a user presses Create promotion.
-3. In the Shopify theme editor, add the **Promotion Engine** app block to a supported section on product and collection templates. Choose the matching placement. Use the Header placement in a section that supports app blocks, or the custom element below in a Custom Liquid section.
-4. Enable the **Promotion Engine loader** app embed if using custom elements or product-card badges. The default app proxy path is `/apps/promotion-engine`; update block/custom-element paths if the merchant has customised that path.
+3. In the Shopify theme editor, add **Product promotion** to product details or add **Collection promotion** as its own section above the collection product grid. The collection block offers Content width and Full page width. Existing generic **Promotion Engine** blocks remain supported. Use the Header placement in a section that supports app blocks, or the custom element below in a Custom Liquid section.
+4. Enable the **Promotion Engine loader** app embed if using custom elements or product-card badges. The default app proxy path is `/apps/promotion-engine`; theme blocks use this fixed path, while manually integrated custom elements must use the configured proxy path.
 5. Create a test promotion in a development store and verify save/reopen, both image versions, device previews, eligibility and expiry on the storefront before publishing the theme.
 
 ### Custom header placement

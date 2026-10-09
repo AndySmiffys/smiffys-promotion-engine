@@ -15,14 +15,19 @@ The app proxy path is fixed in the extension and is not a merchant-editable them
    theme preview associated with this CLI session.
 2. Open that theme's editor, select **App embeds**, enable **Promotion Engine
    loader**, then save. Choose announcements, badges, and their positions.
-3. Open the product template. Add the **Promotion Engine** app block to an app
-   block-compatible product section, choose **Product offer**, and leave Product
-   blank to use the current product. Set width and spacing as required.
-4. Open the collection template. Add the same app block, choose **Collection
-   banner**, and save. Collection banners fill the theme section’s available width, respecting
-   its page gutters on desktop and mobile. Turn off
-   **Full-width collection banner** to use the maximum-width setting instead.
-   Repeat for any alternate templates in use.
+3. Open the product template. Add **Product promotion** to the product details
+   section. This block is offered only on product templates and uses the current
+   product and selected variant automatically.
+4. Open the collection template. Use **Add section → Apps → Collection promotion**
+   and place the section above the product grid. Choose **Banner width**:
+   - **Content width** fills the theme section, including the theme's page gutters.
+   - **Full page width** extends to both screen edges, excluding the scrollbar.
+   The collection block is offered only on collection templates. Add it as its own
+   section rather than inside a product-card or narrow nested group. Theme wrappers
+   that clip overflow must use their full-width setting for full-page banners.
+   Remove the old generic Collection placement when replacing it, then save.
+   Repeat for alternate templates in use. Existing generic Promotion Engine blocks
+   remain supported; their collection wrappers now span the row.
 5. In the app, enable a promotion and its required website blocks. Verify active
    dates and product/collection/customer eligibility. A block with no eligible
    promotion is hidden; the theme editor does not bypass these rules.

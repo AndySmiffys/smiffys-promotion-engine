@@ -77,7 +77,7 @@ test('Changing a product form does not change badges or offers in other sections
   } finally { f.dom.window.close(); }
 });
 test('Liquid schemas remain valid and expose placement controls', () => {
-  for (const name of ['promotion', 'promotion-loader']) {
+  for (const name of ['promotion', 'promotion-loader', 'product-promotion', 'collection-promotion']) {
     const source = readFileSync(base + `blocks/${name}.liquid`, 'utf8');
     const schema = JSON.parse(source.match(/{% schema %}([\s\S]*?){% endschema %}/)[1]);
     assert.equal(schema.javascript, 'promotion-engine.js');
@@ -86,6 +86,16 @@ test('Liquid schemas remain valid and expose placement controls', () => {
     assert.ok(!ids.includes('proxy_path'));
     assert.match(source, /data-proxy-path="\/apps\/promotion-engine"/);
     if (name === 'promotion-loader') assert.ok(ids.includes('card_selector'));
+    else if (name === 'collection-promotion') {
+      assert.deepEqual(schema.enabled_on.templates, ['collection']);
+      assert.deepEqual(schema.settings.find(setting => setting.id === 'width_mode').options.map(option => option.value), ['content', 'full']);
+      assert.ok(!ids.includes('placement'));
+      assert.equal(schema.class, 'pe-collection-app-block');
+    } else if (name === 'product-promotion') {
+      assert.deepEqual(schema.enabled_on.templates, ['product']);
+      assert.ok(!ids.includes('placement'));
+      assert.match(source, /selected_or_first_available_variant/);
+    }
     else { assert.ok(ids.includes('spacing')); assert.equal(schema.settings.find(setting => setting.id === 'collection_full_width').default, true); assert.match(source, /closest.product/); }
   }
 });
@@ -136,5 +146,38 @@ test('Returning to the storefront refreshes the selected header and records its 
     assert.equal(header.dataset.priority, '100');
     assert.equal(header.dataset.promotionId, 'discount-100');
     assert.notEqual(f.calls[0].searchParams.get('_refresh'), f.calls[1].searchParams.get('_refresh'));
+  } finally { f.dom.window.close(); }
+});
+
+test('Collection width modes measure both page edges and retain theme gutters in content mode', async () => {
+  const f = fixture('<div class="pe-collection-app-block"><promotion-engine class="pe-collection-banner" data-placement="collection" data-width-mode="full"></promotion-engine></div>', { headerEnabled: 'false', badgesEnabled: 'false' });
+  const banner = f.window.document.querySelector('promotion-engine');
+  let pageWidth = 1907, parentLeft = 235, parentWidth = 1437;
+  Object.defineProperty(f.window.document.documentElement, 'clientWidth', { get: () => pageWidth });
+  // Simulate a theme centring the app inside its available section width.
+  banner.getBoundingClientRect = () => {
+    const width = parseFloat(banner.style.width) || parentWidth;
+    const left = parentLeft + (parentWidth - width) / 2 + parseFloat(banner.style.left || '0');
+    return { left, right: left + width, width };
+  };
+  try {
+    await wait(30);
+    assert.equal(banner.hidden, false);
+    assert.equal(banner.getBoundingClientRect().left, 0);
+    assert.equal(banner.getBoundingClientRect().right, pageWidth);
+    assert.equal(banner.style.getPropertyPriority('width'), 'important');
+    pageWidth = 390; parentLeft = 20; parentWidth = 350;
+    f.window.dispatchEvent(new f.window.Event('resize'));
+    assert.equal(banner.getBoundingClientRect().left, 0);
+    assert.equal(banner.getBoundingClientRect().right, 390);
+    banner.dataset.widthMode = 'content';
+    f.window.dispatchEvent(new f.window.Event('resize'));
+    assert.equal(banner.style.width, '');
+    assert.equal(banner.getBoundingClientRect().left, 20);
+    assert.equal(banner.getBoundingClientRect().right, 370);
+    banner.remove();
+    banner.dataset.widthMode = 'full';
+    f.window.dispatchEvent(new f.window.Event('resize'));
+    assert.equal(banner.style.width, '');
   } finally { f.dom.window.close(); }
 });
