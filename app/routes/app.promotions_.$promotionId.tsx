@@ -1,3 +1,4 @@
+import { PromotionSaveBar } from "../modules/promotions/components/PromotionSaveBar";
 import { getPromotionCodeBatch } from "../modules/promotions/services/promotionCodeBatches.server";
 import { getEditableDiscount } from "../modules/promotions/services/editableDiscount.server";
 import { PromotionEditor } from "../modules/promotions/components/PromotionEditor";
@@ -10,6 +11,7 @@ import { useEmbeddedAppUrl } from "../modules/navigation/embeddedAppUrl";
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -220,24 +222,35 @@ export default function PromotionDetailsPage() {
   const actionData =
     useActionData<typeof action>();
 
+  const [dismissedAction, setDismissedAction] = useState<typeof actionData>();
+  const saveSucceeded = useRef(false);
+  saveSucceeded.current = Boolean(actionData?.success);
   const navigation = useNavigation();
 
   const isSaving =
-    navigation.state === "submitting";
+    navigation.state !== "idle";
 
   const savedWebsite = useMemo(() => websiteFromSettings(promotion.settings), [promotion.settings]);
   const [website, setWebsite] = useState(savedWebsite);
   const [assetsBusy, setAssetsBusy] = useState(false);
-  const [editorVersion, setEditorVersion] = useState(0);
+  const formRef = useRef<HTMLFormElement>(null);
+  const previousSavedWebsite = useRef(savedWebsite);
+  const submittedWebsite = useRef(savedWebsite);
   const [activeTab, setActiveTab] = useState<PromotionTab>("general");
-  useEffect(() => { setWebsite(savedWebsite); }, [savedWebsite]);
-  function resetFormState() { setWebsite(savedWebsite); }
+  useEffect(() => {
+    const previous = JSON.stringify(previousSavedWebsite.current);
+    const submitted = JSON.stringify(submittedWebsite.current);
+    setWebsite(current => JSON.stringify(current) === previous || (saveSucceeded.current && JSON.stringify(current) === submitted) ? savedWebsite : current);
+    previousSavedWebsite.current = savedWebsite;
+  }, [savedWebsite]);
+  function resetFormState() { setWebsite(savedWebsite); setDismissedAction(actionData); }
   const hasUnsavedChanges = JSON.stringify(website) !== JSON.stringify(savedWebsite);
 
-  if (editorDiscount) return <PromotionEditor key={`${promotion.id}-${editorVersion}`} products={products} initialDiscount={editorDiscount} initialWebsite={savedWebsite} promotionId={promotion.id} shopifyStatus={general.status} codeBatch={codeBatch} onDiscard={() => setEditorVersion(version => version + 1)} />;
+  if (editorDiscount) return <PromotionEditor key={promotion.id} products={products} initialDiscount={editorDiscount} initialWebsite={savedWebsite} promotionId={promotion.id} shopifyStatus={general.status} codeBatch={codeBatch} />;
 
   return (
     <s-page heading={general.title}>
+      <PromotionSaveBar dirty={hasUnsavedChanges} saving={isSaving} busy={assetsBusy} invalid={validateWebsite(website, promotion.endsAt).length > 0} onSave={() => formRef.current?.requestSubmit()} onDiscard={resetFormState} />
       <div
         style={{
           maxWidth: "1180px",
@@ -301,7 +314,7 @@ export default function PromotionDetailsPage() {
           onChange={setActiveTab}
         />
 
-        <Form method="post">
+        <Form ref={formRef} method="post" onSubmit={() => { submittedWebsite.current = website; setDismissedAction(actionData); }}>
           <input
             type="hidden"
             name="shopifyDiscountId"
@@ -377,82 +390,7 @@ export default function PromotionDetailsPage() {
             <div style={{ alignSelf: "start", position: "sticky", top: 20 }}><PromotionPreview discountCode={promotion.code} offerNote={promotion.code ? `Use code: ${promotion.code}` : "Applied automatically at checkout."} value={website} products={previewProducts} endsAt={promotion.endsAt} /></div>
           </div>
 
-          {(hasUnsavedChanges || isSaving || actionData?.error) && (
-            <div
-              style={{
-                position: "fixed",
-                bottom: "16px",
-                left: "16px",
-                right: "16px",
-                zIndex: 30,
-              }}
-            >
-              <div
-                style={{
-                  backgroundColor: "#202223",
-                  border: "1px solid #303234",
-                  borderRadius: "12px",
-                  boxShadow:
-                    "0 4px 16px rgba(0, 0, 0, 0.22), 0 1px 3px rgba(0, 0, 0, 0.16)",
-                  padding: "14px 16px",
-                }}
-              >
-                <s-stack direction="block" gap="base">
-                  {actionData?.error && (
-                    <s-banner tone="critical">
-                      {actionData.error}
-                    </s-banner>
-                  )}
-
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      flexWrap: "wrap",
-                      gap: "16px",
-                    }}
-                  >
-                    <span
-                      style={{
-                        color: "#ffffff",
-                        fontSize: "14px",
-                        fontWeight: 600,
-                      }}
-                    >
-                      You have unsaved changes.
-                    </span>
-
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "10px",
-                      }}
-                    >
-                      <s-button
-                        type="button"
-                        variant="secondary"
-                        disabled={isSaving}
-                        onClick={resetFormState}
-                      >
-                        Discard
-                      </s-button>
-
-                      <s-button
-                        type="submit"
-                        variant="primary"
-                        loading={isSaving}
-                        disabled={isSaving || assetsBusy || !hasUnsavedChanges || validateWebsite(website, promotion.endsAt).length > 0}
-                      >
-                        {isSaving ? "Saving..." : "Save promotion"}
-                      </s-button>
-                    </div>
-                  </div>
-                </s-stack>
-              </div>
-            </div>
-          )}
+          {actionData?.error && actionData !== dismissedAction && <s-banner tone="critical">{actionData.error}</s-banner>}
           </Form>
         </s-stack>
       </div>

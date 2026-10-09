@@ -1,4 +1,5 @@
 import { PolarisSelect, PolarisCheckbox } from "./PolarisControls";
+import { PromotionSaveBar } from "./PromotionSaveBar";
 import { PromotionCodeList } from "./PromotionCodeList";
 import { validateCodeOptions, type CodeBatchSummary } from "../design/codeGeneration";
 import { useEmbeddedAppUrl } from "../../navigation/embeddedAppUrl";
@@ -236,7 +237,7 @@ padding: "16px",
 );
 }
 
-export function PromotionEditor({ products, initialDiscount, initialWebsite, promotionId, onDiscard, shopifyStatus, codeBatch }: { products: LinkResource[]; initialDiscount?: EditorDiscountDraft; initialWebsite?: WebsiteDraft; promotionId?: string; onDiscard?: () => void; shopifyStatus?: string; codeBatch?: CodeBatchSummary | null }) {
+export function PromotionEditor({ products, initialDiscount, initialWebsite, promotionId, shopifyStatus, codeBatch }: { products: LinkResource[]; initialDiscount?: EditorDiscountDraft; initialWebsite?: WebsiteDraft; promotionId?: string; shopifyStatus?: string; codeBatch?: CodeBatchSummary | null }) {
 const d = initialDiscount;
 const w = initialDiscount?.method === "code" && initialDiscount.codeMode === "bulk" && initialWebsite ? { ...initialWebsite, websiteEnabled: false } : initialWebsite;
   const appUrl = useEmbeddedAppUrl();
@@ -247,6 +248,7 @@ const previewFetcher = useFetcher<typeof previewAction>();
 const navigate = useNavigate();
 const [assetsBusy, setAssetsBusy] = useState(false);
 const [submissionError, setSubmissionError] = useState("");
+const [dismissedResponse, setDismissedResponse] = useState<PromotionActionData>();
 const saveInFlight = useRef(false);
 useEffect(() => { if (createFetcher.state === "idle") saveInFlight.current = false; }, [createFetcher.state]);
 const [createdDiscountId, setCreatedDiscountId] = useState<string | undefined>();
@@ -606,11 +608,75 @@ const discountDraft: CreateDiscountDraft = { codeMode: method === "code" ? codeM
 const discountSnapshot = JSON.stringify(discountDraft);
 const [savedDiscountSnapshot, setSavedDiscountSnapshot] = useState(discountSnapshot);
 const submittedDiscountSnapshot = useRef(discountSnapshot);
-const snapshot = JSON.stringify({ discount: discountDraft, website: websiteDraft });
+// Include inactive fields so Discard restores the complete form as well as the saved payload.
+const editorFields = { method, discountCode, codeMode, codeCount, codePrefix, codeSuffix, codeListTitle, automaticTitle, valueType, discountValue, appliesTo, selectedProducts, selectedCollections, buySelection, getSelection, usesPerOrder, countryMode, countryCodes, excludeShippingPrice, maximumShippingPrice, buyRequirement, buyQuantity, buyAmount, buyAppliesTo, getQuantity, getAppliesTo, rewardType, rewardValue, maxUsesPerOrder, minimumRequirement, minimumPurchaseAmount, minimumQuantity, limitTotalUses, totalUsageLimit, limitOncePerCustomer, combineProductDiscounts, combineOrderDiscounts, combineShippingDiscounts, productCombinationMode, selectedCombinationTags, startDateTime, hasEndDate, endDateTime, eligibility, selectedEligibility };
+const snapshot = JSON.stringify({ discount: discountDraft, website: websiteDraft, fields: editorFields });
 const [savedSnapshot, setSavedSnapshot] = useState(snapshot);
 const submittedSnapshot = useRef(snapshot);
 const handledResponse = useRef<PromotionActionData | undefined>();
 const hasUnsavedChanges = snapshot !== savedSnapshot;
+const saveBarRef = useRef<UISaveBarElement>(null);
+
+async function discardChanges() {
+if (assetsBusy || createFetcher.state !== "idle" || (!promotionId && codeListLocked && !createdDiscountId)) return;
+await saveBarRef.current?.hide();
+// A partially created discount already exists in Shopify. Discard only its unsaved design.
+if (!promotionId && createdDiscountId) { navigate(appUrl(`/app/promotions/${createdDiscountId.split("/").pop()}`)); return; }
+const saved = JSON.parse(savedSnapshot) as { fields: typeof editorFields; website: WebsiteDraft };
+setMethod(saved.fields.method);
+setDiscountCode(saved.fields.discountCode);
+setCodeMode(saved.fields.codeMode);
+setCodeCount(saved.fields.codeCount);
+setCodePrefix(saved.fields.codePrefix);
+setCodeSuffix(saved.fields.codeSuffix);
+setCodeListTitle(saved.fields.codeListTitle);
+setAutomaticTitle(saved.fields.automaticTitle);
+setValueType(saved.fields.valueType);
+setDiscountValue(saved.fields.discountValue);
+setAppliesTo(saved.fields.appliesTo);
+setSelectedProducts(saved.fields.selectedProducts);
+setSelectedCollections(saved.fields.selectedCollections);
+setBuySelection(saved.fields.buySelection);
+setGetSelection(saved.fields.getSelection);
+setUsesPerOrder(saved.fields.usesPerOrder);
+setCountryMode(saved.fields.countryMode);
+setCountryCodes(saved.fields.countryCodes);
+setExcludeShippingPrice(saved.fields.excludeShippingPrice);
+setMaximumShippingPrice(saved.fields.maximumShippingPrice);
+setBuyRequirement(saved.fields.buyRequirement);
+setBuyQuantity(saved.fields.buyQuantity);
+setBuyAmount(saved.fields.buyAmount);
+setBuyAppliesTo(saved.fields.buyAppliesTo);
+setGetQuantity(saved.fields.getQuantity);
+setGetAppliesTo(saved.fields.getAppliesTo);
+setRewardType(saved.fields.rewardType);
+setRewardValue(saved.fields.rewardValue);
+setMaxUsesPerOrder(saved.fields.maxUsesPerOrder);
+setMinimumRequirement(saved.fields.minimumRequirement);
+setMinimumPurchaseAmount(saved.fields.minimumPurchaseAmount);
+setMinimumQuantity(saved.fields.minimumQuantity);
+setLimitTotalUses(saved.fields.limitTotalUses);
+setTotalUsageLimit(saved.fields.totalUsageLimit);
+setLimitOncePerCustomer(saved.fields.limitOncePerCustomer);
+setCombineProductDiscounts(saved.fields.combineProductDiscounts);
+setCombineOrderDiscounts(saved.fields.combineOrderDiscounts);
+setCombineShippingDiscounts(saved.fields.combineShippingDiscounts);
+setProductCombinationMode(saved.fields.productCombinationMode);
+setSelectedCombinationTags(saved.fields.selectedCombinationTags);
+setStartDateTime(saved.fields.startDateTime);
+setHasEndDate(saved.fields.hasEndDate);
+setEndDateTime(saved.fields.endDateTime);
+setEligibility(saved.fields.eligibility);
+setSelectedEligibility(saved.fields.selectedEligibility);
+updateWebsite(saved.website);
+setDismissedResponse(createFetcher.data);
+setSubmissionError("");
+setResourceSearch("");
+setEligibilitySearch("");
+setShowCombinationPicker(false);
+setShowEligibilityPicker(false);
+}
+
 
 // Process each settled response once, including saves whose pending render is batched.
 // The response identity guard prevents repeated state updates.
@@ -620,7 +686,11 @@ if (createFetcher.state !== "idle" || !createFetcher.data || handledResponse.cur
 saveInFlight.current = false;
 handledResponse.current = createFetcher.data;
 if (createFetcher.data?.savedId) setCreatedDiscountId(createFetcher.data.savedId);
-if (createFetcher.data?.success) { if (promotionId) { setSavedSnapshot(submittedSnapshot.current); setSavedDiscountSnapshot(submittedDiscountSnapshot.current); } else if (createFetcher.data.redirectId) navigate(appUrl(`/app/promotions/${createFetcher.data.redirectId}`)); }
+if (createFetcher.data?.success) { if (promotionId) { setSavedSnapshot(submittedSnapshot.current); setSavedDiscountSnapshot(submittedDiscountSnapshot.current); } else if (createFetcher.data.redirectId) {
+setSavedSnapshot(submittedSnapshot.current);
+const destination = appUrl(`/app/promotions/${createFetcher.data.redirectId}`);
+void Promise.resolve(saveBarRef.current?.hide()).then(() => navigate(destination));
+} }
 });
 
 function savePromotion() {
@@ -629,6 +699,7 @@ if (isCodeList && !promotionId) { try { validateCodeOptions(discountDraft); } ca
 if (isCodeList && websiteEnabled) { setSubmissionError("Keep code lists in website Draft status. Distribute the individual codes using the CSV download."); return; }
 if (hasEndDate && !endDateTime) { setSubmissionError("Choose an end date and time, or turn off the end date."); return; }
 setSubmissionError("");
+setDismissedResponse(createFetcher.data);
 saveInFlight.current = true;
 const discount = { ...discountDraft, startsAt: startDateTime ? new Date(startDateTime).toISOString() : null, endsAt: hasEndDate && endDateTime ? new Date(endDateTime).toISOString() : null };
 creationRequestKey.current ??= window.crypto.randomUUID();
@@ -639,6 +710,7 @@ createFetcher.submit({ intent: promotionId ? "updatePromotion" : "createPromotio
 
 return (
 <s-page heading={promotionId ? "Edit promotion" : "Create discount"} inlineSize="large">
+<PromotionSaveBar ref={saveBarRef} dirty={hasUnsavedChanges} saving={createFetcher.state !== "idle"} busy={assetsBusy} discardDisabled={!promotionId && codeListLocked && !createdDiscountId} invalid={validateWebsite(websiteDraft, hasEndDate ? endDateTime : null).length > 0} onSave={savePromotion} onDiscard={discardChanges} />
 <div
 style={{
 width: "100%",
@@ -1870,14 +1942,10 @@ setEndDateTime("");
 <PromotionWebsiteEditor publicationDisabled={isCodeList} value={websiteDraft} onChange={value => updateWebsite(isCodeList ? { ...value, websiteEnabled: false } : value)} endsAt={hasEndDate ? endDateTime : null} onBusyChange={setAssetsBusy} />
 {previewFetcher.data?.error && <s-banner tone="warning">{previewFetcher.data.error}</s-banner>}
 {submissionError && <s-banner tone="critical">{submissionError}</s-banner>}
-{createFetcher.data?.error && <s-banner tone="critical">{createFetcher.data.error}</s-banner>}
-{promotionId && hasUnsavedChanges && <small role="status">You have unsaved changes.</small>}
+{createFetcher.data?.error && createFetcher.data !== dismissedResponse && <s-banner tone="critical">{createFetcher.data.error}</s-banner>}
 {!promotionId && createdDiscountId && <s-button href={appUrl(`/app/promotions/${createdDiscountId.split("/").pop()}`)} variant="secondary">Open saved promotion</s-button>}
 {promotionId && createFetcher.data?.success && !hasUnsavedChanges && <s-banner tone="success">Promotion saved.</s-banner>}
-<div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-{promotionId && <s-button type="button" variant="secondary" disabled={assetsBusy || createFetcher.state !== "idle" || !hasUnsavedChanges} onClick={onDiscard}>Discard changes</s-button>}
-<s-button type="button" variant="primary" loading={createFetcher.state !== "idle"} disabled={assetsBusy || createFetcher.state !== "idle" || Boolean(promotionId && !hasUnsavedChanges) || validateWebsite(websiteDraft, hasEndDate ? endDateTime : null).length > 0} onClick={savePromotion}>{promotionId ? "Save promotion" : createdDiscountId ? "Retry saving website design" : "Create promotion"}</s-button>
-</div>
+
 
 </s-stack>
 </div>
