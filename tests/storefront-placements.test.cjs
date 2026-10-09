@@ -83,8 +83,10 @@ test('Liquid schemas remain valid and expose placement controls', () => {
     assert.equal(schema.javascript, 'promotion-engine.js');
     const ids = schema.settings.filter(setting => setting.id).map(setting => setting.id);
     assert.equal(new Set(ids).size, ids.length);
+    assert.ok(!ids.includes('proxy_path'));
+    assert.match(source, /data-proxy-path="\/apps\/promotion-engine"/);
     if (name === 'promotion-loader') assert.ok(ids.includes('card_selector'));
-    else { assert.ok(ids.includes('spacing')); assert.match(source, /closest.product/); }
+    else { assert.ok(ids.includes('spacing')); assert.equal(schema.settings.find(setting => setting.id === 'collection_full_width').default, true); assert.match(source, /closest.product/); }
   }
 });
 test('Cards wait until near the viewport and a removed embed cannot mount a delayed badge', async () => {

@@ -4,12 +4,12 @@
 {% assign preview_collection = closest.collection | default: collection %}
 <promotion-engine
   hidden
-  style="width:100%;max-width:{{ block.settings.max_width | default: 1200 }}px;margin-inline:auto;padding-block:{{ block.settings.spacing | default: 0 }}px"
+  style="{% if placement == 'collection' and block.settings.collection_full_width != false %}width:var(--pe-viewport-width,100vw);max-width:none;margin-inline:calc((100% - var(--pe-viewport-width,100vw)) / 2);{% else %}width:100%;max-width:{{ block.settings.max_width | default: 1200 }}px;margin-inline:auto;{% endif %}padding-block:{{ block.settings.spacing | default: 0 }}px"
   data-placement="{{ placement | escape }}"
   data-product-id="{{ preview_product.id }}"
   data-collection-id="{{ preview_collection.id }}"
   data-variant-id="{{ preview_product.selected_or_first_available_variant.id }}"
-  data-proxy-path="{{ block.settings.proxy_path | escape }}"
+  data-proxy-path="/apps/promotion-engine"
   {{ block.shopify_attributes }}
 ></promotion-engine>
 {% schema %}
@@ -20,9 +20,9 @@
   "settings": [
     {"type":"select","id":"placement","label":"Placement","default":"product","options":[{"value":"header","label":"Header announcement"},{"value":"collection","label":"Collection banner"},{"value":"product","label":"Product offer"},{"value":"badge","label":"Product badge"}]},
     {"type":"product","id":"product","label":"Product (optional)","info":"Leave blank to use the current product."},
+    {"type":"checkbox","id":"collection_full_width","label":"Full-width collection banner","default":true,"info":"Extend collection banners to the page edges. Turn off to use the maximum width below."},
     {"type":"range","id":"max_width","label":"Maximum width","min":320,"max":1600,"step":40,"unit":"px","default":1200},
-    {"type":"range","id":"spacing","label":"Space above and below","min":0,"max":64,"step":4,"unit":"px","default":0},
-    {"type":"text","id":"proxy_path","label":"Promotion URL","default":"/apps/promotion-engine","info":"Update only if the app proxy URL was customised."}
+    {"type":"range","id":"spacing","label":"Space above and below","min":0,"max":64,"step":4,"unit":"px","default":0}
   ]
 }
 {% endschema %}

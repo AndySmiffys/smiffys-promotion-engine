@@ -9,7 +9,7 @@
   data-card-selector="{{ block.settings.card_selector | escape }}"
   data-badge-selector="{{ block.settings.badge_selector | escape }}"
   data-badge-position="{{ block.settings.badge_position }}"
-  data-proxy-path="{{ block.settings.proxy_path | escape }}"
+  data-proxy-path="/apps/promotion-engine"
   data-root="{{ routes.root_url | escape }}"
   data-collection-id="{{ collection.id }}"
 ></promotion-engine-embed>
@@ -28,8 +28,7 @@
     {"type":"paragraph","content":"Leave selectors blank for automatic Dawn and Horizon placement. Other themes may need selectors from your theme developer. Move badges if they overlap theme sale or sold-out labels."},
     {"type":"text","id":"header_selector","label":"Header CSS selector"},
     {"type":"text","id":"card_selector","label":"Product card CSS selector"},
-    {"type":"text","id":"badge_selector","label":"Badge container CSS selector"},
-    {"type":"text","id":"proxy_path","label":"Promotion URL","default":"/apps/promotion-engine","info":"Update only if the app proxy URL was customised."}
+    {"type":"text","id":"badge_selector","label":"Badge container CSS selector"}
   ]
 }
 {% endschema %}

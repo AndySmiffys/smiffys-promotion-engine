@@ -4,6 +4,7 @@ The extension uses Shopify app blocks for product offers and collection banners,
 and the **Promotion Engine loader** app embed for announcements and product-card
 badges. Promotion content, visibility and styling come from the saved promotion.
 Fonts inherit from the theme; promotion CSS is isolated in shadow DOM.
+The app proxy path is fixed in the extension and is not a merchant-editable theme setting.
 
 ## Development setup
 
@@ -18,7 +19,9 @@ Fonts inherit from the theme; promotion CSS is isolated in shadow DOM.
    block-compatible product section, choose **Product offer**, and leave Product
    blank to use the current product. Set width and spacing as required.
 4. Open the collection template. Add the same app block, choose **Collection
-   banner**, and save. Repeat for any alternate templates in use.
+   banner**, and save. Collection banners default to full page width. Turn off
+   **Full-width collection banner** to use the maximum-width setting instead.
+   Repeat for any alternate templates in use.
 5. In the app, enable a promotion and its required website blocks. Verify active
    dates and product/collection/customer eligibility. A block with no eligible
    promotion is hidden; the theme editor does not bypass these rules.

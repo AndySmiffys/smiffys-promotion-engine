@@ -17,6 +17,12 @@
     connectedCallback() {
       if (!this.shadowRoot) this.attachShadow({ mode: 'open' });
       this.hidden = true;
+      // Exclude the scrollbar so full-width banners do not cause horizontal scrolling.
+      this.resizeWidth = () => {
+        if (this.dataset.placement === 'collection') this.style.setProperty('--pe-viewport-width', `${document.documentElement.clientWidth}px`);
+      };
+      this.resizeWidth();
+      window.addEventListener('resize', this.resizeWidth);
       this.uiReady = () => { this.cleanupUI?.(); this.cleanupUI = window.SmiffysPromotionUI?.mount(this.shadowRoot); };
       window.addEventListener('promotion-ui:ready', this.uiReady);
       this.media = matchMedia('(max-width:600px)');
@@ -58,6 +64,7 @@
       this.cleanupUI?.();
       window.removeEventListener('promotion-ui:ready', this.uiReady);
       window.removeEventListener('focus', this.refresh);
+      window.removeEventListener('resize', this.resizeWidth);
       document.removeEventListener('visibilitychange', this.visible);
       clearInterval(this.timer);
       clearTimeout(this.formTimer);
