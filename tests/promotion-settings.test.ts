@@ -1,3 +1,4 @@
+import { loadPromotionPriorities, savePromotionPriorities } from "../app/modules/promotions/services/promotionPriorities.server";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
@@ -136,4 +137,37 @@ test("storefront uses saved priority ahead of creation order and ignores histori
   await updatePromotionWebsiteSettings(shop, latest, websiteStorage({ ...website(), showHeaderBanner: false }), database);
   assert.equal((await getStorefrontPromotionSettings(shop, "showHeaderBanner", database)).length, 0);
   assert.equal((await getStorefrontPromotionSettings("another.myshopify.com", "showProductPage", database)).length, 0);
+}));
+
+
+test("priority page saves only priorities atomically, preserves designs, and rejects stale or foreign changes", async () => withDatabase(async database => {
+  const first = "gid://shopify/DiscountNode/501";
+  const second = "gid://shopify/DiscountNode/502";
+  const foreign = "gid://shopify/DiscountNode/503";
+  const design = websiteStorage(website());
+  await updatePromotionWebsiteSettings(shop, first, design, database);
+  await updatePromotionWebsiteSettings(shop, second, design, database);
+  await updatePromotionWebsiteSettings("other.myshopify.com", foreign, design, database);
+  await savePromotionPriorities(shop, [{ id: first, priority: 100, expectedPriority: 17 }, { id: second, priority: 0, expectedPriority: 17 }], database);
+  const saved = await database.promotionSettings.findUniqueOrThrow({ where: { shop_shopifyDiscountId: { shop, shopifyDiscountId: first } } });
+  assert.deepEqual(websiteFromSettings(saved), { ...website(), priority: 100 });
+  await assert.rejects(savePromotionPriorities(shop, [{ id: first, priority: 200, expectedPriority: 100 }, { id: second, priority: 40, expectedPriority: 17 }], database), /changed elsewhere/);
+  assert.equal((await database.promotionSettings.findUniqueOrThrow({ where: { id: saved.id } })).priority, 100);
+  await assert.rejects(savePromotionPriorities(shop, [{ id: foreign, priority: 100, expectedPriority: 17 }], database), /no longer available/);
+  for (const priority of [-1, 10000, 1.5, "10"]) await assert.rejects(savePromotionPriorities(shop, [{ id: first, priority, expectedPriority: 100 }], database), /whole numbers/);
+  await assert.rejects(savePromotionPriorities(shop, [{ id: first, priority: 200, expectedPriority: 100 }, { id: "gid://shopify/DiscountCodeNode/501", priority: 300, expectedPriority: 100 }], database), /only have one/);
+}));
+
+test("priority lists skip missing Shopify discounts without deleting their designs and retain real API errors", async () => withDatabase(async database => {
+  for (const id of [601, 602, 603]) await updatePromotionWebsiteSettings(shop, `gid://shopify/DiscountNode/${id}`, websiteStorage(website()), database);
+  const response = await loadPromotionPriorities({ graphql: async (_query, options) => {
+    const id = String(options?.variables?.id);
+    if (id.endsWith("601")) return Response.json({ data: { discountNode: node(id) } });
+    if (id.endsWith("602")) return Response.json({ data: { discountNode: null } });
+    return Response.json({ errors: [{ message: "Shopify temporarily unavailable" }] });
+  } }, shop, database);
+  assert.equal(response.errors.length, 1);
+  assert.match(response.errors[0], /temporarily unavailable/);
+  for (const section of response.sections) assert.deepEqual(section.rows.map(row => row.routeId), ["601"]);
+  assert.equal(await database.promotionSettings.count({ where: { shop } }), 3);
 }));

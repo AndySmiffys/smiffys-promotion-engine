@@ -78,13 +78,14 @@ chooses between promotions eligible for the current visitor and placement.
 
 Open **Storefront priorities** from the app navigation. This page lists saved
 promotions for Header, Collection, Product and Product badge in priority order,
-with their audience and visibility. Use **Header connection check → Check header
-selection** on this page for the detailed connection check.
-The connection check identifies the selected header for a visitor who is not
-logged in and compares the storefront proxy response with
-the editor’s saved settings. Save your changes before checking. If the storefront
-is password protected, the connection check may be unavailable; the selection
-table still shows the server’s decision.
+with their audience and visibility. Edit a priority directly in a list and use
+the top Save/Discard bar. A promotion shares one priority across its selected
+blocks, and the lists reorder after saving. Saving here changes only priorities;
+it does not change discount rules, messages, designs or visibility.
+
+Saved records whose discounts Shopify no longer returns are omitted from these
+lists without deleting their saved designs. Genuine API failures remain visible.
+The temporary Header connection check has been removed from the page.
 
 First reopen the promotion in the app and check the saved priority. If the number
 is retained, check the connection before changing the ranking code:
