@@ -1,3 +1,4 @@
+import { buildPriorityOverview } from "../app/modules/promotions/design/priorityOverview";
 import { storefrontVisibilityNotices, type StorefrontVisibilityContext } from "../app/modules/promotions/design/storefrontVisibility";
 import { PromotionVisibilityNotice } from "../app/modules/promotions/components/PromotionVisibilityNotice";
 import { ShippingCountryPicker } from "../app/modules/promotions/components/ShippingCountryPicker";
@@ -457,4 +458,36 @@ test("code lists, missing blocks and empty restricted audiences explain why noth
   const notices = storefrontVisibilityNotices({ ...website(), websiteEnabled: false, showHeaderBanner: false, showCollectionPage: false, showProductPage: false, showProductBadge: false }, context, Date.now());
   assert.deepEqual(notices.map(notice => notice.id), ["codes", "blocks", "audience", "audience-empty"]);
   assert.equal(renderToStaticMarkup(<PromotionVisibilityNotice notices={[]} />), "");
+});
+
+
+test("priority overview groups selected blocks, ranks higher priorities and explains restricted or hidden promotions", () => {
+  const create = (id: number, priority: number) => {
+    const promotion = mapDiscountToPromotion({ id: `gid://shopify/DiscountCodeNode/${id}`, events: { nodes: [] }, discount: { __typename: "DiscountCodeBasic", title: `Promotion ${id}`, status: "ACTIVE", startsAt: null, endsAt: null, discountClasses: ["PRODUCT"], codes: { nodes: [{ code: `CODE${id}` }] }, context: { __typename: "DiscountBuyerSelectionAll", all: "ALL" }, customerGets: { value: { __typename: "DiscountPercentage", percentage: .1 }, items: { __typename: "AllDiscountItems", allItems: true } } } });
+    promotion.settings = { ...promotion.settings, ...website(), priority };
+    return promotion;
+  };
+  const normal = create(1, 1);
+  const restricted = create(2, 100);
+  restricted.shopify.customers = { appliesToAllCustomers: false, customers: [], segments: [{ id: "segment", name: "Members" }] };
+  restricted.settings.showProductBadge = false;
+  const draft = create(3, 200);
+  draft.settings.websiteEnabled = false;
+  const board = buildPriorityOverview([normal, restricted, draft], Date.now());
+  assert.equal(board.length, 4);
+  const header = board.find(section => section.id === "header")!;
+  assert.deepEqual(header.rows.map(row => row.priority), [200, 100, 1]);
+  assert.equal(header.rows[0].status, "Not shown");
+  assert.match(header.rows[0].detail, /Draft/);
+  assert.equal(header.rows[1].status, "Customer restricted");
+  assert.match(header.rows[1].audience, /segments \(login required\)/);
+  assert.equal(header.rows[2].status, "Available");
+  assert.equal(board.find(section => section.id === "badge")!.rows.length, 2);
+  assert.equal(normal.settings.priority, 1);
+  const targeted = create(4, 1000);
+  targeted.type = "Product";
+  targeted.shopify.products = { ...targeted.shopify.products, allProducts: false, collections: [], products: [{ id: "gid://shopify/Product/1", title: "Test" }] };
+  const collection = buildPriorityOverview([targeted], Date.now()).find(section => section.id === "collection")!;
+  assert.equal(collection.rows[0].status, "Not shown");
+  assert.match(collection.rows[0].detail, /targeting qualifying collections/);
 });

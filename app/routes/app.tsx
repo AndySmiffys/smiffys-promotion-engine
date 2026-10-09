@@ -60,6 +60,10 @@ export default function App() {
         <Link to={appUrl("/app/promotions")}>
           Promotions
         </Link>
+
+        <Link to={appUrl("/app/storefront-priorities")}>
+          Storefront priorities
+        </Link>
       </NavMenu>
 
       <Outlet />

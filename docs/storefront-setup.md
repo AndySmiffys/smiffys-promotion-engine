@@ -65,8 +65,8 @@ expired promotions and theme-editor reloads in each supported live theme.
 ## Visibility guidance in the editor
 
 The Eligibility selector warns when selected customers or segments restrict
-website display to eligible logged-in customers. Website promotion and the design
-preview also show live visibility guidance for Draft status, disabled sync, empty
+website display to eligible logged-in customers. The design preview also shows live visibility
+guidance for Draft status, disabled sync, empty
 placement/audience selections, code lists, future or expired schedules and product
 versus collection targeting. These messages describe the current form choices;
 save to apply changes. They do not block saving a restricted promotion.
@@ -76,9 +76,12 @@ chooses between promotions eligible for the current visitor and placement.
 
 ## A saved priority does not change the storefront
 
-Open a promotion in the app and use **Website promotion → Check header selection**.
-This checks saved promotions for a visitor who is not logged in, shows each
-priority and eligibility reason, and compares the storefront proxy response with
+Open **Storefront priorities** from the app navigation. This page lists saved
+promotions for Header, Collection, Product and Product badge in priority order,
+with their audience and visibility. Use **Header connection check → Check header
+selection** on this page for the detailed connection check.
+The connection check identifies the selected header for a visitor who is not
+logged in and compares the storefront proxy response with
 the editor’s saved settings. Save your changes before checking. If the storefront
 is password protected, the connection check may be unavailable; the selection
 table still shows the server’s decision.

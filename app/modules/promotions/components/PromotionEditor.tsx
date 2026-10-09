@@ -1954,7 +1954,7 @@ setEndDateTime("");
 </div>
 </FormSection>
 
-<PromotionWebsiteEditor visibilityNotices={visibilityNotices} publicationDisabled={isCodeList} value={websiteDraft} onChange={value => updateWebsite(isCodeList ? { ...value, websiteEnabled: false } : value)} endsAt={hasEndDate ? endDateTime : null} onBusyChange={setAssetsBusy} />
+<PromotionWebsiteEditor publicationDisabled={isCodeList} value={websiteDraft} onChange={value => updateWebsite(isCodeList ? { ...value, websiteEnabled: false } : value)} endsAt={hasEndDate ? endDateTime : null} onBusyChange={setAssetsBusy} />
 {previewFetcher.data?.error && <s-banner tone="warning">{previewFetcher.data.error}</s-banner>}
 {!promotionId && createdDiscountId && <s-button href={appUrl(`/app/promotions/${createdDiscountId.split("/").pop()}`)} variant="secondary">Open saved promotion</s-button>}
 {promotionId && createFetcher.data?.success && !hasUnsavedChanges && <s-banner tone="success">Promotion saved.</s-banner>}

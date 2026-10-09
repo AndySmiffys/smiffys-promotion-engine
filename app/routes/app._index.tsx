@@ -153,6 +153,12 @@ export default function DashboardPage() {
                 href={appUrl("/app/promotions")}
               />
               <DashboardItem
+                title="Storefront priorities"
+                description="Review promotion order and visibility for each storefront block."
+                status="Available"
+                href={appUrl("/app/storefront-priorities")}
+              />
+              <DashboardItem
                 title="Product tools"
                 description="Product validation and catalogue workflows."
                 status="Planned"
