@@ -1,3 +1,4 @@
+import { syncStorefrontSnapshot } from "../modules/promotions/services/storefrontSnapshot.server";
 import { useEmbeddedAppUrl } from "../modules/navigation/embeddedAppUrl";
 import { useMemo, useState } from "react";
 import type { LoaderFunctionArgs } from "react-router";
@@ -18,7 +19,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
     mappedPromotions,
   );
 
-  return { promotions };
+  let syncError: string | null = null;
+  try { await syncStorefrontSnapshot(admin, session.shop); } catch (error) { syncError = `Promotions loaded, but storefront sync failed: ${error instanceof Error ? error.message : "Please retry."}`; }
+  return { promotions, syncError };
 }
 
 function getStatusTone(
@@ -177,7 +180,7 @@ function getPromotionIconType(promotion: PromotionRecord): DiscountIconType {
 
 export default function PromotionsPage() {
   const appUrl = useEmbeddedAppUrl();
-  const { promotions } = useLoaderData<typeof loader>();
+  const { promotions, syncError } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
@@ -210,6 +213,7 @@ export default function PromotionsPage() {
         }}
       >
         <s-stack direction="block" gap="large">
+          {syncError && <s-banner tone="warning">{syncError}</s-banner>}
           <div
             style={{
               display: "flex",

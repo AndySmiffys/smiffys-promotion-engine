@@ -1,3 +1,4 @@
+import { syncStorefrontSnapshot } from "../modules/promotions/services/storefrontSnapshot.server";
 import { getShippingCountries, validateShippingCountries } from "../modules/promotions/services/shippingCountries.server";
 import { PromotionSaveError } from "../modules/promotions/components/PromotionSaveError";
 import { PromotionSaveBar } from "../modules/promotions/components/PromotionSaveBar";
@@ -169,9 +170,10 @@ export async function action({
         discountUpdated = true;
       }
       await updatePromotionWebsiteSettings(session.shop, node.id, websiteStorage(website));
+      await syncStorefrontSnapshot(admin, session.shop);
       return { success: true, savedId: node.id };
     } catch (error) {
-      return { success: false, error: (discountUpdated ? "The Shopify discount was updated, but the website design was not saved. Retry saving to finish. " : "") + (error instanceof Error ? error.message : "The promotion could not be saved.") };
+      return { success: false, error: (discountUpdated ? "The Shopify discount was updated, but website saving or storefront sync did not finish. Retry saving to finish. " : "") + (error instanceof Error ? error.message : "The promotion could not be saved.") };
     }
   }
 
@@ -197,6 +199,7 @@ export async function action({
     const errors = validateWebsite(website, discount.discount.endsAt);
     if (errors.length) throw new Error(errors.join(" "));
     await updatePromotionWebsiteSettings(session.shop, shopifyDiscountId, websiteStorage(website));
+    await syncStorefrontSnapshot(admin, session.shop);
 
     return {
       success: true,

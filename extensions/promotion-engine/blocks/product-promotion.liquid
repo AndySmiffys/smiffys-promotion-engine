@@ -1,14 +1,6 @@
 <script src="{{ 'promotion-ui.js' | asset_url }}" defer></script>
 {% assign current_product = closest.product | default: product %}
-<promotion-engine
-  hidden
-  style="box-sizing:border-box;width:100%;min-width:0;padding-block:{{ block.settings.spacing | default: 0 }}px"
-  data-placement="product"
-  data-product-id="{{ current_product.id }}"
-  data-variant-id="{{ current_product.selected_or_first_available_variant.id }}"
-  data-proxy-path="/apps/promotion-engine"
-  {{ block.shopify_attributes }}
-></promotion-engine>
+{% render 'server-promotion', placement: 'product', current_product: current_product, block: block %}
 {% schema %}
 {
   "name": "Product promotion",

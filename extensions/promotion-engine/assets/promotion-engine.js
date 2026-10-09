@@ -16,7 +16,20 @@
   class PromotionEngine extends HTMLElement {
     connectedCallback() {
       if (!this.shadowRoot) this.attachShadow({ mode: 'open' });
-      this.hidden = true;
+      const native = this.dataset.serverRendered === 'true';
+      this.hidden = !native;
+      this.renderedVariantId = this.dataset.variantId;
+      // Declarative shadow DOM renders before this script. Theme editor section
+      // replacements use innerHTML, so hydrate their unprocessed template too.
+      this.hydrate = () => {
+        const template = this.querySelector('template[shadowrootmode]');
+        if (template && !this.shadowRoot.childNodes.length) {
+          this.shadowRoot.append(template.content.cloneNode(true));
+          template.remove();
+        }
+        this.uiReady?.();
+        this.layoutCollection?.();
+      };
       this.layoutCollection = () => {
         if (this.dataset.placement !== 'collection' || !this.dataset.widthMode || this.hidden) return;
         // Reset to normal section flow before measuring: theme wrappers can use
@@ -62,6 +75,9 @@
         }, 150);
       };
       document.addEventListener('change', this.formChanged);
+      this.hydrate();
+      this.hydrateTimer = setTimeout(this.hydrate, 0);
+      this.scheduleExpiry(this.dataset.endsAt ? Number(this.dataset.endsAt) * 1000 : 0);
       this.timer = setInterval(this.refresh, 60000);
       this.load();
     }
@@ -83,11 +99,19 @@
       clearInterval(this.timer);
       clearTimeout(this.formTimer);
       clearTimeout(this.expiryTimer);
+      clearTimeout(this.hydrateTimer);
       this.media?.removeEventListener('change', this.refresh);
       document.removeEventListener('variant:change', this.variantChanged);
       document.removeEventListener('variant-change', this.variantChanged);
       document.removeEventListener('change', this.formChanged);
       this.requestVersion = (this.requestVersion || 0) + 1;
+    }
+    scheduleExpiry(end) {
+      clearTimeout(this.expiryTimer);
+      const expire = () => { this.hidden = true; this.cleanupUI?.(); this.shadowRoot.replaceChildren(); delete this.dataset.serverRendered; };
+      const delay = end - Date.now();
+      if (end && delay <= 0) expire();
+      else if (delay > 0) this.expiryTimer = setTimeout(() => delay > 2147483647 ? this.scheduleExpiry(end) : expire(), Math.min(delay, 2147483647));
     }
     async load() {
       const version = this.requestVersion = (this.requestVersion || 0) + 1;
@@ -107,6 +131,16 @@
         if (!pending.has(key)) pending.set(key, request(key).finally(() => pending.delete(key)));
         const result = await pending.get(key);
         if (!this.isConnected || version !== this.requestVersion) return;
+        // Preserve the initial HTML when Shopify and the live renderer agree.
+        // This avoids rebuilding the banner and reloading its image on startup.
+        if (this.dataset.serverRendered === 'true' && result.html &&
+            result.renderKey && result.renderKey === this.dataset.renderKey &&
+            result.promotionId === this.dataset.promotionId && result.revision === this.dataset.revision &&
+            (this.dataset.placement !== 'product' || this.dataset.variantId === this.renderedVariantId)) {
+          this.scheduleExpiry(result.endsAt ? Date.parse(result.endsAt) : 0);
+          return;
+        }
+        delete this.dataset.serverRendered;
         this.dataset.promotionId = result.promotionId || '';
         this.dataset.priority = result.priority === undefined ? '' : String(result.priority);
         this.dataset.revision = result.revision || '';
@@ -121,10 +155,8 @@
         this.cleanupUI = window.SmiffysPromotionUI?.mount(content);
         this.hidden = !result.html;
         this.layoutCollection();
-        clearTimeout(this.expiryTimer);
-        const delay = result.endsAt ? Date.parse(result.endsAt) - Date.now() : 0;
-        if (delay > 0 && delay <= 2147483647) this.expiryTimer = setTimeout(() => { this.hidden = true; this.cleanupUI?.(); this.shadowRoot.replaceChildren(); }, delay);
-      } catch { if (this.isConnected && version === this.requestVersion) { this.cleanupUI?.(); this.shadowRoot.replaceChildren(); this.hidden = true; } }
+        this.scheduleExpiry(result.endsAt ? Date.parse(result.endsAt) : 0);
+      } catch { if (this.isConnected && version === this.requestVersion && this.dataset.serverRendered !== 'true') { this.cleanupUI?.(); this.shadowRoot.replaceChildren(); this.hidden = true; } }
     }
   }
   customElements.define('promotion-engine', PromotionEngine);

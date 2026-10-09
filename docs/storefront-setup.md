@@ -119,3 +119,16 @@ https://shopify.dev/docs/apps/build/cli-for-apps/networking-options
 The default CLI tunnel is Cloudflare. If it is unavailable on your network,
 use a publicly reachable custom tunnel with `shopify app dev --tunnel-url=...`
 following Shopify's networking guide. Localhost alone cannot test app proxies.
+
+
+## Initial rendering and layout stability
+
+Open **Promotions** once after pulling this update. This publishes enabled public promotion designs into an app-installation metafield that Shopify Liquid can read. The create/edit Save action and priority Save also publish it. A sync failure is displayed in the app; opening Promotions retries it. Discount update/delete and redeem-code change webhooks refresh the same data when discounts are edited directly in Shopify. Restart `shopify app dev` to apply the updated webhook configuration; production needs the usual app deployment.
+
+The Collection promotion, Product promotion and legacy explicit Promotion Engine blocks now select a public promotion in the initial Liquid render. They check priority order, scheduled start/end timestamps and placement targeting. No eligible promotion means a hidden element with no reserved banner height. Future schedules are stored so Liquid can activate them on subsequent page loads without an app visit. Restricted customer/segment content is excluded from the published snapshot and continues to use the authenticated live eligibility renderer. Scope connections that reach the API limit also fall back to the live renderer.
+
+For the header, add **Header promotion** in the theme editor's header group if the theme supports app sections there. Otherwise add it as the first page section (or use the legacy explicit block with Header announcement selected). The automatic loader detects this explicit block and skips its own header. Leave the loader enabled for product badges. Add the header block to every template where it should appear when using page sections. Automatic DOM placement remains available for themes without an appropriate section, but still inserts the announcement after page load and can contribute to CLS.
+
+Public offers use declarative shadow DOM to render immediately with their styles and images. Theme editor replacements are hydrated by the JavaScript runtime. Responsive Shopify CDN image sizes, mobile image sources and high fetch priority on collection images reduce unnecessary downloads. The runtime retains matching initial markup when the live renderer agrees on the promotion and saved revision. A failed validation request leaves an initial public offer visible until its known expiry; a successful empty response removes it.
+
+This reduces initial insertion shifts; it does not guarantee a CLS score. Customer-specific offers, an offer expiring while the page remains open, live promotion changes, full-width sizing and theme font loading can still move content. Expired offers are removed rather than leaving blank space or an unusable code. Test desktop and mobile Lighthouse with offers enabled, all offers disabled, future schedules and restricted customers. Compare field data once deployed.

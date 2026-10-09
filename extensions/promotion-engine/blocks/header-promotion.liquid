@@ -1,0 +1,14 @@
+<script src="{{ 'promotion-ui.js' | asset_url }}" defer></script>
+{% render 'server-promotion', placement: 'header', block: block %}
+{% schema %}
+{
+  "name": "Header promotion",
+  "target": "section",
+  "class": "pe-header-app-block",
+  "javascript": "promotion-engine.js",
+  "stylesheet": "promotion-layout.css",
+  "settings": [
+    {"type":"paragraph","content":"Add to the header group where your theme supports app sections, or as the first page section. Public announcements render with the page to reduce layout shifts. The loader skips automatic announcements when this block exists."}
+  ]
+}
+{% endschema %}

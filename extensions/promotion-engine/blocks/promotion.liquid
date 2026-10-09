@@ -2,16 +2,9 @@
 {% assign placement = block.settings.placement %}
 {% assign preview_product = block.settings.product | default: closest.product | default: product %}
 {% assign preview_collection = closest.collection | default: collection %}
-<promotion-engine
-  hidden
-  style="box-sizing:border-box;width:100%;min-width:0;max-width:{% if placement == 'collection' and block.settings.collection_full_width != false %}none{% else %}{{ block.settings.max_width | default: 1200 }}px{% endif %};margin-inline:auto;padding-block:{{ block.settings.spacing | default: 0 }}px"
-  data-placement="{{ placement | escape }}"
-  data-product-id="{{ preview_product.id }}"
-  data-collection-id="{{ preview_collection.id }}"
-  data-variant-id="{{ preview_product.selected_or_first_available_variant.id }}"
-  data-proxy-path="/apps/promotion-engine"
-  {{ block.shopify_attributes }}
-></promotion-engine>
+{% assign maximum_width = block.settings.max_width %}
+{% if placement == 'collection' and block.settings.collection_full_width != false %}{% assign maximum_width = nil %}{% endif %}
+{% render 'server-promotion', maximum_width: maximum_width, placement: placement, current_product: preview_product, current_collection: preview_collection, block: block %}
 {% schema %}
 {
   "name": "Promotion Engine",

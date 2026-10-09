@@ -1,3 +1,4 @@
+import { syncStorefrontSnapshot } from "./storefrontSnapshot.server";
 import { validateShippingCountries } from "./shippingCountries.server";
 import db from "../../../db.server";
 import { createPromotionCodeBatch } from "./promotionCodeBatches.server";
@@ -35,10 +36,11 @@ savedId = payload.savedId;
 savedId = await createShopifyPromotion(admin, payload.discount as CreateDiscountDraft);
 }
 await updatePromotionWebsiteSettings(session.shop, savedId!, websiteStorage(website));
+await syncStorefrontSnapshot(admin, session.shop);
 return { success: true, savedId, redirectId: savedId!.split("/").pop() };
 } catch (error) {
 if (requestKey) { const batch = await db.promotionCodeBatch.findUnique({ where: { shop_requestKey: { shop: session.shop, requestKey } } }); savedId = batch?.shopifyDiscountId ?? undefined; codeListLocked = Boolean(batch); }
-return { success: false, savedId, codeListLocked, error: (savedId ? "The Shopify discount was created, but the website settings were not saved. Retry saving to finish. " : "") + (error instanceof Error ? error.message : "The promotion could not be saved.") };
+return { success: false, savedId, codeListLocked, error: (savedId ? "The Shopify discount was created, but website saving or storefront sync did not finish. Retry saving to finish. " : "") + (error instanceof Error ? error.message : "The promotion could not be saved.") };
 }
 }
 

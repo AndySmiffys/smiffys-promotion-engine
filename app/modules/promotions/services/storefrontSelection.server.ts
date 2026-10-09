@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { getDiscount, type ShopifyAdminClient } from "./discount.server";
 import { mapDiscountToPromotion } from "../mappers/promotionMapper";
-import { placements } from "../design/design";
+import { placements, websiteFromSettings, type Placement } from "../design/design";
 import { storefrontIneligibility, type StorefrontContext } from "./storefrontEligibility.server";
 import type { getLatestPromotionSettings } from "./promotionSettings.server";
 import type { PromotionRecord } from "../models/promotion";
@@ -10,6 +10,9 @@ type Settings = Awaited<ReturnType<typeof getLatestPromotionSettings>>;
 export const storefrontVersion = "selection-check-1";
 export function storefrontRevision(shop: string, rows: Settings, appId = process.env.SHOPIFY_API_KEY || "") {
   return createHash("sha256").update(JSON.stringify({ shop, appId, rows })).digest("hex");
+}
+export function storefrontRenderKey(promotion: PromotionRecord, placement: Placement) {
+  return createHash("sha256").update(JSON.stringify({ placement, value: websiteFromSettings(promotion.settings), code: promotion.code, endsAt: promotion.endsAt })).digest("hex");
 }
 export type SelectionCheck = { id: string; title: string; priority: number; reason: string; eligible: boolean };
 export async function selectStorefrontPromotion(api: ShopifyAdminClient, rows: Settings, context: StorefrontContext, inspectAll = false) {

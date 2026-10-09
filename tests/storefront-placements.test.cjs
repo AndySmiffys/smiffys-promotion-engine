@@ -77,14 +77,14 @@ test('Changing a product form does not change badges or offers in other sections
   } finally { f.dom.window.close(); }
 });
 test('Liquid schemas remain valid and expose placement controls', () => {
-  for (const name of ['promotion', 'promotion-loader', 'product-promotion', 'collection-promotion']) {
+  for (const name of ['promotion', 'promotion-loader', 'product-promotion', 'collection-promotion', 'header-promotion']) {
     const source = readFileSync(base + `blocks/${name}.liquid`, 'utf8');
     const schema = JSON.parse(source.match(/{% schema %}([\s\S]*?){% endschema %}/)[1]);
     assert.equal(schema.javascript, 'promotion-engine.js');
     const ids = schema.settings.filter(setting => setting.id).map(setting => setting.id);
     assert.equal(new Set(ids).size, ids.length);
     assert.ok(!ids.includes('proxy_path'));
-    assert.match(source, /data-proxy-path="\/apps\/promotion-engine"/);
+    assert.match(name === 'promotion-loader' ? source : readFileSync(base + 'snippets/server-promotion.liquid', 'utf8'), /data-proxy-path="\/apps\/promotion-engine"/);
     if (name === 'promotion-loader') assert.ok(ids.includes('card_selector'));
     else if (name === 'collection-promotion') {
       assert.deepEqual(schema.enabled_on.templates, ['collection']);
@@ -94,8 +94,9 @@ test('Liquid schemas remain valid and expose placement controls', () => {
     } else if (name === 'product-promotion') {
       assert.deepEqual(schema.enabled_on.templates, ['product']);
       assert.ok(!ids.includes('placement'));
-      assert.match(source, /selected_or_first_available_variant/);
+      assert.match(readFileSync(base + 'snippets/server-promotion.liquid', 'utf8'), /selected_or_first_available_variant/);
     }
+    else if (name === 'header-promotion') assert.equal(schema.class, 'pe-header-app-block');
     else { assert.ok(ids.includes('spacing')); assert.equal(schema.settings.find(setting => setting.id === 'collection_full_width').default, true); assert.match(source, /closest.product/); }
   }
 });

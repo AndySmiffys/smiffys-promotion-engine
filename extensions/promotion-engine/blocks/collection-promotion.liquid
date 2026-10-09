@@ -1,15 +1,6 @@
 <script src="{{ 'promotion-ui.js' | asset_url }}" defer></script>
 {% assign current_collection = collection | default: closest.collection %}
-<promotion-engine
-  hidden
-  class="pe-collection-banner"
-  style="padding-block:{{ block.settings.spacing | default: 0 }}px"
-  data-placement="collection"
-  data-width-mode="{{ block.settings.width_mode | default: 'content' }}"
-  data-collection-id="{{ current_collection.id }}"
-  data-proxy-path="/apps/promotion-engine"
-  {{ block.shopify_attributes }}
-></promotion-engine>
+{% render 'server-promotion', placement: 'collection', current_collection: current_collection, width_mode: block.settings.width_mode, block: block %}
 {% schema %}
 {
   "name": "Collection promotion",

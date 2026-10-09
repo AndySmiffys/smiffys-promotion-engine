@@ -14,6 +14,10 @@ redirect_urls = [ "https://example.com/api/auth" ]
 [webhooks]
 api_version = "2026-10"
 
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/discounts/changed"
+  topics = [ "discounts/update", "discounts/delete", "discounts/redeemcode_added", "discounts/redeemcode_removed" ]
+
 [build]
 include_config_on_deploy = true
 automatically_update_urls_on_dev = true

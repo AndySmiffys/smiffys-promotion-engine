@@ -5,7 +5,7 @@ import { getLatestPromotionSettings } from "../modules/promotions/services/promo
 import { type ShopifyAdminClient } from "../modules/promotions/services/discount.server";
 import { placements, websiteFromSettings, type Placement } from "../modules/promotions/design/design";
 import { promotionCss, PromotionOffer } from "../modules/promotions/components/PromotionPreview";
-import { selectStorefrontPromotion, storefrontRevision, storefrontVersion } from "../modules/promotions/services/storefrontSelection.server";
+import { selectStorefrontPromotion, storefrontRenderKey, storefrontRevision, storefrontVersion } from "../modules/promotions/services/storefrontSelection.server";
 export async function loader({ request }: LoaderFunctionArgs) {
   const { admin, session } = await authenticate.public.appProxy(request);
   let revision: string | null = null;
@@ -43,7 +43,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     if (promotion) {
       const value = websiteFromSettings(promotion.settings);
       const html = renderToStaticMarkup(<PromotionOffer discountCode={promotion.code} offerNote={promotion.code ? `Use code: ${promotion.code}` : "Applied automatically at checkout."} value={value} placement={placement} endsAt={promotion.endsAt} now={Date.now()} mobile={url.searchParams.get("mobile") === "1"} />);
-      return Response.json({ html, css: promotionCss, endsAt: promotion.endsAt, promotionId: promotion.id, priority: promotion.settings.priority, revision, version: storefrontVersion }, { headers: { "Cache-Control": "private, no-store" } });
+      return Response.json({ html, css: promotionCss, endsAt: promotion.endsAt, promotionId: promotion.id, priority: promotion.settings.priority, renderKey: storefrontRenderKey(promotion, placement), revision, version: storefrontVersion }, { headers: { "Cache-Control": "private, no-store" } });
     }
   } catch (error) { console.error("Promotion storefront render failed:", error); }
   return empty();
