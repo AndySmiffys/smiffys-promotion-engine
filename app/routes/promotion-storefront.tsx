@@ -1,15 +1,15 @@
 import type { LoaderFunctionArgs } from "react-router";
 import { renderToStaticMarkup } from "react-dom/server";
 import { authenticate } from "../shopify.server";
-import { getStorefrontPromotionSettings } from "../modules/promotions/services/promotionSettings.server";
-import { getDiscount, type ShopifyAdminClient } from "../modules/promotions/services/discount.server";
-import { mapDiscountToPromotion } from "../modules/promotions/mappers/promotionMapper";
+import { getLatestPromotionSettings } from "../modules/promotions/services/promotionSettings.server";
+import { type ShopifyAdminClient } from "../modules/promotions/services/discount.server";
 import { placements, websiteFromSettings, type Placement } from "../modules/promotions/design/design";
 import { promotionCss, PromotionOffer } from "../modules/promotions/components/PromotionPreview";
-import { matchesStorefront } from "../modules/promotions/services/storefrontEligibility.server";
+import { selectStorefrontPromotion, storefrontRevision, storefrontVersion } from "../modules/promotions/services/storefrontSelection.server";
 export async function loader({ request }: LoaderFunctionArgs) {
   const { admin, session } = await authenticate.public.appProxy(request);
-  const empty = () => Response.json({ html: "", css: "" }, { headers: { "Cache-Control": "no-store" } });
+  let revision: string | null = null;
+  const empty = () => Response.json({ html: "", css: "", promotionId: null, revision, version: storefrontVersion }, { headers: { "Cache-Control": "no-store" } });
   if (!admin || !session) return empty();
   const api: ShopifyAdminClient = admin;
   const url = new URL(request.url);
@@ -21,8 +21,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const variantId = gid("variant_id", "ProductVariant");
   // This parameter is signed and supplied by Shopify, never taken from a customer-facing form.
   const customerId = gid("logged_in_customer_id", "Customer");
-  const flag = placements.find(p => p.id === placement)!.flag;
-  const settings = await getStorefrontPromotionSettings(session.shop, flag);
+  const settings = await getLatestPromotionSettings(session.shop);
+  revision = storefrontRevision(session.shop, settings);
   if (!settings.length) return empty();
   try {
     const productCollectionIds: string[] = [];
@@ -39,23 +39,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
         cursor = collections?.pageInfo?.endCursor ?? null;
       }
     }
-    for (const stored of settings) {
-      const node = await getDiscount(api, stored.shopifyDiscountId, 250);
-      if (!node) continue;
-      const promotion = mapDiscountToPromotion(node);
-      promotion.settings = { ...promotion.settings, ...stored, lastSyncedAt: null };
-      const segments = promotion.shopify.customers.segments;
-      let memberSegmentIds: string[] = [];
-      if (customerId && segments.length) {
-        const response: Response = await api.graphql(`query PromotionMembership($customer: ID!, $segments: [ID!]!) { customerSegmentMembership(customerId: $customer, segmentIds: $segments) { memberships { segmentId isMember } } }`, { variables: { customer: customerId, segments: segments.map(s => s.id) } });
-        const result = await response.json();
-        if (result.errors?.length) continue;
-        memberSegmentIds = (result.data?.customerSegmentMembership?.memberships ?? []).filter((m: { isMember: boolean }) => m.isMember).map((m: { segmentId: string }) => m.segmentId);
-      }
-      if (!matchesStorefront(promotion, { placement, productId, collectionId, variantId, productCollectionIds, customerId, memberSegmentIds, now: Date.now() })) continue;
+    const { selected: promotion } = await selectStorefrontPromotion(api, settings, { placement, productId, collectionId, variantId, productCollectionIds, customerId, memberSegmentIds: [], now: Date.now() });
+    if (promotion) {
       const value = websiteFromSettings(promotion.settings);
       const html = renderToStaticMarkup(<PromotionOffer discountCode={promotion.code} offerNote={promotion.code ? `Use code: ${promotion.code}` : "Applied automatically at checkout."} value={value} placement={placement} endsAt={promotion.endsAt} now={Date.now()} mobile={url.searchParams.get("mobile") === "1"} />);
-      return Response.json({ html, css: promotionCss, endsAt: promotion.endsAt }, { headers: { "Cache-Control": "private, no-store" } });
+      return Response.json({ html, css: promotionCss, endsAt: promotion.endsAt, promotionId: promotion.id, priority: promotion.settings.priority, revision, version: storefrontVersion }, { headers: { "Cache-Control": "private, no-store" } });
     }
   } catch (error) { console.error("Promotion storefront render failed:", error); }
   return empty();

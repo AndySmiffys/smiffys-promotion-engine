@@ -64,6 +64,13 @@ expired promotions and theme-editor reloads in each supported live theme.
 
 ## A saved priority does not change the storefront
 
+Open a promotion in the app and use **Website promotion → Check header selection**.
+This checks saved promotions for a visitor who is not logged in, shows each
+priority and eligibility reason, and compares the storefront proxy response with
+the editor’s saved settings. Save your changes before checking. If the storefront
+is password protected, the connection check may be unavailable; the selection
+table still shows the server’s decision.
+
 First reopen the promotion in the app and check the saved priority. If the number
 is retained, check the connection before changing the ranking code:
 

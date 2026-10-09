@@ -119,3 +119,20 @@ test('A failed promotion request clears stale content rather than breaking the p
     assert.equal(header.shadowRoot.childNodes.length, 0);
   } finally { f.dom.window.close(); }
 });
+test('Returning to the storefront refreshes the selected header and records its saved priority', async () => {
+  let priority = 0;
+  const f = fixture('<header role="banner"></header>', {}, () => ({ html: `<span>Priority ${priority}</span>`, css: '', promotionId: `discount-${priority}`, priority, revision: `revision-${priority}` }));
+  try {
+    await wait(20);
+    const header = f.window.document.querySelector('[data-pe-auto="header"]');
+    assert.match(header.shadowRoot.textContent, /Priority 0/);
+    priority = 100;
+    f.window.Date.now = () => Date.now() + 5000;
+    f.window.dispatchEvent(new f.window.Event('focus'));
+    await wait(20);
+    assert.match(header.shadowRoot.textContent, /Priority 100/);
+    assert.equal(header.dataset.priority, '100');
+    assert.equal(header.dataset.promotionId, 'discount-100');
+    assert.notEqual(f.calls[0].searchParams.get('_refresh'), f.calls[1].searchParams.get('_refresh'));
+  } finally { f.dom.window.close(); }
+});

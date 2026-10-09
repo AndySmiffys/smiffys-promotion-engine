@@ -21,6 +21,9 @@
       window.addEventListener('promotion-ui:ready', this.uiReady);
       this.media = matchMedia('(max-width:600px)');
       this.refresh = () => this.load();
+      this.visible = () => { if (!document.hidden) this.load(); };
+      window.addEventListener('focus', this.refresh);
+      document.addEventListener('visibilitychange', this.visible);
       this.variantChanged = event => {
         if (this.dataset.placement !== 'product' || !this.ownsEvent(event)) return;
         const id = event.detail?.variant?.id ?? event.detail?.variantId;
@@ -54,6 +57,8 @@
     disconnectedCallback() {
       this.cleanupUI?.();
       window.removeEventListener('promotion-ui:ready', this.uiReady);
+      window.removeEventListener('focus', this.refresh);
+      document.removeEventListener('visibilitychange', this.visible);
       clearInterval(this.timer);
       clearTimeout(this.formTimer);
       clearTimeout(this.expiryTimer);
@@ -73,11 +78,17 @@
       if (this.dataset.collectionId) url.searchParams.set('collection_id', this.dataset.collectionId);
       if (this.dataset.variantId) url.searchParams.set('variant_id', this.dataset.variantId);
       url.searchParams.set('mobile', this.media.matches ? '1' : '0');
+      // Fresh URLs also avoid intermediary caches, while cards loaded together
+      // can still share an in-flight request.
+      url.searchParams.set('_refresh', String(Math.floor(Date.now() / 1000)));
       const key = url.toString();
       try {
         if (!pending.has(key)) pending.set(key, request(key).finally(() => pending.delete(key)));
         const result = await pending.get(key);
         if (!this.isConnected || version !== this.requestVersion) return;
+        this.dataset.promotionId = result.promotionId || '';
+        this.dataset.priority = result.priority === undefined ? '' : String(result.priority);
+        this.dataset.revision = result.revision || '';
         const style = document.createElement('style');
         style.textContent = ':host{display:block;font-family:inherit;position:relative;min-width:0}:host([hidden]){display:none}' + result.css;
         const content = document.createElement('div');

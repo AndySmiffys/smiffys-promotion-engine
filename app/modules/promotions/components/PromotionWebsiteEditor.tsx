@@ -1,6 +1,7 @@
 import { PolarisSelect, PolarisCheckbox, PolarisNumberField } from "./PolarisControls";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { useAppBridge } from "@shopify/app-bridge-react";
+import { PromotionHeaderCheck } from "./PromotionHeaderCheck";
 import { PromotionImageField } from "./PromotionImageField";
 import { contrastRatio, copyLimits, placements, presetDesign, promotionBlock, setPromotionBlock, validateWebsite, type BlockVisibility, type Placement, type PromotionBlock, type PromotionStyle, type WebsiteDraft } from "../design/design";
 
@@ -170,6 +171,7 @@ export function PromotionWebsiteEditor({ value, onChange, endsAt, onBusyChange, 
       <PolarisSelect label="Website promotion status" disabled={publicationDisabled} details={publicationDisabled ? "Individual code lists stay in Draft. Distribute their codes using the CSV download." : "Enabled allows eligible offers to appear on the storefront. Draft saves the design while keeping it hidden."} value={value.websiteEnabled ? "enabled" : "draft"} onChange={event => set("websiteEnabled", event.currentTarget.value === "enabled")}><s-option value="enabled">Enabled</s-option><s-option value="draft">Draft</s-option></PolarisSelect>
       <PolarisCheckbox label="Include in promotion sync" details="Required for storefront display, alongside Enabled status." checked={value.included} onChange={event => set("included", event.currentTarget.checked)} />
       <PolarisNumberField label="Promotion priority" details="Higher numbers take precedence when more than one offer qualifies. Use 0 for normal priority." min={0} max={9999} step={1} value={String(value.priority)} onInput={event => set("priority", Math.max(0, Number(event.currentTarget.value) || 0))} onChange={event => set("priority", Math.max(0, Number(event.currentTarget.value) || 0))} />
+      <PromotionHeaderCheck />
     </section>
     <section aria-label="Choose promotion blocks" style={sectionStyle}>
       <h2 style={{ fontSize: 16, margin: 0 }}>Where should this promotion appear?</h2>
