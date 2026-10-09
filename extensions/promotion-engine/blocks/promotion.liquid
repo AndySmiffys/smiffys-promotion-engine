@@ -4,8 +4,9 @@
 {% assign preview_collection = closest.collection | default: collection %}
 <promotion-engine
   hidden
-  style="{% if placement == 'collection' and block.settings.collection_full_width != false %}width:var(--pe-viewport-width,100vw);max-width:none;margin-inline:calc((100% - var(--pe-viewport-width,100vw)) / 2);{% else %}width:100%;max-width:{{ block.settings.max_width | default: 1200 }}px;margin-inline:auto;{% endif %}padding-block:{{ block.settings.spacing | default: 0 }}px"
+  style="{% if placement == 'collection' and block.settings.collection_full_width != false %}width:var(--pe-viewport-width,100%);max-width:none;flex-shrink:0;margin-left:var(--pe-edge-offset,0px);margin-right:0;{% else %}width:100%;max-width:{{ block.settings.max_width | default: 1200 }}px;margin-inline:auto;{% endif %}padding-block:{{ block.settings.spacing | default: 0 }}px"
   data-placement="{{ placement | escape }}"
+  data-full-width="{% if placement == 'collection' and block.settings.collection_full_width != false %}true{% else %}false{% endif %}"
   data-product-id="{{ preview_product.id }}"
   data-collection-id="{{ preview_collection.id }}"
   data-variant-id="{{ preview_product.selected_or_first_available_variant.id }}"

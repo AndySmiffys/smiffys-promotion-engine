@@ -17,12 +17,22 @@
     connectedCallback() {
       if (!this.shadowRoot) this.attachShadow({ mode: 'open' });
       this.hidden = true;
-      // Exclude the scrollbar so full-width banners do not cause horizontal scrolling.
       this.resizeWidth = () => {
-        if (this.dataset.placement === 'collection') this.style.setProperty('--pe-viewport-width', `${document.documentElement.clientWidth}px`);
+        if (this.dataset.placement !== 'collection' || this.dataset.fullWidth !== 'true' || this.hidden) return;
+        // Measure the real theme offset, rather than assuming a centred parent.
+        // Exclude the scrollbar and prevent flex containers shrinking the banner.
+        this.style.setProperty('--pe-viewport-width', `${document.documentElement.clientWidth}px`);
+        this.style.setProperty('--pe-edge-offset', '0px');
+        const left = this.getBoundingClientRect().left + window.scrollX;
+        this.style.setProperty('--pe-edge-offset', `${-left}px`);
       };
       this.resizeWidth();
       window.addEventListener('resize', this.resizeWidth);
+      if (window.ResizeObserver && this.dataset.fullWidth === 'true') {
+        this.widthObserver = new ResizeObserver(this.resizeWidth);
+        if (this.parentElement) this.widthObserver.observe(this.parentElement);
+        this.widthObserver.observe(document.documentElement);
+      }
       this.uiReady = () => { this.cleanupUI?.(); this.cleanupUI = window.SmiffysPromotionUI?.mount(this.shadowRoot); };
       window.addEventListener('promotion-ui:ready', this.uiReady);
       this.media = matchMedia('(max-width:600px)');
@@ -65,6 +75,7 @@
       window.removeEventListener('promotion-ui:ready', this.uiReady);
       window.removeEventListener('focus', this.refresh);
       window.removeEventListener('resize', this.resizeWidth);
+      this.widthObserver?.disconnect();
       document.removeEventListener('visibilitychange', this.visible);
       clearInterval(this.timer);
       clearTimeout(this.formTimer);
@@ -106,6 +117,7 @@
         this.shadowRoot.replaceChildren(style, content);
         this.cleanupUI = window.SmiffysPromotionUI?.mount(content);
         this.hidden = !result.html;
+        this.resizeWidth();
         clearTimeout(this.expiryTimer);
         const delay = result.endsAt ? Date.parse(result.endsAt) - Date.now() : 0;
         if (delay > 0 && delay <= 2147483647) this.expiryTimer = setTimeout(() => { this.hidden = true; this.cleanupUI?.(); this.shadowRoot.replaceChildren(); }, delay);
