@@ -4,9 +4,8 @@
 {% assign preview_collection = closest.collection | default: collection %}
 <promotion-engine
   hidden
-  style="{% if placement == 'collection' and block.settings.collection_full_width != false %}width:var(--pe-viewport-width,100%);max-width:none;flex-shrink:0;margin-left:var(--pe-edge-offset,0px);margin-right:0;{% else %}width:100%;max-width:{{ block.settings.max_width | default: 1200 }}px;margin-inline:auto;{% endif %}padding-block:{{ block.settings.spacing | default: 0 }}px"
+  style="box-sizing:border-box;width:100%;min-width:0;max-width:{% if placement == 'collection' and block.settings.collection_full_width != false %}none{% else %}{{ block.settings.max_width | default: 1200 }}px{% endif %};margin-inline:auto;padding-block:{{ block.settings.spacing | default: 0 }}px"
   data-placement="{{ placement | escape }}"
-  data-full-width="{% if placement == 'collection' and block.settings.collection_full_width != false %}true{% else %}false{% endif %}"
   data-product-id="{{ preview_product.id }}"
   data-collection-id="{{ preview_collection.id }}"
   data-variant-id="{{ preview_product.selected_or_first_available_variant.id }}"
@@ -21,7 +20,7 @@
   "settings": [
     {"type":"select","id":"placement","label":"Placement","default":"product","options":[{"value":"header","label":"Header announcement"},{"value":"collection","label":"Collection banner"},{"value":"product","label":"Product offer"},{"value":"badge","label":"Product badge"}]},
     {"type":"product","id":"product","label":"Product (optional)","info":"Leave blank to use the current product."},
-    {"type":"checkbox","id":"collection_full_width","label":"Full-width collection banner","default":true,"info":"Extend collection banners to the page edges. Turn off to use the maximum width below."},
+    {"type":"checkbox","id":"collection_full_width","label":"Full-width collection banner","default":true,"info":"Fill the theme section’s available width. Turn off to use the maximum width below."},
     {"type":"range","id":"max_width","label":"Maximum width","min":320,"max":1600,"step":40,"unit":"px","default":1200},
     {"type":"range","id":"spacing","label":"Space above and below","min":0,"max":64,"step":4,"unit":"px","default":0}
   ]

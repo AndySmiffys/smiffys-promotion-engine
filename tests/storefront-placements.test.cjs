@@ -138,25 +138,3 @@ test('Returning to the storefront refreshes the selected header and records its 
     assert.notEqual(f.calls[0].searchParams.get('_refresh'), f.calls[1].searchParams.get('_refresh'));
   } finally { f.dom.window.close(); }
 });
-
-test('Full-width collection banners align to the page edge in an asymmetric theme container', async () => {
-  const f = fixture('<div id="container"><promotion-engine data-placement="collection" data-full-width="true" style="margin-left:var(--pe-edge-offset,0px)"></promotion-engine></div>', { headerEnabled: 'false', badgesEnabled: 'false' });
-  const banner = f.window.document.querySelector('promotion-engine');
-  let containerLeft = 233, pageWidth = 1893;
-  Object.defineProperty(f.window.document.documentElement, 'clientWidth', { get: () => pageWidth });
-  banner.getBoundingClientRect = () => ({ left: containerLeft + parseFloat(banner.style.getPropertyValue('--pe-edge-offset') || '0') });
-  try {
-    await wait(30);
-    assert.equal(banner.hidden, false);
-    assert.equal(banner.style.getPropertyValue('--pe-viewport-width'), '1893px');
-    assert.equal(banner.getBoundingClientRect().left, 0);
-    containerLeft = 20; pageWidth = 390;
-    f.window.dispatchEvent(new f.window.Event('resize'));
-    assert.equal(banner.style.getPropertyValue('--pe-viewport-width'), '390px');
-    assert.equal(banner.getBoundingClientRect().left, 0);
-    banner.remove();
-    pageWidth = 800;
-    f.window.dispatchEvent(new f.window.Event('resize'));
-    assert.equal(banner.style.getPropertyValue('--pe-viewport-width'), '390px');
-  } finally { f.dom.window.close(); }
-});

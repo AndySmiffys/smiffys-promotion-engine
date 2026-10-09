@@ -19,7 +19,8 @@ The app proxy path is fixed in the extension and is not a merchant-editable them
    block-compatible product section, choose **Product offer**, and leave Product
    blank to use the current product. Set width and spacing as required.
 4. Open the collection template. Add the same app block, choose **Collection
-   banner**, and save. Collection banners default to full page width. Turn off
+   banner**, and save. Collection banners fill the theme section’s available width, respecting
+   its page gutters on desktop and mobile. Turn off
    **Full-width collection banner** to use the maximum-width setting instead.
    Repeat for any alternate templates in use.
 5. In the app, enable a promotion and its required website blocks. Verify active
