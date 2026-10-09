@@ -8,8 +8,10 @@ Fonts inherit from the theme; promotion CSS is isolated in shadow DOM.
 ## Development setup
 
 1. Pull `feature/free-shipping-support` and run
-   `shopify app dev --use-localhost` as usual. Use the development theme preview
-   associated with the CLI session.
+   `shopify app dev` to start a publicly reachable development tunnel. Do not
+   use `--use-localhost` for storefront testing: Shopify invokes the app proxy
+   server-side and cannot reach your local-only server. Use the development
+   theme preview associated with this CLI session.
 2. Open that theme's editor, select **App embeds**, enable **Promotion Engine
    loader**, then save. Choose announcements, badges, and their positions.
 3. Open the product template. Add the **Promotion Engine** app block to an app
@@ -58,3 +60,30 @@ The automated suite uses representative Dawn and Horizon DOM fixtures, not live
 stores. Before publishing, check desktop/mobile product and collection templates,
 variant changes, sold-out/sale badges, filtering, quick-add, customer targeting,
 expired promotions and theme-editor reloads in each supported live theme.
+
+
+## A saved priority does not change the storefront
+
+First reopen the promotion in the app and check the saved priority. If the number
+is retained, check the connection before changing the ranking code:
+
+1. Stop the current CLI session and start `shopify app dev`, without
+   `--use-localhost`. Open the app using this session's preview link.
+2. Confirm the CLI is using the same app configuration and development store as
+   the theme embed. This repository has two app configuration files associated
+   with different app IDs; do not switch configurations without checking which
+   app is installed and being edited.
+3. Refresh the storefront preview. With browser developer tools open, inspect
+   the `/apps/promotion-engine?placement=header...` request in Network. Check its
+   response and whether it reaches the current app server. Seeing old content
+   does not prove it is coming from the same server/database as the editor.
+4. Confirm the higher-priority promotion is included, website Enabled, has Header
+   selected, is active within its schedule, and is eligible for the current
+   customer. Priority orders eligible promotions; it does not bypass eligibility.
+
+Shopify networking reference:
+https://shopify.dev/docs/apps/build/cli-for-apps/networking-options
+
+The default CLI tunnel is Cloudflare. If it is unavailable on your network,
+use a publicly reachable custom tunnel with `shopify app dev --tunnel-url=...`
+following Shopify's networking guide. Localhost alone cannot test app proxies.
