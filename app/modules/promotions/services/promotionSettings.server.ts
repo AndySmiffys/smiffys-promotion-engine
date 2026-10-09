@@ -217,3 +217,24 @@ export async function updatePromotionWebsiteSettings(
     },
   });
 }
+
+// Resolve historical typed-ID rows before filtering or ranking. An older enabled
+// row must not override the most recently saved priority or Draft status.
+export async function getStorefrontPromotionSettings(
+  shop: string,
+  flag: "showHeaderBanner" | "showCollectionPage" | "showProductPage" | "showProductBadge",
+  database: PrismaClient = db,
+) {
+  const rows = await database.promotionSettings.findMany({
+    where: { shop },
+    orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+  });
+  const seen = new Set<string>();
+  return rows.filter(row => {
+    const id = promotionDiscountId(row.shopifyDiscountId);
+    if (seen.has(id)) return false;
+    seen.add(id);
+    return row.included && row.websiteEnabled && row[flag];
+  }).map(row => ({ ...row, shopifyDiscountId: promotionDiscountId(row.shopifyDiscountId) }))
+    .sort((a, b) => b.priority - a.priority || b.id - a.id);
+}

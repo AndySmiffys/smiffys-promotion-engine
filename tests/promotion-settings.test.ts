@@ -10,7 +10,7 @@ import { createShopifyPromotion, type CreateDiscountDraft } from "../app/modules
 import { getDiscount } from "../app/modules/promotions/services/discount.server";
 import { getDiscounts } from "../app/modules/promotions/services/discounts.server";
 import { buildUpdateDiscountMutation } from "../app/modules/promotions/services/updatePromotion.server";
-import { attachPromotionSettings, updatePromotionWebsiteSettings } from "../app/modules/promotions/services/promotionSettings.server";
+import { attachPromotionSettings, updatePromotionWebsiteSettings, getStorefrontPromotionSettings } from "../app/modules/promotions/services/promotionSettings.server";
 import { mapDiscountToPromotion } from "../app/modules/promotions/mappers/promotionMapper";
 import type { ShopifyDiscountNode } from "../app/modules/promotions/types/discount";
 
@@ -112,4 +112,28 @@ test("independent block controls survive SQLite save, reopen and a second edit",
   const [updated] = await attachPromotionSettings(shop, [mapDiscountToPromotion(node("gid://shopify/DiscountCodeNode/42"))], database);
   assert.deepEqual(websiteFromSettings(updated.settings).design.blocks?.header, value.design.blocks?.header);
   assert.equal(websiteFromSettings(updated.settings).design.blocks?.product?.headline, "Edited product text");
+}));
+
+
+test("storefront uses saved priority ahead of creation order and ignores historical aliases", async () => withDatabase(async database => {
+  const first = "gid://shopify/DiscountCodeNode/201";
+  const latest = "gid://shopify/DiscountNode/202";
+  await updatePromotionWebsiteSettings(shop, first, websiteStorage({ ...website(), priority: 0 }), database);
+  await updatePromotionWebsiteSettings(shop, latest, websiteStorage({ ...website(), priority: 0 }), database);
+  assert.equal((await getStorefrontPromotionSettings(shop, "showHeaderBanner", database))[0].shopifyDiscountId, latest);
+  await updatePromotionWebsiteSettings(shop, first, websiteStorage({ ...website(), priority: 100 }), database);
+  for (const flag of ["showHeaderBanner", "showCollectionPage", "showProductPage", "showProductBadge"] as const) {
+    const ranked = await getStorefrontPromotionSettings(shop, flag, database);
+    assert.equal(ranked[0].shopifyDiscountId, promotionDiscountId(first));
+    assert.equal(ranked[0].priority, 100);
+  }
+  await database.promotionSettings.create({ data: { shop, shopifyDiscountId: first, ...websiteStorage({ ...website(), priority: 9999 }), updatedAt: new Date("2020-01-01") } });
+  const ranked = await getStorefrontPromotionSettings(shop, "showHeaderBanner", database);
+  assert.equal(ranked.length, 2);
+  assert.equal(ranked[0].priority, 100);
+  await updatePromotionWebsiteSettings(shop, first, websiteStorage({ ...website(), priority: 100, websiteEnabled: false }), database);
+  assert.deepEqual((await getStorefrontPromotionSettings(shop, "showHeaderBanner", database)).map(row => row.shopifyDiscountId), [latest]);
+  await updatePromotionWebsiteSettings(shop, latest, websiteStorage({ ...website(), showHeaderBanner: false }), database);
+  assert.equal((await getStorefrontPromotionSettings(shop, "showHeaderBanner", database)).length, 0);
+  assert.equal((await getStorefrontPromotionSettings("another.myshopify.com", "showProductPage", database)).length, 0);
 }));

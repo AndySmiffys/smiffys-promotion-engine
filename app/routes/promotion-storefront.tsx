@@ -1,7 +1,7 @@
 import type { LoaderFunctionArgs } from "react-router";
 import { renderToStaticMarkup } from "react-dom/server";
 import { authenticate } from "../shopify.server";
-import db from "../db.server";
+import { getStorefrontPromotionSettings } from "../modules/promotions/services/promotionSettings.server";
 import { getDiscount, type ShopifyAdminClient } from "../modules/promotions/services/discount.server";
 import { mapDiscountToPromotion } from "../modules/promotions/mappers/promotionMapper";
 import { placements, websiteFromSettings, type Placement } from "../modules/promotions/design/design";
@@ -22,7 +22,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   // This parameter is signed and supplied by Shopify, never taken from a customer-facing form.
   const customerId = gid("logged_in_customer_id", "Customer");
   const flag = placements.find(p => p.id === placement)!.flag;
-  const settings = await db.promotionSettings.findMany({ where: { shop: session.shop, included: true, websiteEnabled: true, [flag]: true }, orderBy: [{ priority: "desc" }, { id: "desc" }] });
+  const settings = await getStorefrontPromotionSettings(session.shop, flag);
   if (!settings.length) return empty();
   try {
     const productCollectionIds: string[] = [];

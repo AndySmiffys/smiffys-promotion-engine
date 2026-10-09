@@ -1,6 +1,6 @@
 import { useEffect, useRef, type ComponentProps, type RefObject } from "react";
 
-// React 18 does not bind change events or boolean properties on custom elements.
+// React 18 does not bind change events or custom-element properties reliably.
 // Keep Polaris markup and styling while wiring the native DOM controls directly.
 function useNativeChange<T extends "s-select" | "s-checkbox">(ref: RefObject<HTMLElementTagNameMap[T]>, handler?: ((event: Event & { currentTarget: HTMLElementTagNameMap[T] }) => void) | null) {
   const latest = useRef(handler); latest.current = handler;
@@ -28,4 +28,24 @@ export function PolarisCheckbox({ onChange, checked, disabled, ...props }: Omit<
   useNativeChange<"s-checkbox">(ref, onChange);
   useEffect(() => afterDefinition("s-checkbox", () => { if (ref.current) { ref.current.disabled = Boolean(disabled); ref.current.checked = Boolean(checked); } }));
   return <s-checkbox {...props} checked={checked || undefined} disabled={disabled || undefined} ref={ref} />;
+}
+
+export function PolarisNumberField({ onInput, onChange, disabled, ...props }: Omit<ComponentProps<"s-number-field">, "ref">) {
+  const ref = useRef<HTMLElementTagNameMap["s-number-field"]>(null);
+  const handlers = useRef({ onInput, onChange }); handlers.current = { onInput, onChange };
+  useEffect(() => {
+    const element = ref.current;
+    const input = (event: Event) => handlers.current.onInput?.(event as Event & { currentTarget: HTMLElementTagNameMap["s-number-field"] });
+    const change = (event: Event) => handlers.current.onChange?.(event as Event & { currentTarget: HTMLElementTagNameMap["s-number-field"] });
+    element?.addEventListener("input", input);
+    element?.addEventListener("change", change);
+    return () => { element?.removeEventListener("input", input); element?.removeEventListener("change", change); };
+  }, []);
+  useEffect(() => afterDefinition("s-number-field", () => {
+    if (ref.current) {
+      ref.current.disabled = Boolean(disabled);
+      if (props.value !== undefined) ref.current.value = props.value;
+    }
+  }));
+  return <s-number-field {...props} disabled={disabled || undefined} ref={ref} />;
 }

@@ -51,7 +51,7 @@ const emptyCopy = (): PlacementCopy => ({ headline: "", body: "", buttonText: ""
 export function defaultDesign(): PromotionDesign {
   return { version: 1, productOfferStyle: "solid", productBorderColour: "#202223", productBorderWidth: 1, copyCodeBackground: "#202223", copyCodeColour: "#ffffff", copyCodeEnabled: false, preset: "simple", desktopImage: "", desktopImageId: "", mobileImage: "", mobileImageId: "", imageAlt: "", imageLayout: "half-right", focalX: 50, focalY: 50, overlay: 45, alignment: "left", bannerHeight: 280, spacing: 24, radius: 8, headingSize: 28, bodySize: 16, buttonBackground: "#202223", buttonColour: "#ffffff", badgeTextColour: "#ffffff", overrides: { header: emptyCopy(), collection: emptyCopy(), product: emptyCopy(), badge: emptyCopy() } };
 }
-export const placements: Array<{ id: Placement; title: string; flag: keyof WebsiteDraft; description: string }> = [
+export const placements: Array<{ id: Placement; title: string; flag: "showHeaderBanner" | "showCollectionPage" | "showProductPage" | "showProductBadge"; description: string }> = [
   { id: "header", title: "Header", flag: "showHeaderBanner", description: "A short announcement above the site content." },
   { id: "collection", title: "Collection", flag: "showCollectionPage", description: "A campaign banner on qualifying collection pages." },
   { id: "product", title: "Product", flag: "showProductPage", description: "An offer panel beside the details of an eligible product." },
