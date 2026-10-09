@@ -1,6 +1,6 @@
 export type Placement = "header" | "collection" | "product" | "badge";
 export type PlacementCopy = { headline: string; body: string; buttonText: string };
-export type PromotionDesign = {
+export type PromotionStyle = {
   version: 1;
   productOfferStyle: "solid" | "single" | "double";
   productBorderColour: string;
@@ -27,7 +27,16 @@ export type PromotionDesign = {
   buttonBackground: string;
   buttonColour: string;
   badgeTextColour: string;
+};
+export type BlockVisibility = Record<"headline" | "body" | "image" | "offerNote" | "discountCode" | "countdown" | "button", boolean>;
+export type PromotionBlock = {
+  headline: string; body: string; buttonText: string; buttonUrl: string; countdownText: string;
+  backgroundColour: string; textColour: string; badgeColour: string;
+  visibility: BlockVisibility; style: PromotionStyle;
+};
+export type PromotionDesign = PromotionStyle & {
   overrides: Record<Placement, PlacementCopy>;
+  blocks?: Partial<Record<Placement, PromotionBlock>>;
 };
 export type WebsiteDraft = {
   included: boolean; websiteEnabled: boolean;
@@ -68,7 +77,7 @@ export function readDesign(value: unknown): PromotionDesign {
   if (design.imageAlt.length > 250) throw new Error("Image description must be 250 characters or fewer.");
   for (const name of ["desktopImage", "mobileImage"] as const) if (!safeImage(design[name])) throw new Error("Images must use secure Shopify file URLs.");
   for (const name of ["buttonBackground", "buttonColour", "badgeTextColour", "productBorderColour", "copyCodeBackground", "copyCodeColour"] as const) if (!/^#[\da-f]{6}$/i.test(design[name])) throw new Error("Use six-digit hex colours.");
-  const ranges = { productBorderWidth: [1, 12], focalX: [0, 100], focalY: [0, 100], overlay: [0, 90], bannerHeight: [160, 600], spacing: [12, 60], radius: [0, 32], headingSize: [18, 48], bodySize: [12, 24] } as const;
+  const ranges = { productBorderWidth: [1, 12], focalX: [0, 100], focalY: [0, 100], overlay: [0, 90], bannerHeight: [160, 600], spacing: [12, 60], radius: [0, 32], headingSize: [10, 48], bodySize: [10, 24] } as const;
   for (const name of Object.keys(ranges) as Array<keyof typeof ranges>) {
     if (source[name] !== undefined) {
       const number = Number(source[name]);
@@ -104,7 +113,62 @@ export function readDesign(value: unknown): PromotionDesign {
     }
     design.overrides[placement.id] = copy;
   }
+  if (source.blocks !== undefined) {
+    if (!source.blocks || typeof source.blocks !== "object" || Array.isArray(source.blocks)) throw new Error("Invalid block settings.");
+    design.blocks = {};
+    for (const placement of placements) {
+      const block = (source.blocks as Record<string, unknown>)[placement.id];
+      if (block !== undefined) design.blocks[placement.id] = readBlock(block, placement.id);
+    }
+  }
   return design;
+}
+
+function readBlock(value: unknown, placement: Placement): PromotionBlock {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Invalid block settings.");
+  const source = value as Record<string, unknown>;
+  const block = {} as PromotionBlock;
+  const limits = { headline: placement === "badge" ? 40 : 120, body: 500, buttonText: 60, buttonUrl: 2048, countdownText: 80, backgroundColour: 7, textColour: 7, badgeColour: 7 };
+  for (const name of Object.keys(limits) as Array<keyof typeof limits>) {
+    if (typeof source[name] !== "string" || (source[name] as string).length > limits[name]) throw new Error(`Invalid ${placement} block field: ${name}`);
+    block[name] = (source[name] as string).trim();
+  }
+  if (!safeLink(block.buttonUrl)) throw new Error("Use a relative shop link or an http/https button link.");
+  for (const name of ["backgroundColour", "textColour", "badgeColour"] as const) if (!/^#[\da-f]{6}$/i.test(block[name])) throw new Error("Use six-digit hex colours.");
+  if (!source.visibility || typeof source.visibility !== "object" || Array.isArray(source.visibility)) throw new Error("Invalid block visibility.");
+  block.visibility = {} as BlockVisibility;
+  for (const name of ["headline", "body", "image", "offerNote", "discountCode", "countdown", "button"] as const) {
+    const next = (source.visibility as Record<string, unknown>)[name];
+    if (typeof next !== "boolean") throw new Error(`Invalid ${placement} visibility: ${name}`);
+    block.visibility[name] = next;
+  }
+  if (!source.style || typeof source.style !== "object" || Array.isArray(source.style)) throw new Error("Invalid block styling.");
+  const { overrides: ignoredOverrides, blocks: ignoredBlocks, ...style } = readDesign({ ...source.style, overrides: {}, blocks: undefined });
+  void ignoredOverrides; void ignoredBlocks;
+  block.style = style;
+  return block;
+}
+
+// Old campaigns retain their shared design and text overrides until a block is
+// edited. A block snapshot then becomes independent of every other placement.
+export function promotionBlock(value: WebsiteDraft, placement: Placement): PromotionBlock {
+  const saved = value.design.blocks?.[placement];
+  if (saved) return saved;
+  const { overrides, blocks: ignoredBlocks, ...style } = value.design;
+  void ignoredBlocks;
+  if (placement === "header") { style.headingSize = 16; style.bodySize = 13; style.spacing = 12; style.alignment = "center"; }
+  if (placement === "product") style.headingSize = Math.min(style.headingSize, 26);
+  if (placement === "badge") style.headingSize = 12;
+  return {
+    headline: overrides[placement].headline || (placement === "badge" ? value.badgeText : value.headline), body: overrides[placement].body || value.body,
+    buttonText: overrides[placement].buttonText || value.buttonText, buttonUrl: value.buttonUrl, countdownText: value.countdownText,
+    backgroundColour: value.backgroundColour, textColour: value.textColour, badgeColour: value.badgeColour,
+    visibility: { headline: true, body: true, image: placement === "collection", offerNote: true, discountCode: true, countdown: value.showCountdown, button: true }, style,
+  };
+}
+
+export function setPromotionBlock(value: WebsiteDraft, placement: Placement, block: PromotionBlock): WebsiteDraft {
+  return { ...value, design: { ...value.design, blocks: { ...value.design.blocks, [placement]: block } } };
 }
 export function presetDesign(preset: PromotionDesign["preset"], current: PromotionDesign): PromotionDesign {
   const styles = preset === "campaign" ? { imageLayout: "full" as const, bannerHeight: 360, headingSize: 36, spacing: 32, radius: 12, overlay: 55 } : preset === "compact" ? { imageLayout: "half-right" as const, bannerHeight: 180, headingSize: 22, spacing: 16, radius: 6, overlay: 45 } : { imageLayout: "half-right" as const, bannerHeight: 280, headingSize: 28, spacing: 24, radius: 8, overlay: 45 };
@@ -139,9 +203,12 @@ export function validateWebsite(value: WebsiteDraft, endsAt?: string | null): st
   if (value.buttonUrl.length > 2048) errors.push("The button link is too long.");
   if (!safeLink(value.buttonUrl)) errors.push("Use a relative shop link or an http/https button link.");
   if (value.websiteEnabled && !placements.some(p => value[p.flag])) errors.push("Choose at least one website placement.");
-  if (value.websiteEnabled && !value.headline.trim() && !placements.filter(p => value[p.flag]).every(p => p.id === "badge" ? value.badgeText.trim() : value.design.overrides[p.id].headline.trim())) errors.push("Add a headline for the selected placements.");
-  if (value.showCountdown && !endsAt) errors.push("Set an end date to show a countdown.");
-  if ((value.buttonText.trim() || placements.some(p => value.design.overrides[p.id].buttonText.trim())) && !value.buttonUrl.trim()) errors.push("Select a link for the promotion button.");
+  for (const placement of placements.filter(p => value[p.flag])) {
+    const block = promotionBlock(value, placement.id);
+    if (value.websiteEnabled && block.visibility.headline && !block.headline) errors.push(`Add a headline for the ${placement.title} block, or hide its headline.`);
+    if (placement.id !== "badge" && block.visibility.countdown && !endsAt) errors.push(`${placement.title}: set an end date to show a countdown.`);
+    if (placement.id !== "badge" && block.visibility.button && block.buttonText && !block.buttonUrl) errors.push(`${placement.title}: select a link for the promotion button.`);
+  }
   return errors;
 }
 

@@ -1,6 +1,6 @@
 # Promotion designs
 
-Create and edit screens share the Website promotion and Messages and styling editor. The three presets change layout, spacing and typography without replacing your copy. Use the placement text overrides to shorten a header or badge while retaining a longer collection message.
+Create and edit screens share the same block editor. Select Header, Collection, Product or Product badge under Website promotion. Only selected blocks get a collapsible settings section. Each section groups Content & visibility above Styling, with one control per line. Text, links, images and styling belong to that block; changing one block does not change another. Design presets adjust only the block being edited and keep its wording and images.
 
 Images upload to Shopify Files when selected. Uploads accept JPG, PNG and WebP up to 20 MB. Mobile images fall back to the desktop image. The preview offers fixed desktop (1024 px), tablet (768 px) and mobile (390 px) viewports, independent of the admin window size. Its product list defaults to selected products or sample products from selected collections. A product override is for testing the design and does not alter eligibility.
 
@@ -42,7 +42,7 @@ The design is stored alongside the discount in the `PromotionSettings.designJson
 
 ### Product offer appearance
 
-In Messages and styling → Product offer, choose Solid background, Single line border or Double line border. Border styles have a transparent background and their own border colour. Text colour, padding and corner radius remain shared design settings. These settings are stored in design JSON; existing promotions keep their solid background and need no database migration.
+In Product → Styling, choose Solid background, Single line border or Double line border. Border styles have a transparent background and their own border colour. Text colour, padding and corner radius are now local to that block. These settings are stored in design JSON; existing promotions keep their solid background and need no database migration.
 
 Enable Show copy code button to place a copy action beside the product offer's actual discount code. Automatic discounts never display this button. Successful copying is announced, and browsers that block clipboard access show a manual-copy message instead of claiming success.
 
@@ -89,6 +89,7 @@ The app persists the planned codes and original request before creating the pare
 CSV download is available only when the complete list has been confirmed. The authenticated endpoint checks shop ownership and returns a private, uncached response. Bulk code lists stay in website Draft status; their individual codes are never displayed as a public shared code. Existing Shopify discounts with multiple codes are also excluded from public website offers.
 
 The new PromotionCodeBatch migration is applied by Shopify web dev's existing prisma migrate deploy command. Production startup must run npm run setup before serving the new release. React 18 adapters preserve Polaris select/checkbox markup and styling, bind native change events, and synchronise controlled boolean/value properties after the custom elements are defined. The shared preview product picker uses the same adapter.
+
 ## Discount identity and design persistence
 
 Shopify's discount queries can return `DiscountCodeNode` or `DiscountAutomaticNode` IDs even though the queried object is a `DiscountNode`. Creation, detail loading, listing and website settings now use the same internal `DiscountNode` key. This prevents a saved design being missed when the promotion is reopened.
@@ -96,3 +97,14 @@ Shopify's discount queries can return `DiscountCodeNode` or `DiscountAutomaticNo
 Website settings reads also recognise older typed-ID keys within the same shop and discount method. If both forms were previously saved, the most recently updated settings are used. New edits write the canonical key. No database migration is required for this compatibility lookup; designs already stored under either format can be recovered without re-entering them.
 
 Persistence tests create each of the eight supported code/automatic discount types, save every website and design attribute to SQLite, then reload through the detail and listing services using realistic Shopify IDs. They cover images and file IDs, shared and placement text, colours, borders, copy-code controls, layout, countdown, publication flags and priority, as well as legacy records and shop isolation.
+
+
+## Independent block settings and element visibility
+
+Each selected block has its own content and styling. Header and collection/product blocks offer headline, body, discount-message, button and countdown visibility controls. Collection and product offers can also show independent desktop/mobile promotion images. Product offers separately control the discount-code row and optional copy button. Product badges have their own text visibility, text/background colours, size and corner radius. Countdown labels and button destinations are also independent between blocks.
+
+Hidden elements retain their values and styles so they can be restored. Deselecting a whole block hides its settings section and storefront placement without deleting its configuration. Saving is disabled while a selected block is resolving an image or choosing a link. Blocks stay collapsible while editing; all content and styling controls are stacked in a single column. Status, sync inclusion and promotion priority remain global.
+
+The optional `design.blocks` object stores block snapshots inside the existing design JSON column, so no database migration is required. Older campaigns resolve from their previous shared text, styling and placement overrides until each block is edited. Editing then creates an independent snapshot without altering other blocks. Hidden empty headlines, buttons and countdowns do not require values or an end date; visible selected elements are validated. Secure URLs, colour values, text limits and numeric bounds remain checked for all saved block data.
+
+The same `PromotionOffer` renderer powers the responsive preview and storefront, including removal of hidden elements and block-specific CSS variables. Server tests cover every visibility control, escaping, legacy compatibility and database round-trips. A React 18 interaction check covers selection retention, native events, image selection, batched changes, save/reload and collapse state. Live Shopify/theme verification remains necessary after pulling and restarting the dev app.

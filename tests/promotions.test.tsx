@@ -7,7 +7,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
-import { defaultDesign, readDesign, readWebsite, websiteStorage, websiteFromSettings, validateWebsite, countdownParts, countdown, contrastRatio, presetDesign, type WebsiteDraft } from "../app/modules/promotions/design/design";
+import { defaultDesign, readDesign, readWebsite, websiteStorage, websiteFromSettings, validateWebsite, countdownParts, countdown, contrastRatio, presetDesign, promotionBlock, setPromotionBlock, type WebsiteDraft } from "../app/modules/promotions/design/design";
 import { buildDiscountMutation, createShopifyPromotion, type CreateDiscountDraft } from "../app/modules/promotions/services/createPromotion.server";
 import { resolvePromotionImage, uploadPromotionImage } from "../app/modules/promotions/services/promotionAssets.server";
 import { PromotionOffer, promotionCss } from "../app/modules/promotions/components/PromotionPreview";
@@ -276,4 +276,72 @@ test("React 18 Polaris controls retain their markup without false boolean attrib
   assert.match(checkbox, /<s-checkbox/); assert.doesNotMatch(checkbox, /checked=|disabled=/);
   const select = renderToStaticMarkup(<PolarisSelect label="Code format" value="single" disabled={false}><s-option value="single">Shared</s-option></PolarisSelect>);
   assert.match(select, /value="single"/); assert.doesNotMatch(select, /disabled=/);
+});
+
+
+test("legacy placement wording and styles become independent when a block is edited", () => {
+  const original = website();
+  original.design.overrides.header.headline = "Header-only copy";
+  original.design.desktopImage = "https://cdn.shopify.com/campaign.jpg";
+  original.showCountdown = true;
+  const header = promotionBlock(original, "header");
+  assert.equal(header.headline, "Header-only copy");
+  assert.equal(header.style.headingSize, 16);
+  assert.equal(header.visibility.countdown, true);
+  assert.equal(promotionBlock(original, "collection").visibility.image, true);
+  assert.equal(promotionBlock(original, "product").visibility.image, false);
+  const changed = setPromotionBlock(original, "header", { ...header, headline: "Custom header", backgroundColour: "#123456", buttonUrl: "/collections/header", style: { ...header.style, headingSize: 24 }, visibility: { ...header.visibility, body: false, countdown: false } });
+  assert.equal(promotionBlock(original, "header").headline, "Header-only copy");
+  assert.equal(promotionBlock(changed, "collection").headline, "Save today");
+  assert.equal(promotionBlock(changed, "collection").backgroundColour, "#ffffff");
+  assert.equal(promotionBlock(changed, "product").buttonUrl, "/collections/sale");
+  assert.deepEqual(websiteFromSettings(websiteStorage(readWebsite(changed))), changed);
+  const reselected = { ...changed, showHeaderBanner: false };
+  assert.deepEqual(promotionBlock({ ...reselected, showHeaderBanner: true }, "header"), promotionBlock(changed, "header"));
+});
+
+test("element visibility removes headline, body, image, link, code and timer from rendered markup", () => {
+  const value = website();
+  const base = promotionBlock(value, "product");
+  const all = { ...base, visibility: { ...base.visibility, image: true, countdown: true }, style: { ...base.style, desktopImage: "https://cdn.shopify.com/promo.jpg", mobileImage: "https://cdn.shopify.com/promo-mobile.jpg", copyCodeEnabled: true } };
+  const render = (block: typeof all, placement: "product" | "collection" = "product", mobile = false) => renderToStaticMarkup(<PromotionOffer value={setPromotionBlock(value, placement, block)} placement={placement} discountCode="SAVE20" offerNote="Use code: SAVE20" now={0} endsAt="2026-10-31T23:59:00Z" mobile={mobile} />);
+  const shown = render(all);
+  assert.match(shown, /pe-heading/); assert.match(shown, /Selected costumes/); assert.match(shown, /promo.jpg/); assert.match(shown, /href="\/collections\/sale"/); assert.match(shown, /data-pe-copy-code/); assert.match(shown, /data-pe-countdown/);
+  assert.match(render(all, "product", true), /promo-mobile.jpg/);
+  assert.doesNotMatch(render({ ...all, visibility: { ...all.visibility, headline: false } }), /<h2/);
+  assert.doesNotMatch(render({ ...all, visibility: { ...all.visibility, body: false } }), /Selected costumes/);
+  assert.doesNotMatch(render({ ...all, visibility: { ...all.visibility, image: false } }), /<img/);
+  assert.doesNotMatch(render({ ...all, visibility: { ...all.visibility, button: false } }), /<a /);
+  assert.doesNotMatch(render({ ...all, visibility: { ...all.visibility, discountCode: false } }), /SAVE20|data-pe-copy-code/);
+  assert.doesNotMatch(render({ ...all, visibility: { ...all.visibility, countdown: false } }), /data-pe-countdown/);
+  assert.doesNotMatch(render({ ...all, visibility: { ...all.visibility, offerNote: false } }, "collection"), /Use code/);
+  const badge = promotionBlock(value, "badge");
+  assert.equal(renderToStaticMarkup(<PromotionOffer value={setPromotionBlock(value, "badge", { ...badge, visibility: { ...badge.visibility, headline: false } })} placement="badge" now={0} />), "");
+});
+
+test("per-block validation considers visible elements only and validates stored styles safely", () => {
+  const value = { ...website(), showHeaderBanner: false, showCollectionPage: false, showProductBadge: false };
+  const block = { ...promotionBlock(value, "product"), headline: "", buttonUrl: "", visibility: { ...promotionBlock(value, "product").visibility, countdown: true } };
+  const invalid = setPromotionBlock(value, "product", block);
+  assert.ok(validateWebsite(invalid).some(error => error.includes("headline")));
+  assert.ok(validateWebsite(invalid).some(error => error.includes("end date")));
+  assert.ok(validateWebsite(invalid).some(error => error.includes("link")));
+  const hidden = setPromotionBlock(value, "product", { ...block, visibility: { ...block.visibility, headline: false, button: false, countdown: false } });
+  assert.deepEqual(validateWebsite(hidden), []);
+  assert.deepEqual(validateWebsite({ ...invalid, showProductPage: false, websiteEnabled: false }), []);
+  for (const change of [{ buttonUrl: "javascript:alert(1)" }, { backgroundColour: "red" }, { visibility: { ...block.visibility, button: "false" } }, { style: { ...block.style, productOfferStyle: "double", productBorderWidth: 1 } }]) {
+    assert.throws(() => readWebsite(setPromotionBlock(value, "product", { ...block, ...change } as typeof block)));
+  }
+});
+
+test("per-block colours, copy and links are independent and safely escaped in the storefront", () => {
+  const value = website();
+  const header = promotionBlock(value, "header");
+  const changed = setPromotionBlock(value, "header", { ...header, headline: '<script>alert("x")</script>', backgroundColour: "#123456", buttonUrl: "/collections/header", buttonText: "Header button", style: { ...header.style, buttonBackground: "#abcdef" } });
+  const html = renderToStaticMarkup(<PromotionOffer value={changed} placement="header" now={0} />);
+  assert.match(html, /&lt;script&gt;/); assert.doesNotMatch(html, /<script>/);
+  assert.match(html, /--pe-bg:#123456/); assert.match(html, /--pe-button-bg:#abcdef/); assert.match(html, /href="\/collections\/header"/);
+  const other = renderToStaticMarkup(<PromotionOffer value={changed} placement="collection" now={0} />);
+  assert.doesNotMatch(other, /#123456|Header button|alert/);
+  assert.match(other, /href="\/collections\/sale"/);
 });

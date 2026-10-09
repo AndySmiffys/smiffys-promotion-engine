@@ -4,7 +4,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { PrismaClient } from "@prisma/client";
-import { defaultDesign, readWebsite, websiteStorage, websiteFromSettings, type WebsiteDraft } from "../app/modules/promotions/design/design";
+import { defaultDesign, readWebsite, websiteStorage, websiteFromSettings, promotionBlock, setPromotionBlock, type WebsiteDraft } from "../app/modules/promotions/design/design";
 import { promotionDiscountId } from "../app/modules/promotions/design/discountIdentity";
 import { createShopifyPromotion, type CreateDiscountDraft } from "../app/modules/promotions/services/createPromotion.server";
 import { getDiscount } from "../app/modules/promotions/services/discount.server";
@@ -95,3 +95,21 @@ test("reopened code and automatic discounts still build valid native updates", a
   }
   assert.throws(() => promotionDiscountId("gid://shopify/Product/42"), /Invalid discount ID/);
 });
+
+
+test("independent block controls survive SQLite save, reopen and a second edit", async () => withDatabase(async database => {
+  let value = website();
+  for (const placement of ["header", "collection", "product", "badge"] as const) {
+    const block = promotionBlock(value, placement);
+    value = setPromotionBlock(value, placement, { ...block, headline: placement + " text", buttonUrl: "/collections/" + placement, backgroundColour: placement === "header" ? "#abcdef" : "#123456", style: { ...block.style, radius: placement === "product" ? 0 : 12, desktopImage: "https://cdn.shopify.com/" + placement + ".jpg" }, visibility: { ...block.visibility, countdown: placement === "product", body: placement !== "header", button: placement !== "header" } });
+  }
+  await updatePromotionWebsiteSettings(shop, "gid://shopify/DiscountNode/42", websiteStorage(readWebsite(value)), database);
+  const [saved] = await attachPromotionSettings(shop, [mapDiscountToPromotion(node("gid://shopify/DiscountCodeNode/42"))], database);
+  const reopened = websiteFromSettings(saved.settings);
+  assert.deepEqual(reopened, value);
+  const edited = setPromotionBlock(reopened, "product", { ...promotionBlock(reopened, "product"), headline: "Edited product text" });
+  await updatePromotionWebsiteSettings(shop, "gid://shopify/DiscountNode/42", websiteStorage(edited), database);
+  const [updated] = await attachPromotionSettings(shop, [mapDiscountToPromotion(node("gid://shopify/DiscountCodeNode/42"))], database);
+  assert.deepEqual(websiteFromSettings(updated.settings).design.blocks?.header, value.design.blocks?.header);
+  assert.equal(websiteFromSettings(updated.settings).design.blocks?.product?.headline, "Edited product text");
+}));
