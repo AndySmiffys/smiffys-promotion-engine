@@ -62,6 +62,18 @@ variant changes, sold-out/sale badges, filtering, quick-add, customer targeting,
 expired promotions and theme-editor reloads in each supported live theme.
 
 
+## Visibility guidance in the editor
+
+The Eligibility selector warns when selected customers or segments restrict
+website display to eligible logged-in customers. Website promotion and the design
+preview also show live visibility guidance for Draft status, disabled sync, empty
+placement/audience selections, code lists, future or expired schedules and product
+versus collection targeting. These messages describe the current form choices;
+save to apply changes. They do not block saving a restricted promotion.
+
+The preview shows the design even when the promotion is hidden. Priority only
+chooses between promotions eligible for the current visitor and placement.
+
 ## A saved priority does not change the storefront
 
 Open a promotion in the app and use **Website promotion → Check header selection**.

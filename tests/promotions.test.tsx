@@ -1,3 +1,5 @@
+import { storefrontVisibilityNotices, type StorefrontVisibilityContext } from "../app/modules/promotions/design/storefrontVisibility";
+import { PromotionVisibilityNotice } from "../app/modules/promotions/components/PromotionVisibilityNotice";
 import { ShippingCountryPicker } from "../app/modules/promotions/components/ShippingCountryPicker";
 import { getShippingCountries, validateShippingCountries } from "../app/modules/promotions/services/shippingCountries.server";
 import { PolarisSelect, PolarisCheckbox } from "../app/modules/promotions/components/PolarisControls";
@@ -420,4 +422,39 @@ test("shipping permission errors do not crash the editor or invent country optio
   const html = renderToStaticMarkup(<ShippingCountryPicker shipping={result} value="GB" onChange={() => {}} />);
   assert.match(html, /United Kingdom \(GB\)/);
   assert.match(html, /existing selection/);
+});
+
+
+test("segment and customer restrictions warn about logged-out visibility and clear for all customers", () => {
+  const context: StorefrontVisibilityContext = { eligibility: "segments", eligibilityCount: 1, startsAt: null, endsAt: null, codeList: false, productTarget: null };
+  const notices = storefrontVisibilityNotices(website(), context, Date.now());
+  const rendered = renderToStaticMarkup(<PromotionVisibilityNotice notices={notices} />);
+  assert.match(rendered, /tone="warning"/);
+  assert.match(rendered, /Only logged-in customers who belong to a selected segment/);
+  assert.match(rendered, /hidden from visitors who are not logged in/);
+  const customers = storefrontVisibilityNotices(website(), { ...context, eligibility: "customers" }, Date.now());
+  assert.match(customers[0].message, /Only the selected customers/);
+  assert.equal(storefrontVisibilityNotices(website(), { ...context, eligibility: "all" }, Date.now()).length, 0);
+});
+
+test("visibility guidance follows draft changes, schedule boundaries and placement targeting", () => {
+  const now = Date.parse("2026-10-09T12:00:00Z");
+  const context: StorefrontVisibilityContext = { eligibility: "all", eligibilityCount: 0, startsAt: "2026-10-10T00:00:00Z", endsAt: null, codeList: false, productTarget: "products" };
+  const value = { ...website(), websiteEnabled: false, included: false };
+  const notices = storefrontVisibilityNotices(value, context, now);
+  assert.deepEqual(notices.map(notice => notice.id), ["draft", "sync", "scheduled", "collection", "products"]);
+  assert.match(notices.find(notice => notice.id === "collection")!.message, /will not appear/);
+  const changed = storefrontVisibilityNotices(website(), { ...context, startsAt: null, productTarget: "collections" }, now);
+  assert.deepEqual(changed.map(notice => notice.id), ["products"]);
+  assert.match(changed[0].message, /qualifying collections/);
+  const ended = storefrontVisibilityNotices(website(), { ...context, startsAt: null, endsAt: "2026-10-09T12:00:00Z", productTarget: null }, now);
+  assert.equal(ended[0].id, "ended");
+  assert.equal(storefrontVisibilityNotices(website(), { ...context, startsAt: null, endsAt: null, productTarget: null }, now).length, 0);
+});
+
+test("code lists, missing blocks and empty restricted audiences explain why nothing can appear", () => {
+  const context: StorefrontVisibilityContext = { eligibility: "segments", eligibilityCount: 0, startsAt: null, endsAt: null, codeList: true, productTarget: null };
+  const notices = storefrontVisibilityNotices({ ...website(), websiteEnabled: false, showHeaderBanner: false, showCollectionPage: false, showProductPage: false, showProductBadge: false }, context, Date.now());
+  assert.deepEqual(notices.map(notice => notice.id), ["codes", "blocks", "audience", "audience-empty"]);
+  assert.equal(renderToStaticMarkup(<PromotionVisibilityNotice notices={[]} />), "");
 });

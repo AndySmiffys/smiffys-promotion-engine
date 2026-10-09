@@ -14,6 +14,7 @@ import type { EditorDiscountDraft } from "../design/editorDraft";
 import { toLocalDateTime } from "../design/editorDraft";
 import type { LinkResource, ResourceSearchItem, EligibilityResource, PromotionActionData } from "../design/editorTypes";
 import { defaultDesign, validateWebsite, type WebsiteDraft } from "../design/design";
+import { customerVisibilityMessage, storefrontVisibilityNotices } from "../design/storefrontVisibility";
 import { PromotionWebsiteEditor } from "./PromotionWebsiteEditor";
 import { PromotionPreview, type PreviewProduct } from "./PromotionPreview";
 import type { action as previewAction } from "../../../routes/app.promotion-preview";
@@ -588,7 +589,15 @@ const combinations = [combineProductDiscounts && "product", combineOrderDiscount
 return [eligibility === "all" ? "All customers" : `${selectedEligibility.length} selected ${eligibility === "segments" ? "customer segments" : "customers"}`, discountType === "product" ? `${(appliesTo === "products" ? selectedProducts : selectedCollections).length} selected ${appliesTo}` : config.typeLabel, discountType === "bxgy" ? `Buy ${buyRequirement === "amount" ? "£" + buyAmount : buyQuantity}, get ${getQuantity}` : minimumRequirement === "none" ? "No minimum purchase" : minimumRequirement === "amount" ? `Minimum spend £${minimumPurchaseAmount}` : `Minimum ${minimumQuantity} items`, method === "code" && limitTotalUses ? `${totalUsageLimit || "Not set"} ${isCodeList ? "uses per code" : "total uses"}` : "No total usage limit", combinations.length ? `Combines with ${combinations.join(", ")} discounts` : "Cannot combine with other discounts", startDateTime ? `Starts ${new Date(startDateTime).toLocaleString("en-GB")}` : "Starts when saved", hasEndDate && endDateTime ? `Ends ${new Date(endDateTime).toLocaleString("en-GB")}` : "No end date"];
 }, [eligibility, selectedEligibility.length, discountType, appliesTo, selectedProducts, selectedCollections, config.typeLabel, buyRequirement, buyAmount, buyQuantity, getQuantity, minimumRequirement, minimumPurchaseAmount, minimumQuantity, method, limitTotalUses, totalUsageLimit, combineProductDiscounts, combineOrderDiscounts, combineShippingDiscounts, startDateTime, hasEndDate, endDateTime, isCodeList]);
 
+const [visibilityNow, setVisibilityNow] = useState(() => Date.now());
+useEffect(() => { const timer = setInterval(() => setVisibilityNow(Date.now()), 60000); return () => clearInterval(timer); }, []);
 const websiteDraft: WebsiteDraft = { included, websiteEnabled, showProductPage, showCollectionPage, showProductBadge, showCountdown, showHeaderBanner, headline, body, badgeText, countdownText, buttonText, buttonUrl, backgroundColour, textColour, badgeColour, priority, design };
+const visibilityNotices = storefrontVisibilityNotices(websiteDraft, {
+  eligibility, eligibilityCount: selectedEligibility.length,
+  startsAt: startDateTime || null, endsAt: hasEndDate ? endDateTime || null : null,
+  codeList: isCodeList,
+  productTarget: discountType === "product" ? appliesTo : discountType === "bxgy" ? getAppliesTo : null,
+}, visibilityNow);
 function updateWebsite(value: WebsiteDraft) {
 setIncluded(value.included); setWebsiteEnabled(value.websiteEnabled); setShowProductPage(value.showProductPage); setShowCollectionPage(value.showCollectionPage); setShowProductBadge(value.showProductBadge); setShowCountdown(value.showCountdown); setShowHeaderBanner(value.showHeaderBanner);
 setHeadline(value.headline); setBody(value.body); setBadgeText(value.badgeText); setCountdownText(value.countdownText); setButtonText(value.buttonText); setButtonUrl(value.buttonUrl); setBackgroundColour(value.backgroundColour); setTextColour(value.textColour); setBadgeColour(value.badgeColour); setPriority(value.priority); setDesign(value.design);
@@ -599,7 +608,7 @@ useEffect(() => { previewSubmitRef.current({ selection: eligibleSelection }, { m
 const productOptions: PreviewProduct[] = products.map(p=>({ id:p.id, title:p.title, image:p.featuredImage?.url, price:formatPreviewPrice(p) }));
 const eligibleProducts = previewFetcher.data?.key === eligibleSelection ? previewFetcher.data.products : [];
 const previewProducts = previewProductId ? productOptions.filter(p=>p.id===previewProductId) : eligibleProducts;
-const websitePreview = <PromotionPreview discountCode={method === "code" && !isCodeList ? discountCode : null} offerNote={isCodeList ? "Use your individual code at checkout." : method === "code" ? discountCode ? `Use code: ${discountCode}` : "Add a discount code" : "Applied automatically at checkout."} value={websiteDraft} products={previewProducts} endsAt={hasEndDate ? endDateTime : null} productOptions={productOptions} onProductChange={setPreviewProductId} selectedProductId={previewProductId} loading={previewFetcher.state !== "idle"} sample={eligibleSelection === '{"productIds":[],"collectionIds":[]}' && discountType !== "order" && discountType !== "shipping"} />;
+const websitePreview = <PromotionPreview visibilityNotices={visibilityNotices} discountCode={method === "code" && !isCodeList ? discountCode : null} offerNote={isCodeList ? "Use your individual code at checkout." : method === "code" ? discountCode ? `Use code: ${discountCode}` : "Add a discount code" : "Applied automatically at checkout."} value={websiteDraft} products={previewProducts} endsAt={hasEndDate ? endDateTime : null} productOptions={productOptions} onProductChange={setPreviewProductId} selectedProductId={previewProductId} loading={previewFetcher.state !== "idle"} sample={eligibleSelection === '{"productIds":[],"collectionIds":[]}' && discountType !== "order" && discountType !== "shipping"} />;
 async function browseBxgy(scope: "buy" | "get") {
 const type = (scope === "buy" ? buyAppliesTo : getAppliesTo) === "products" ? "product" : "collection";
 const selected = await shopify.resourcePicker({ type, action: "select", multiple: true });
@@ -1488,6 +1497,8 @@ Specific customers
 </s-option>
 </PolarisSelect>
 
+{eligibility !== "all" && <s-banner tone="warning">{customerVisibilityMessage(eligibility)}</s-banner>}
+
 {eligibility !== "all" && (
 <div>
 <div
@@ -1943,7 +1954,7 @@ setEndDateTime("");
 </div>
 </FormSection>
 
-<PromotionWebsiteEditor publicationDisabled={isCodeList} value={websiteDraft} onChange={value => updateWebsite(isCodeList ? { ...value, websiteEnabled: false } : value)} endsAt={hasEndDate ? endDateTime : null} onBusyChange={setAssetsBusy} />
+<PromotionWebsiteEditor visibilityNotices={visibilityNotices} publicationDisabled={isCodeList} value={websiteDraft} onChange={value => updateWebsite(isCodeList ? { ...value, websiteEnabled: false } : value)} endsAt={hasEndDate ? endDateTime : null} onBusyChange={setAssetsBusy} />
 {previewFetcher.data?.error && <s-banner tone="warning">{previewFetcher.data.error}</s-banner>}
 {!promotionId && createdDiscountId && <s-button href={appUrl(`/app/promotions/${createdDiscountId.split("/").pop()}`)} variant="secondary">Open saved promotion</s-button>}
 {promotionId && createFetcher.data?.success && !hasUnsavedChanges && <s-banner tone="success">Promotion saved.</s-banner>}
