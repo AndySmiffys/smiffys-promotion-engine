@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 
 /** Keep save errors visible at the top of the page beneath Shopify's save bar. */
-export function PromotionSaveError({ error }: { error?: string }) {
+export function PromotionSaveError({ error }: { error?: string | null }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!error) return;

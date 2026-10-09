@@ -1,3 +1,4 @@
+import { validateShippingCountries } from "./shippingCountries.server";
 import db from "../../../db.server";
 import { createPromotionCodeBatch } from "./promotionCodeBatches.server";
 import { authenticate } from "../../../shopify.server";
@@ -19,6 +20,7 @@ const payload = JSON.parse(String(formData.get("payload") ?? "{}"));
 const website = readWebsite(payload.website);
 const errors = validateWebsite(website, payload.discount?.endsAt);
 if (errors.length) throw new Error(errors.join(" "));
+await validateShippingCountries(admin, payload.discount);
 if (payload.discount?.codeMode === "bulk") {
 requestKey = payload.requestKey;
 const batch = await createPromotionCodeBatch(admin, session.shop, requestKey!, payload.discount as CreateDiscountDraft, website);

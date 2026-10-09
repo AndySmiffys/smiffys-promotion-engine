@@ -1,3 +1,5 @@
+import { ShippingCountryPicker } from "./ShippingCountryPicker";
+import type { ShippingCountries } from "../services/shippingCountries.server";
 import { PromotionSaveError } from "./PromotionSaveError";
 import { PolarisSelect, PolarisCheckbox } from "./PolarisControls";
 import { PromotionSaveBar } from "./PromotionSaveBar";
@@ -238,7 +240,7 @@ padding: "16px",
 );
 }
 
-export function PromotionEditor({ products, initialDiscount, initialWebsite, promotionId, shopifyStatus, codeBatch }: { products: LinkResource[]; initialDiscount?: EditorDiscountDraft; initialWebsite?: WebsiteDraft; promotionId?: string; shopifyStatus?: string; codeBatch?: CodeBatchSummary | null }) {
+export function PromotionEditor({ products, initialDiscount, initialWebsite, promotionId, shopifyStatus, codeBatch, shippingCountries }: { products: LinkResource[]; initialDiscount?: EditorDiscountDraft; initialWebsite?: WebsiteDraft; promotionId?: string; shopifyStatus?: string; codeBatch?: CodeBatchSummary | null; shippingCountries?: ShippingCountries | null }) {
 const d = initialDiscount;
 const w = initialDiscount?.method === "code" && initialDiscount.codeMode === "bulk" && initialWebsite ? { ...initialWebsite, websiteEnabled: false } : initialWebsite;
   const appUrl = useEmbeddedAppUrl();
@@ -1451,10 +1453,10 @@ setMaxUsesPerOrder(event.currentTarget.checked)
 <FormSection title="Countries">
 <s-stack direction="block" gap="base">
 <PolarisSelect label="Countries" value={countryMode} onChange={event=>setCountryMode(event.currentTarget.value as "all" | "selected")}>
-<s-option value="all">All countries</s-option>
+<s-option value="all">All countries with available shipping</s-option>
 <s-option value="selected">Selected countries</s-option>
 </PolarisSelect>
-{countryMode === "selected" && <s-text-field label="Country codes" details="Two-letter codes separated by commas, for example GB, IE." value={countryCodes} onInput={event=>setCountryCodes(event.currentTarget.value)} />}
+{countryMode === "selected" && <ShippingCountryPicker shipping={shippingCountries} value={countryCodes} onChange={setCountryCodes} />}
 <PolarisCheckbox label="Exclude shipping rates over a certain amount" checked={excludeShippingPrice} onChange={event=>setExcludeShippingPrice(event.currentTarget.checked)} />
 {excludeShippingPrice && <s-number-field label="Maximum shipping rate" min={0.01} prefix="£" value={maximumShippingPrice} onInput={event=>setMaximumShippingPrice(event.currentTarget.value)} />}
 </s-stack>

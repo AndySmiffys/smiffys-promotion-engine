@@ -1,3 +1,5 @@
+import { ShippingCountryPicker } from "../app/modules/promotions/components/ShippingCountryPicker";
+import { getShippingCountries, validateShippingCountries } from "../app/modules/promotions/services/shippingCountries.server";
 import { PolarisSelect, PolarisCheckbox } from "../app/modules/promotions/components/PolarisControls";
 import { discountToEditorDraft, toLocalDateTime } from "../app/modules/promotions/design/editorDraft";
 import { buildUpdateDiscountMutation, updateShopifyPromotion } from "../app/modules/promotions/services/updatePromotion.server";
@@ -367,4 +369,55 @@ test("per-block colours, copy and links are independent and safely escaped in th
   const other = renderToStaticMarkup(<PromotionOffer value={changed} placement="collection" now={0} />);
   assert.doesNotMatch(other, /#123456|Header button|alert/);
   assert.match(other, /href="\/collections\/sale"/);
+});
+
+
+test("shipping country options follow all profile, zone and rate pages and exclude inactive zones", async () => {
+  const country = (code: string | null, name: string, restOfWorld = false) => ({ name, code: { countryCode: code, restOfWorld } });
+  const end: { hasNextPage: boolean; endCursor: string | null } = { hasNextPage: false, endCursor: null };
+  let calls = 0;
+  const admin = { graphql: async (document: string, options?: { variables?: Record<string, unknown> }) => {
+    calls++; const v = options?.variables ?? {};
+    if (document.includes("PromotionShippingProfiles")) {
+      const profile = { id: v.after ? "profile-2" : "profile-1", name: v.after ? "Special" : "General", profileLocationGroups: [{ locationGroup: { id: "group-1" }, countriesInAnyZone: [country("GB", "United Kingdom"), country("CA", "Canada")].map(country => ({ country })) }] };
+      return Response.json({ data: { shop: { shipsToCountries: ["GB", "CA", "IE", "FR"] }, deliveryProfiles: { nodes: [profile], pageInfo: v.after ? end : { hasNextPage: true, endCursor: "profile-next" } } } });
+    }
+    let node;
+    let pageInfo = end;
+    if (v.profile === "profile-2") {
+      node = { zone: { id: "zone-extra", name: "Ireland", countries: [country("IE", "Ireland")] }, methodDefinitions: { nodes: [{ name: "Express", active: true }], pageInfo: end } };
+    } else if (!v.after) {
+      node = { zone: { id: "zone-gb", name: "UK", countries: [country("GB", "United Kingdom")] }, methodDefinitions: { nodes: v.methodsAfter ? [{ name: "Standard", active: true }] : [{ name: "Disabled", active: false }], pageInfo: v.methodsAfter ? end : { hasNextPage: true, endCursor: "method-next" } } };
+      pageInfo = { hasNextPage: true, endCursor: "zone-next" };
+    } else if (v.after === "zone-next") {
+      node = { zone: { id: "zone-ca", name: "Canada", countries: [country("CA", "Canada")] }, methodDefinitions: { nodes: [{ name: "Disabled", active: false }], pageInfo: end } };
+      pageInfo = { hasNextPage: true, endCursor: "zone-world" };
+    } else {
+      node = { zone: { id: "zone-world", name: "Rest of world", countries: [country(null, "Rest of world", true)] }, methodDefinitions: { nodes: [{ name: "International", active: true }], pageInfo: end } };
+    }
+    return Response.json({ data: { deliveryProfile: { profileLocationGroups: [{ locationGroupZones: { nodes: [node], pageInfo } }] } } });
+  } };
+  const result = await getShippingCountries(admin);
+  assert.equal(result.error, undefined);
+  assert.deepEqual(result.countries.map(country => country.code).sort(), ["FR", "GB", "IE"]);
+  assert.equal(result.countries.find(country => country.code === "GB")?.shippingOptions[0], "Standard (General · UK)");
+  assert.equal(result.countries.find(country => country.code === "IE")?.shippingOptions.length, 2);
+  assert.equal(result.countries.some(country => country.shippingOptions.some(option => option.includes("Disabled"))), false);
+  assert.equal(calls, 7);
+  await validateShippingCountries(admin, { ...draft(), discountType: "shipping", countryMode: "selected", countries: ["GB"] });
+  await assert.rejects(() => validateShippingCountries(admin, { ...draft(), discountType: "shipping", countryMode: "selected", countries: ["CA"] }), /Unavailable: CA/);
+  const before = calls;
+  await validateShippingCountries(admin, { ...draft(), discountType: "shipping", countryMode: "selected", countries: ["CA"] }, ["CA"]);
+  assert.equal(calls, before, "existing selections are retained without silently removing countries");
+});
+test("shipping permission errors do not crash the editor or invent country options", async () => {
+  const admin = { graphql: async () => Response.json({ errors: [{ message: "Access denied for deliveryProfiles field" }] }) };
+  const result = await getShippingCountries(admin);
+  assert.deepEqual(result.countries, []);
+  assert.match(result.error!, /Allow the app/);
+  await assert.rejects(() => validateShippingCountries(admin, { ...draft(), discountType: "shipping", countryMode: "selected", countries: ["GB"] }), /Allow the app/);
+  await validateShippingCountries(admin, { ...draft(), discountType: "shipping", countryMode: "all", countries: [] });
+  const html = renderToStaticMarkup(<ShippingCountryPicker shipping={result} value="GB" onChange={() => {}} />);
+  assert.match(html, /United Kingdom \(GB\)/);
+  assert.match(html, /existing selection/);
 });

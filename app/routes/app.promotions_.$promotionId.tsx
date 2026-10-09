@@ -1,3 +1,4 @@
+import { getShippingCountries, validateShippingCountries } from "../modules/promotions/services/shippingCountries.server";
 import { PromotionSaveError } from "../modules/promotions/components/PromotionSaveError";
 import { PromotionSaveBar } from "../modules/promotions/components/PromotionSaveBar";
 import { getPromotionCodeBatch } from "../modules/promotions/services/promotionCodeBatches.server";
@@ -129,7 +130,8 @@ export async function loader({
   const codeBatch = await getPromotionCodeBatch(session.shop, discountNode.id);
   if (editorDiscount && codeBatch) Object.assign(editorDiscount, { codeMode: "bulk", codeCount: String(codeBatch.total), codePrefix: codeBatch.prefix, codeSuffix: codeBatch.suffix, codeListTitle: codeBatch.title });
   const resources = editorDiscount ? await getPromotionEditorResources(admin) : { products: [], collections: [] };
-  return { promotion, coverage, previewProducts, editorDiscount, editRulesMessage, products: resources.products, codeBatch };
+  const shippingCountries = editorDiscount?.discountType === "shipping" ? await getShippingCountries(admin) : null;
+  return { promotion, coverage, previewProducts, editorDiscount, editRulesMessage, products: resources.products, codeBatch, shippingCountries };
 }
 export async function action({
   request,
@@ -162,6 +164,7 @@ export async function action({
       const errors = validateWebsite(website, payload.updateRules === false ? node.discount.endsAt : payload.discount?.endsAt);
       if (errors.length) throw new Error(errors.join(" "));
       if (payload.updateRules !== false) {
+        await validateShippingCountries(admin, payload.discount, node.discount.destinationSelection?.countries ?? []);
         await updateShopifyPromotion(admin, node, payload.discount as CreateDiscountDraft);
         discountUpdated = true;
       }
@@ -215,7 +218,7 @@ export async function action({
 
 export default function PromotionDetailsPage() {
   const appUrl = useEmbeddedAppUrl();
-  const { promotion, coverage, previewProducts, editorDiscount, editRulesMessage, products, codeBatch } =
+  const { promotion, coverage, previewProducts, editorDiscount, editRulesMessage, products, codeBatch, shippingCountries } =
     useLoaderData<typeof loader>();
 
   const general = promotion.shopify.general;
@@ -247,7 +250,7 @@ export default function PromotionDetailsPage() {
   function resetFormState() { setWebsite(savedWebsite); setDismissedAction(actionData); }
   const hasUnsavedChanges = JSON.stringify(website) !== JSON.stringify(savedWebsite);
 
-  if (editorDiscount) return <PromotionEditor key={promotion.id} products={products} initialDiscount={editorDiscount} initialWebsite={savedWebsite} promotionId={promotion.id} shopifyStatus={general.status} codeBatch={codeBatch} />;
+  if (editorDiscount) return <PromotionEditor key={promotion.id} products={products} initialDiscount={editorDiscount} initialWebsite={savedWebsite} promotionId={promotion.id} shopifyStatus={general.status} codeBatch={codeBatch} shippingCountries={shippingCountries} />;
 
   return (
     <s-page heading={general.title}>

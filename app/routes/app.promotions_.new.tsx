@@ -1,3 +1,4 @@
+import { getShippingCountries } from "../modules/promotions/services/shippingCountries.server";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { useLoaderData } from "react-router";
 import { authenticate } from "../shopify.server";
@@ -7,9 +8,10 @@ import { getPromotionEditorResources } from "../modules/promotions/services/prom
 export async function action(args: ActionFunctionArgs) { return promotionEditorAction(args); }
 export async function loader({ request }: LoaderFunctionArgs) {
   const { admin } = await authenticate.admin(request);
-  return getPromotionEditorResources(admin);
+  const [resources, shippingCountries] = await Promise.all([getPromotionEditorResources(admin), new URL(request.url).searchParams.get("type") === "shipping" ? getShippingCountries(admin) : Promise.resolve(null)]);
+  return { ...resources, shippingCountries };
 }
 export default function CreatePromotionPage() {
-  const { products } = useLoaderData<typeof loader>();
-  return <PromotionEditor products={products} />;
+  const { products, shippingCountries } = useLoaderData<typeof loader>();
+  return <PromotionEditor products={products} shippingCountries={shippingCountries} />;
 }

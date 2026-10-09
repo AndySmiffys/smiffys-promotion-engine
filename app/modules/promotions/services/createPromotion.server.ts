@@ -63,7 +63,7 @@ export function buildDiscountMutation(d: CreateDiscountDraft, now = new Date()):
     if (!Array.isArray(d.countries) || d.countries.some(c => !/^[A-Z]{2}$/.test(c))) throw new Error("Enter two-letter country codes, separated by commas.");
     if (d.countryMode === "selected" && !d.countries.length) throw new Error("Select at least one country.");
     if (d.excludeShippingPrice && !d.maximumShippingPrice) throw new Error("Enter a maximum shipping rate.");
-    Object.assign(input, { destination: d.countries.length ? { countries: { add: d.countries } } : { all: true }, appliesOnOneTimePurchase: true, appliesOnSubscription: false, maximumShippingPrice: d.maximumShippingPrice ? String(positive(d.maximumShippingPrice, "maximum shipping price")) : null });
+    Object.assign(input, { destination: d.countries.length ? { countries: { add: d.countries } } : { all: true }, maximumShippingPrice: d.maximumShippingPrice ? String(positive(d.maximumShippingPrice, "maximum shipping price")) : null });
     type = code ? "DiscountCodeFreeShippingInput" : "DiscountAutomaticFreeShippingInput";
     mutation = code ? "discountCodeFreeShippingCreate" : "discountAutomaticFreeShippingCreate";
     argument = code ? "freeShippingCodeDiscount" : "freeShippingAutomaticDiscount";

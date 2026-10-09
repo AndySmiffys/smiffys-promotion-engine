@@ -108,3 +108,12 @@ Hidden elements retain their values and styles so they can be restored. Deselect
 The optional `design.blocks` object stores block snapshots inside the existing design JSON column, so no database migration is required. Older campaigns resolve from their previous shared text, styling and placement overrides until each block is edited. Editing then creates an independent snapshot without altering other blocks. Hidden empty headlines, buttons and countdowns do not require values or an end date; visible selected elements are validated. Secure URLs, colour values, text limits and numeric bounds remain checked for all saved block data.
 
 The same `PromotionOffer` renderer powers the responsive preview and storefront, including removal of hidden elements and block-specific CSS variables. Server tests cover every visibility control, escaping, legacy compatibility and database round-trips. A React 18 interaction check covers selection retention, native events, image selection, batched changes, save/reload and collapse state. Live Shopify/theme verification remains necessary after pulling and restarting the dev app.
+
+
+### Free-shipping countries
+
+Create and edit pages load countries from Shopify shipping profiles with active shipping methods. Selected countries use a searchable checkbox list with their shipping method, profile and zone names. Profiles, zones and shipping methods are paginated; inactive methods are excluded. Rest-of-world destinations exclude countries explicitly assigned to another zone in the same location group, including inactive zones. Existing country selections are retained when shipping settings change or permission is unavailable; they can be removed explicitly. New country selections are checked against current shipping settings before saving.
+
+Both app configurations require `read_shipping`. After pulling the update, restart `shopify app dev --use-localhost` and approve updated Shopify permissions if prompted. If shipping access is unavailable, the page stays usable and displays a permission message instead of invented country options.
+
+These options describe configured shipping coverage, rather than guaranteeing a rate for every basket. Product profiles, provinces, rate conditions and active Markets still determine checkout availability. Shopify's native free-shipping discount targets countries and optionally excludes rates above a maximum price; it does not select shipping methods by their names. All-countries discounts apply wherever qualifying shipping is available, including future destinations.
