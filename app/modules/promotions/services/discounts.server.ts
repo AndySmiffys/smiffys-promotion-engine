@@ -1,4 +1,5 @@
 import { GET_DISCOUNTS } from "../graphql/discounts.graphql";
+import { promotionDiscountId } from "../design/discountIdentity";
 import type { ShopifyDiscountNode } from "../types/discount";
 
 export type ShopifyAdminClient = {
@@ -28,5 +29,5 @@ export async function getDiscounts(
     );
   }
 
-  return result.data?.discountNodes?.nodes ?? [];
+  return (result.data?.discountNodes?.nodes ?? []).map(node => ({ ...node, id: promotionDiscountId(node.id) }));
 }

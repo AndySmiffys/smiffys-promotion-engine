@@ -1,4 +1,6 @@
 import db from "../../../db.server";
+import type { PrismaClient } from "@prisma/client";
+import { promotionDiscountAliases, promotionDiscountId } from "../design/discountIdentity";
 
 import type { PromotionRecord } from "../models/promotion";
 
@@ -72,34 +74,33 @@ function mapStoredSettings(
 export async function attachPromotionSettings(
   shop: string,
   promotions: PromotionRecord[],
+  database: PrismaClient = db,
 ): Promise<PromotionRecord[]> {
   if (promotions.length === 0) {
     return [];
   }
 
   const storedSettings =
-    await db.promotionSettings.findMany({
+    await database.promotionSettings.findMany({
       where: {
         shop,
 
         shopifyDiscountId: {
-          in: promotions.map(
-            (promotion) => promotion.id,
-          ),
+          in: promotions.flatMap(promotion => promotionDiscountAliases(promotion.id, promotion.method === "Code" ? "code" : "automatic")),
         },
       },
+      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
     });
 
-  const settingsByDiscountId = new Map(
-    storedSettings.map((settings) => [
-      settings.shopifyDiscountId,
-      settings,
-    ]),
-  );
+  const settingsByDiscountId = new Map<string, (typeof storedSettings)[number]>();
+  for (const settings of storedSettings) {
+    const id = promotionDiscountId(settings.shopifyDiscountId);
+    if (!settingsByDiscountId.has(id)) settingsByDiscountId.set(id, settings);
+  }
 
   return promotions.map((promotion) => {
     const stored =
-      settingsByDiscountId.get(promotion.id);
+      settingsByDiscountId.get(promotionDiscountId(promotion.id));
 
     if (!stored) {
       return promotion;
@@ -143,8 +144,10 @@ export async function updatePromotionWebsiteSettings(
   shop: string,
   shopifyDiscountId: string,
   input: UpdatePromotionWebsiteSettingsInput,
+  database: PrismaClient = db,
 ): Promise<void> {
-  await db.promotionSettings.upsert({
+  shopifyDiscountId = promotionDiscountId(shopifyDiscountId);
+  await database.promotionSettings.upsert({
     where: {
       shop_shopifyDiscountId: {
         shop,

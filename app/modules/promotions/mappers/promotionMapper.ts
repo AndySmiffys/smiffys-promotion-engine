@@ -1,4 +1,5 @@
 import { adaptShopifyDiscount } from "../adapters/shopifyDiscountAdapter";
+import { promotionDiscountId } from "../design/discountIdentity";
 import type { PromotionRecord } from "../models/promotion";
 import type { PromotionWebsiteSettings } from "../models/website";
 import type { ShopifyDiscountNode } from "../types/discount";
@@ -43,7 +44,7 @@ export function mapDiscountToPromotion(
   } = adaptShopifyDiscount(node);
 
   return {
-    id: node.id,
+    id: promotionDiscountId(node.id),
     routeId: getRouteId(node.id),
 
     /*

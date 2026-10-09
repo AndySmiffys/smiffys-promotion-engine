@@ -1,4 +1,5 @@
 import { normalizeSharedCode, type CodeOptions } from "../design/codeGeneration";
+import { promotionDiscountId } from "../design/discountIdentity";
 import type { ShopifyAdminClient } from "./discount.server";
 
 type Selection = { id: string; selectedVariantIds?: string[]; variants?: Array<{ id: string }> };
@@ -98,5 +99,5 @@ export async function createShopifyPromotion(admin: ShopifyAdminClient, draft: C
   const id = result.data?.result?.codeDiscountNode?.id ?? result.data?.result?.automaticDiscountNode?.id;
   if (!id) throw new Error("Shopify did not return a discount ID.");
   // The settings model and detail route use the generic DiscountNode ID.
-  return `gid://shopify/DiscountNode/${id.split("/").pop()}`;
+  return promotionDiscountId(id);
 }

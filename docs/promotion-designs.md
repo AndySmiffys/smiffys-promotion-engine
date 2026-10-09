@@ -89,3 +89,10 @@ The app persists the planned codes and original request before creating the pare
 CSV download is available only when the complete list has been confirmed. The authenticated endpoint checks shop ownership and returns a private, uncached response. Bulk code lists stay in website Draft status; their individual codes are never displayed as a public shared code. Existing Shopify discounts with multiple codes are also excluded from public website offers.
 
 The new PromotionCodeBatch migration is applied by Shopify web dev's existing prisma migrate deploy command. Production startup must run npm run setup before serving the new release. React 18 adapters preserve Polaris select/checkbox markup and styling, bind native change events, and synchronise controlled boolean/value properties after the custom elements are defined. The shared preview product picker uses the same adapter.
+## Discount identity and design persistence
+
+Shopify's discount queries can return `DiscountCodeNode` or `DiscountAutomaticNode` IDs even though the queried object is a `DiscountNode`. Creation, detail loading, listing and website settings now use the same internal `DiscountNode` key. This prevents a saved design being missed when the promotion is reopened.
+
+Website settings reads also recognise older typed-ID keys within the same shop and discount method. If both forms were previously saved, the most recently updated settings are used. New edits write the canonical key. No database migration is required for this compatibility lookup; designs already stored under either format can be recovered without re-entering them.
+
+Persistence tests create each of the eight supported code/automatic discount types, save every website and design attribute to SQLite, then reload through the detail and listing services using realistic Shopify IDs. They cover images and file IDs, shared and placement text, colours, borders, copy-code controls, layout, countdown, publication flags and priority, as well as legacy records and shop isolation.
