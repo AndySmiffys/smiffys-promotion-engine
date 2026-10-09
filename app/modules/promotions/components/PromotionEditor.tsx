@@ -1,3 +1,4 @@
+import { PromotionSaveError } from "./PromotionSaveError";
 import { PolarisSelect, PolarisCheckbox } from "./PolarisControls";
 import { PromotionSaveBar } from "./PromotionSaveBar";
 import { PromotionCodeList } from "./PromotionCodeList";
@@ -711,6 +712,7 @@ createFetcher.submit({ intent: promotionId ? "updatePromotion" : "createPromotio
 return (
 <s-page heading={promotionId ? "Edit promotion" : "Create discount"} inlineSize="large">
 <PromotionSaveBar ref={saveBarRef} dirty={hasUnsavedChanges} saving={createFetcher.state !== "idle"} busy={assetsBusy} discardDisabled={!promotionId && codeListLocked && !createdDiscountId} invalid={validateWebsite(websiteDraft, hasEndDate ? endDateTime : null).length > 0} onSave={savePromotion} onDiscard={discardChanges} />
+<PromotionSaveError error={submissionError || (createFetcher.data !== dismissedResponse ? createFetcher.data?.error : undefined)} />
 <div
 style={{
 width: "100%",
@@ -1941,8 +1943,6 @@ setEndDateTime("");
 
 <PromotionWebsiteEditor publicationDisabled={isCodeList} value={websiteDraft} onChange={value => updateWebsite(isCodeList ? { ...value, websiteEnabled: false } : value)} endsAt={hasEndDate ? endDateTime : null} onBusyChange={setAssetsBusy} />
 {previewFetcher.data?.error && <s-banner tone="warning">{previewFetcher.data.error}</s-banner>}
-{submissionError && <s-banner tone="critical">{submissionError}</s-banner>}
-{createFetcher.data?.error && createFetcher.data !== dismissedResponse && <s-banner tone="critical">{createFetcher.data.error}</s-banner>}
 {!promotionId && createdDiscountId && <s-button href={appUrl(`/app/promotions/${createdDiscountId.split("/").pop()}`)} variant="secondary">Open saved promotion</s-button>}
 {promotionId && createFetcher.data?.success && !hasUnsavedChanges && <s-banner tone="success">Promotion saved.</s-banner>}
 

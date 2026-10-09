@@ -1,3 +1,4 @@
+import { PromotionSaveError } from "../modules/promotions/components/PromotionSaveError";
 import { PromotionSaveBar } from "../modules/promotions/components/PromotionSaveBar";
 import { getPromotionCodeBatch } from "../modules/promotions/services/promotionCodeBatches.server";
 import { getEditableDiscount } from "../modules/promotions/services/editableDiscount.server";
@@ -251,6 +252,7 @@ export default function PromotionDetailsPage() {
   return (
     <s-page heading={general.title}>
       <PromotionSaveBar dirty={hasUnsavedChanges} saving={isSaving} busy={assetsBusy} invalid={validateWebsite(website, promotion.endsAt).length > 0} onSave={() => formRef.current?.requestSubmit()} onDiscard={resetFormState} />
+      <PromotionSaveError error={actionData !== dismissedAction ? actionData?.error : undefined} />
       <div
         style={{
           maxWidth: "1180px",
@@ -390,7 +392,6 @@ export default function PromotionDetailsPage() {
             <div style={{ alignSelf: "start", position: "sticky", top: 20 }}><PromotionPreview discountCode={promotion.code} offerNote={promotion.code ? `Use code: ${promotion.code}` : "Applied automatically at checkout."} value={website} products={previewProducts} endsAt={promotion.endsAt} /></div>
           </div>
 
-          {actionData?.error && actionData !== dismissedAction && <s-banner tone="critical">{actionData.error}</s-banner>}
           </Form>
         </s-stack>
       </div>

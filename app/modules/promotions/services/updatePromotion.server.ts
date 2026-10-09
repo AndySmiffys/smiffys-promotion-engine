@@ -4,7 +4,7 @@ import type { ShopifyDiscountNode } from "../types/discount";
 import { discountToEditorDraft } from "../design/editorDraft";
 
 type ItemInput = { all?: boolean; collections?: { add?: string[]; remove?: string[] }; products?: { productsToAdd?: string[]; productsToRemove?: string[]; productVariantsToAdd?: string[]; productVariantsToRemove?: string[] } };
-type GetsInput = { items: ItemInput; value: { discountAmount?: { amount: string; appliesOnEachItem: boolean } }; appliesOnOneTimePurchase?: boolean; appliesOnSubscription?: boolean };
+type GetsInput = { items: ItemInput; value: { discountAmount?: { amount: string; appliesOnEachItem: boolean } } };
 type Items = NonNullable<ShopifyDiscountNode["discount"]["customerGets"]>["items"];
 function removeMissingItems(next: ItemInput, previous?: Items) {
   if (!previous || next.all) return;
@@ -29,11 +29,10 @@ export function buildUpdateDiscountMutation(node: ShopifyDiscountNode, draft: Cr
   delete input.code;
   if (draft.method === "code") input.title = previous.codeMode !== "bulk" && node.discount.title?.toUpperCase() === draft.discountCode.toUpperCase() ? draft.discountCode.trim().toUpperCase() : node.discount.title;
   if (draft.discountType !== "bxgy" && draft.minimumRequirement === "none") input.minimumRequirement = null;
+  // Subscription purchase flags are deliberately absent from customerGets updates.
   const gets = input.customerGets as GetsInput | undefined;
   if (gets) {
     removeMissingItems(gets.items, node.discount.customerGets?.items);
-    gets.appliesOnOneTimePurchase = node.discount.customerGets?.appliesOnOneTimePurchase ?? true;
-    gets.appliesOnSubscription = node.discount.customerGets?.appliesOnSubscription ?? false;
     if (gets.value.discountAmount && node.discount.customerGets?.value.__typename === "DiscountAmount") gets.value.discountAmount.appliesOnEachItem = node.discount.customerGets.value.appliesOnEachItem ?? false;
   }
   const buys = input.customerBuys as { items: ItemInput } | undefined;
@@ -44,8 +43,10 @@ export function buildUpdateDiscountMutation(node: ShopifyDiscountNode, draft: Cr
   if (draft.discountType === "shipping") {
     const destination = input.destination as { countries?: { add: string[]; remove?: string[] } };
     if (destination.countries) destination.countries.remove = (node.discount.destinationSelection?.countries ?? []).filter(code => !destination.countries!.add.includes(code));
-    input.appliesOnOneTimePurchase = node.discount.appliesOnOneTimePurchase ?? true;
-    input.appliesOnSubscription = node.discount.appliesOnSubscription ?? false;
+    // The editor does not change purchase types. Omit these fields to retain the
+    // existing settings and avoid rejecting shops without subscription support.
+    delete input.appliesOnOneTimePurchase;
+    delete input.appliesOnSubscription;
   }
   if (draft.combineProductDiscounts) {
     const combinesWith = input.combinesWith as Record<string, unknown>;

@@ -210,6 +210,10 @@ test("all eight existing discount types map to prefilled drafts and update their
     assert.equal(result.variables.id, `gid://shopify/${method === "code" ? "DiscountCodeNode" : "DiscountAutomaticNode"}/1`);
     const input = result.variables.input as Record<string, unknown>;
     assert.equal("tags" in input, false); assert.equal("code" in input, false);
+    assert.equal("appliesOnOneTimePurchase" in input, false);
+    assert.equal("appliesOnSubscription" in input, false);
+    const gets = input.customerGets as Record<string, unknown> | undefined;
+    if (gets) { assert.equal("appliesOnOneTimePurchase" in gets, false); assert.equal("appliesOnSubscription" in gets, false); }
     if (type === "bxgy") { assert.equal(d.buyQuantity, "2"); assert.equal(d.getQuantity, "1"); assert.equal(d.rewardType, "free"); assert.equal(d.usesPerOrder, "3"); }
     if (type === "shipping") { assert.equal(d.countryMode, "selected"); assert.equal(d.maximumShippingPrice, "10.00"); }
   }
@@ -235,8 +239,27 @@ test("editing preserves whole products, fixed-amount allocation and subscription
   const n = node(); n.discount.codes = { nodes: [{ code: "SAVE20" }] };
   n.discount.customerGets = { appliesOnOneTimePurchase: false, appliesOnSubscription: true, value: { __typename: "DiscountAmount", amount: { amount: "5.00", currencyCode: "GBP" }, appliesOnEachItem: false }, items: { __typename: "DiscountProducts", products: { nodes: [{ id: "gid://shopify/Product/1", title: "Whole" }] }, productVariants: { nodes: [{ id: "gid://shopify/ProductVariant/3", title: "Small", product: { id: "gid://shopify/Product/1", title: "Whole" } }] } } };
   const d = discountToEditorDraft(n); assert.equal(d.selectedProducts.length, 1); assert.equal(d.selectedProducts[0].selectedVariantIds, undefined);
-  const input = buildUpdateDiscountMutation(n, d).variables.input as { customerGets: { appliesOnOneTimePurchase: boolean; appliesOnSubscription: boolean; value: { discountAmount: { appliesOnEachItem: boolean } } } };
-  assert.equal(input.customerGets.appliesOnOneTimePurchase, false); assert.equal(input.customerGets.appliesOnSubscription, true); assert.equal(input.customerGets.value.discountAmount.appliesOnEachItem, false);
+  const input = buildUpdateDiscountMutation(n, d).variables.input as { customerGets: { value: { discountAmount: { appliesOnEachItem: boolean } } } };
+  assert.equal("appliesOnOneTimePurchase" in input.customerGets, false); assert.equal("appliesOnSubscription" in input.customerGets, false); assert.equal(input.customerGets.value.discountAmount.appliesOnEachItem, false);
+});
+test("editing on a shop without subscriptions does not submit restricted purchase fields", async () => {
+  const n = node(); n.discount.codes = { nodes: [{ code: "SAVE20" }] };
+  n.discount.customerGets!.appliesOnOneTimePurchase = true;
+  n.discount.customerGets!.appliesOnSubscription = false;
+  const d = discountToEditorDraft(n); d.discountValue = "25";
+  let accepted = false;
+  const admin = { graphql: async (_query: string, options?: { variables?: Record<string, unknown> }) => {
+    const input = options?.variables?.input as { customerGets: Record<string, unknown> };
+    if ("appliesOnSubscription" in input.customerGets || "appliesOnOneTimePurchase" in input.customerGets) {
+      return Response.json({ data: { result: { userErrors: [{ message: "applies_on_subscription field is not permitted without the shop using subscriptions." }] } } });
+    }
+    accepted = true;
+    return Response.json({ data: { result: { codeDiscountNode: { id: "gid://shopify/DiscountCodeNode/1" }, userErrors: [] } } });
+  } };
+  assert.equal(await updateShopifyPromotion(admin, n, d), n.id);
+  assert.equal(accepted, true);
+  assert.equal(n.discount.customerGets!.appliesOnOneTimePurchase, true);
+  assert.equal(n.discount.customerGets!.appliesOnSubscription, false);
 });
 test("unsupported or incomplete selections cannot be silently replaced, and update errors surface", async () => {
   const n = node(); n.discount.codes = { nodes: [{ code: "SAVE20" }] };
