@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { Liquid } from "liquidjs";
 import { JSDOM } from "jsdom";
+import { promotionInlineCss, promotionCss } from "../app/modules/promotions/components/PromotionPreview";
 import { publicSnapshotEntry, syncStorefrontSnapshot } from "../app/modules/promotions/services/storefrontSnapshot.server";
 import { mapDiscountToPromotion } from "../app/modules/promotions/mappers/promotionMapper";
 import { defaultDesign } from "../app/modules/promotions/design/design";
@@ -15,19 +16,20 @@ function promotion(id = 1) {
   Object.assign(result.settings, { included: true, websiteEnabled: true, headline: `Offer ${id}`, showHeaderBanner: true, showCollectionPage: true, showProductPage: true, showProductBadge: true, showCountdown: true, designJson: JSON.stringify({ ...defaultDesign(), desktopImage: 'https://cdn.shopify.com/s/files/1/123/banner.webp?v=1', mobileImage: 'https://cdn.shopify.com/s/files/1/123/mobile.webp?v=2', imageLayout: 'full' }) });
   return { result, node };
 }
-const liquid = new Liquid();
+const liquid = new Liquid({ root: 'extensions/promotion-engine/snippets', extname: '.liquid' });
+liquid.registerFilter('asset_url', (value: string) => '/assets/' + value);
 const snippet = readFileSync('extensions/promotion-engine/snippets/server-promotion.liquid', 'utf8');
 // Shopify's now filter and server time are fixed for eligibility boundary tests.
 liquid.registerFilter('date', (value: string, format: string) => format === '%s' ? (value === 'now' ? now / 1000 : Date.parse(value) / 1000) : value);
 async function render(promotions: ReturnType<typeof publicSnapshotEntry>[], placement = 'collection', extra = {}) {
-  return liquid.parseAndRender(snippet, { app: { metafields: { promotion_engine: { storefront: { value: { version: 1, revision: 'revision', css: '', promotions } } } } }, placement, block: { settings: { spacing: 0 } }, current_collection: { id: 42 }, ...extra });
+  return liquid.parseAndRender(snippet, { snapshot: { version: 2, revision: 'revision', css: promotionCss, inlineCss: promotionInlineCss, promotions }, placement, block: { settings: { spacing: 0 } }, current_collection: { id: 42 }, ...extra });
 }
 test('Liquid renders the priority winner initially and hides empty, expired, future and nonqualifying placements without a reserved gap', async () => {
   const high = publicSnapshotEntry(promotion(1).result, now)!;
   const low = publicSnapshotEntry(promotion(2).result, now)!;
   let markup = await render([high, low]);
   assert.match(markup, /data-promotion-id="gid:\/\/shopify\/DiscountNode\/1"/);
-  assert.match(markup, /<template shadowrootmode="open">/);
+  assert.match(markup, /<div data-pe-initial>/);
   assert.match(markup, /srcSet=.*width=390/);
   assert.match(markup, /fetchpriority="high"/);
   assert.match(markup, /media="\(max-width: 600px\)"/);
@@ -35,12 +37,12 @@ test('Liquid renders the priority winner initially and hides empty, expired, fut
   for (const entries of [[], [{ ...high, ends: now / 1000 }], [{ ...high, starts: now / 1000 + 1 }], [{ ...high, all: false, collections: ['99'] }]]) {
     markup = await render(entries);
     assert.match(markup, /<promotion-engine\s+hidden/);
-    assert.ok(!markup.includes('shadowrootmode'));
+    assert.ok(!markup.includes('data-pe-initial'));
     assert.ok(!markup.includes('min-height'));
   }
   markup = await render([{ ...high, starts: now / 1000 + 1 }, low]);
   assert.match(markup, /DiscountNode\/2/);
-  assert.match(await render([{ ...high, all: false, collections: ['42'] }]), /shadowrootmode/);
+  assert.match(await render([{ ...high, all: false, collections: ['42'] }]), /data-pe-initial/);
 });
 test('Liquid follows collection, whole product and selected variant scope with correct fallback priority', async () => {
   const high = { ...publicSnapshotEntry(promotion(1).result, now)!, all: false, products: [], collections: [], variants: [{ id: '8', product: '7' }] };
@@ -48,8 +50,8 @@ test('Liquid follows collection, whole product and selected variant scope with c
   const product = { id: 7, collections: [{ id: 42 }], selected_or_first_available_variant: { id: 8 } };
   assert.match(await render([high, low], 'product', { current_product: product }), /DiscountNode\/1/);
   assert.match(await render([high, low], 'product', { current_product: { ...product, selected_or_first_available_variant: { id: 9 } } }), /DiscountNode\/2/);
-  assert.match(await render([{ ...high, variants: [], collections: ['42'] }], 'product', { current_product: product }), /shadowrootmode/);
-  assert.match(await render([{ ...high, variants: [], products: ['7'] }], 'product', { current_product: product }), /shadowrootmode/);
+  assert.match(await render([{ ...high, variants: [], collections: ['42'] }], 'product', { current_product: product }), /data-pe-initial/);
+  assert.match(await render([{ ...high, variants: [], products: ['7'] }], 'product', { current_product: product }), /data-pe-initial/);
   assert.match(await render([high], 'collection'), /<promotion-engine\s+hidden/);
 });
 test('public snapshot excludes restricted, draft, expired and codeless offers, and includes future schedules for Liquid date checks', () => {
@@ -85,7 +87,7 @@ test('snapshot publication uses compare-and-set, retries concurrent saves and su
   await assert.rejects(syncStorefrontSnapshot(api, 'test.myshopify.com', async () => rows), /Cannot publish/);
 });
 test('initial promotion stays visible while a delayed proxy validates it and is not rebuilt when both renderers agree', async () => {
-  const dom = new JSDOM('<promotion-engine data-server-rendered="true" data-placement="collection" data-promotion-id="offer" data-revision="revision" data-render-key="render"><template shadowrootmode="open"><style></style><div>Initial offer</div></template></promotion-engine>', { url: 'https://shop.example/', runScripts: 'outside-only' });
+  const dom = new JSDOM('<promotion-engine data-server-rendered="true" data-placement="collection" data-promotion-id="offer" data-revision="revision" data-render-key="render"><div data-pe-initial>Initial offer</div><template data-pe-style><style></style></template><span hidden data-pe-ready></span></promotion-engine>', { url: 'https://shop.example/', runScripts: 'outside-only' });
   const { window } = dom;
   window.matchMedia = query => ({ matches: false, media: query, onchange: null, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {}, dispatchEvent() { return true; } });
   let resolve: (result: Response) => void = () => {};
@@ -94,12 +96,12 @@ test('initial promotion stays visible while a delayed proxy validates it and is 
   const element = window.document.querySelector('promotion-engine') as HTMLElement & { shadowRoot: ShadowRoot };
   try {
     assert.equal(element.hidden, false);
-    const content = element.shadowRoot.querySelector('div');
+    const content = element.shadowRoot.querySelector('[data-pe-initial]');
     assert.equal(content?.textContent, 'Initial offer');
     resolve(Response.json({ promotionId: 'offer', revision: 'revision', renderKey: 'render', html: '<div>Live offer</div>', endsAt: null }));
     await new Promise(done => setTimeout(done, 20));
     assert.equal(element.hidden, false);
-    assert.equal(element.shadowRoot.querySelector('div'), content);
+    assert.equal(element.shadowRoot.querySelector('[data-pe-initial]'), content);
     element.remove();
   } finally { window.close(); }
 });
@@ -137,4 +139,63 @@ test('a live empty response removes an initial offer, while an updated code repl
       if (!empty) assert.match(element.shadowRoot!.textContent!, /New code/);
     } finally { window.close(); }
   }
+});
+test('actual app blocks pass snapshot into their isolated snippet and render banner HTML before any script runs', async () => {
+  const entry = publicSnapshotEntry(promotion().result, now)!;
+  const snapshot = { version: 2, revision: 'saved', inlineCss: promotionInlineCss, css: promotionCss, promotions: [entry] };
+  for (const name of ['collection-promotion', 'product-promotion', 'header-promotion', 'promotion']) {
+    const block = readFileSync(`extensions/promotion-engine/blocks/${name}.liquid`, 'utf8').split('{% schema %}')[0];
+    const html = await liquid.parseAndRender(block, { app: { metafields: { promotion_engine: { storefront: { value: snapshot } } } }, collection: { id: 42 }, product: { id: 7, selected_or_first_available_variant: { id: 8 } }, block: { settings: { placement: 'collection' } } });
+    const dom = new JSDOM(html);
+    try {
+      const host = dom.window.document.querySelector('promotion-engine') as HTMLElement;
+      assert.equal(host.hidden, false, name);
+      assert.equal(host.dataset.snapshotState, 'ready', name);
+      assert.ok(host.querySelector('[data-pe-initial] .pe-promo'), name);
+      assert.ok(!host.shadowRoot, name);
+      assert.equal(host.style.display, 'block', name);
+    } finally { dom.window.close(); }
+  }
+});
+test('initial HTML styles are scoped inside promotions, including media queries, and header wrapper spans its row', () => {
+  const dom = new JSDOM(`<style>${promotionInlineCss}</style><style>${readFileSync('extensions/promotion-engine/assets/promotion-layout.css', 'utf8')}</style><div class="pe-header-app-block"><promotion-engine data-placement="header"></promotion-engine></div>`);
+  try {
+    const inspect = (rules: CSSRuleList) => {
+      for (const rule of Array.from(rules)) {
+        if ('cssRules' in rule) inspect((rule as CSSMediaRule).cssRules);
+        else for (const selector of (rule as CSSStyleRule).selectorText.split(',')) assert.ok(selector.trim().startsWith('promotion-engine[data-server-rendered="true"]'), selector);
+      }
+    };
+    inspect(dom.window.document.styleSheets[0].cssRules);
+    const computed = dom.window.getComputedStyle(dom.window.document.querySelector('.pe-header-app-block')!);
+    assert.equal(computed.width, '100%');
+    assert.equal(computed.maxWidth, 'none');
+    assert.equal(computed.flex, '1 1 100%');
+  } finally { dom.window.close(); }
+});
+test('an early custom element upgrade leaves the initial light DOM visible until the parser finishes all banner children', async () => {
+  const dom = new JSDOM('', { url: 'https://shop.example/', runScripts: 'outside-only' });
+  const { window } = dom;
+  window.matchMedia = query => ({ matches: false, media: query, onchange: null, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {}, dispatchEvent() { return true; } });
+  let calls = 0;
+  window.fetch = () => { calls++; return new Promise<Response>(() => {}); };
+  window.eval(readFileSync('extensions/promotion-engine/assets/promotion-engine.js', 'utf8'));
+  const host = window.document.createElement('promotion-engine');
+  host.dataset.serverRendered = 'true';
+  host.dataset.placement = 'header';
+  try {
+    window.document.body.append(host);
+    host.innerHTML = '<div data-pe-initial>Initial announcement</div><template data-pe-style><style></style></template>';
+    await new Promise(done => setTimeout(done, 15));
+    assert.equal(host.shadowRoot, null);
+    assert.equal(host.hidden, false);
+    assert.match(host.textContent!, /Initial announcement/);
+    assert.equal(calls, 0);
+    host.insertAdjacentHTML('beforeend', '<span hidden data-pe-ready></span>');
+    await new Promise(done => setTimeout(done, 15));
+    assert.equal(host.hidden, false);
+    assert.match(host.shadowRoot!.textContent!, /Initial announcement/);
+    assert.equal(calls, 1);
+    host.remove();
+  } finally { window.close(); }
 });

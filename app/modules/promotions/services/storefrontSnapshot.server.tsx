@@ -1,5 +1,5 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { PromotionOffer, promotionCss } from "../components/PromotionPreview";
+import { PromotionOffer, promotionCss, promotionInlineCss } from "../components/PromotionPreview";
 import { placements, websiteFromSettings } from "../design/design";
 import { mapDiscountToPromotion } from "../mappers/promotionMapper";
 import type { PromotionRecord } from "../models/promotion";
@@ -57,7 +57,7 @@ export async function syncStorefrontSnapshot(admin: ShopifyAdminClient, shop: st
       const entry = publicSnapshotEntry(promotion);
       if (entry) entries.push(entry);
     }
-    const value = JSON.stringify({ version: 1, revision: storefrontRevision(shop, rows), css: promotionCss, promotions: entries });
+    const value = JSON.stringify({ version: 2, revision: storefrontRevision(shop, rows), css: promotionCss, inlineCss: promotionInlineCss, promotions: entries });
     if (Buffer.byteLength(value, "utf8") > 128000) throw new Error("The public storefront designs exceed Shopify’s JSON size limit. Reduce the number of enabled promotions or shorten their content.");
     if (value === installation.metafield?.value) return;
     const result = await (await admin.graphql(`mutation PromotionSnapshot($metafields: [MetafieldsSetInput!]!) { metafieldsSet(metafields: $metafields) { metafields { id } userErrors { code message } } }`, { variables: { metafields: [{ ownerId: installation.id, namespace, key, type: "json", value, compareDigest: installation.metafield?.compareDigest ?? null }] } })).json();
@@ -68,4 +68,13 @@ export async function syncStorefrontSnapshot(admin: ShopifyAdminClient, shop: st
     if (!errors.every((e: { code: string }) => ["STALE_OBJECT", "INVALID_COMPARE_DIGEST"].includes(e.code))) throw new Error(errors.map((e: { message: string }) => e.message).join(" "));
   }
   throw new Error("Another promotion save is still syncing. Retry saving.");
+}
+
+// Bootstrap upgrades from every app entry point, including bookmarked editors.
+export async function ensureStorefrontSnapshot(admin: ShopifyAdminClient, shop: string) {
+  const result = await (await admin.graphql(`query PromotionSnapshotVersion { currentAppInstallation { metafield(namespace: "${namespace}", key: "${key}") { value } } }`)).json();
+  if (result.errors?.length) throw new Error(result.errors.map((e: { message: string }) => e.message).join(" "));
+  let snapshot: { version?: number; inlineCss?: string; css?: string } | null = null;
+  try { snapshot = JSON.parse(result.data?.currentAppInstallation?.metafield?.value ?? "null"); } catch { /* Republish malformed data. */ }
+  if (snapshot?.version !== 2 || snapshot.inlineCss !== promotionInlineCss || snapshot.css !== promotionCss) await syncStorefrontSnapshot(admin, shop);
 }

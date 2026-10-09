@@ -2,10 +2,7 @@
 <script src="{{ 'promotion-placements.js' | asset_url }}" defer></script>
 <promotion-engine-embed
   hidden
-  data-header-enabled="{{ block.settings.header_enabled }}"
   data-badges-enabled="{{ block.settings.badges_enabled }}"
-  data-header-position="{{ block.settings.header_position }}"
-  data-header-selector="{{ block.settings.header_selector | escape }}"
   data-card-selector="{{ block.settings.card_selector | escape }}"
   data-badge-selector="{{ block.settings.badge_selector | escape }}"
   data-badge-position="{{ block.settings.badge_position }}"
@@ -19,14 +16,11 @@
   "target":"body",
   "javascript":"promotion-engine.js",
   "settings":[
-    {"type":"paragraph","content":"Automatically places enabled promotions. Add Product promotion to product details and Collection promotion as its own section above the collection grid."},
-    {"type":"checkbox","id":"header_enabled","label":"Show header announcements","default":true},
-    {"type":"select","id":"header_position","label":"Announcement position","default":"before","options":[{"value":"before","label":"Above header"},{"value":"after","label":"Below header"}]},
+    {"type":"paragraph","content":"Automatically places product card badges. Add Header promotion for announcements, Product promotion to product details, and Collection promotion above the collection grid."},
     {"type":"checkbox","id":"badges_enabled","label":"Show product card badges","default":true},
     {"type":"select","id":"badge_position","label":"Badge position","default":"top-left","options":[{"value":"top-left","label":"Top left"},{"value":"top-right","label":"Top right"},{"value":"bottom-left","label":"Bottom left"},{"value":"bottom-right","label":"Bottom right"}]},
     {"type":"header","content":"Advanced theme placement"},
-    {"type":"paragraph","content":"Leave selectors blank for automatic Dawn and Horizon placement. Other themes may need selectors from your theme developer. Move badges if they overlap theme sale or sold-out labels."},
-    {"type":"text","id":"header_selector","label":"Header CSS selector"},
+    {"type":"paragraph","content":"Leave selectors blank for automatic Dawn and Horizon badge placement. Other themes may need selectors from your theme developer. Move badges if they overlap theme sale or sold-out labels."},
     {"type":"text","id":"card_selector","label":"Product card CSS selector"},
     {"type":"text","id":"badge_selector","label":"Badge container CSS selector"}
   ]

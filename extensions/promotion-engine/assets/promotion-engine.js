@@ -15,12 +15,25 @@
   const request = url => new Promise((resolve, reject) => { queue.push({ url, resolve, reject }); drain(); });
   class PromotionEngine extends HTMLElement {
     connectedCallback() {
+      // An async asset can register this element before the parser reaches its
+      // children. Leave the light DOM visible until its initial markup is ready.
+      if (this.dataset.serverRendered === 'true' && !this.shadowRoot &&
+          !this.querySelector('[data-pe-ready], template[shadowrootmode]')) {
+        this.parseTimer = setTimeout(() => { if (this.isConnected) this.connectedCallback(); }, 0);
+        return;
+      }
+      const initial = this.querySelector('[data-pe-initial]');
+      const initialStyle = this.querySelector('template[data-pe-style]');
       if (!this.shadowRoot) this.attachShadow({ mode: 'open' });
+      if (initial && initialStyle) {
+        this.shadowRoot.append(initialStyle.content.cloneNode(true), initial);
+        initialStyle.remove();
+        this.querySelector('[data-pe-ready]')?.remove();
+      }
       const native = this.dataset.serverRendered === 'true';
       this.hidden = !native;
       this.renderedVariantId = this.dataset.variantId;
-      // Declarative shadow DOM renders before this script. Theme editor section
-      // replacements use innerHTML, so hydrate their unprocessed template too.
+      // Support declarative templates from older cached extension markup too.
       this.hydrate = () => {
         const template = this.querySelector('template[shadowrootmode]');
         if (template && !this.shadowRoot.childNodes.length) {
@@ -100,6 +113,7 @@
       clearTimeout(this.formTimer);
       clearTimeout(this.expiryTimer);
       clearTimeout(this.hydrateTimer);
+      clearTimeout(this.parseTimer);
       this.media?.removeEventListener('change', this.refresh);
       document.removeEventListener('variant:change', this.variantChanged);
       document.removeEventListener('variant-change', this.variantChanged);

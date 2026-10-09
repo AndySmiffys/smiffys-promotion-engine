@@ -26,7 +26,6 @@
       clearTimeout(this.scanTimer);
       this.observer?.disconnect();
       this.intersection?.disconnect();
-      this.header?.remove();
       for (const entry of this.entries.values()) this.removeEntry(entry);
       this.entries.clear();
     }
@@ -42,17 +41,6 @@
     }
     scan() {
       if (!this.isConnected) return;
-      const explicitHeader = query(document, 'promotion-engine[data-placement="header"]:not([data-pe-auto])');
-      if (explicitHeader || this.dataset.headerEnabled !== 'true') { this.header?.remove(); this.header = null; }
-      else if (!this.header?.isConnected) {
-        const selector = this.dataset.headerSelector || '#header-group, .shopify-section-group-header-group, #shopify-section-header, .section-header, header-component, header[role="banner"]';
-        const target = query(document, selector);
-        // Custom selectors must match: never silently place content somewhere else.
-        if (target && !target.closest('promotion-engine')) {
-          this.header = this.create('header');
-          target[this.dataset.headerPosition === 'after' ? 'after' : 'before'](this.header);
-        }
-      }
       for (const [card, entry] of this.entries) if (!card.isConnected) {
         this.intersection?.unobserve(card);
         this.removeEntry(entry);

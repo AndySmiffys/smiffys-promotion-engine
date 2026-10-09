@@ -1,3 +1,4 @@
+import { ensureStorefrontSnapshot } from "../modules/promotions/services/storefrontSnapshot.server";
 import type {
   HeadersFunction,
   LoaderFunctionArgs,
@@ -29,10 +30,13 @@ import { authenticate } from "../shopify.server";
 export const loader = async ({
   request,
 }: LoaderFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
+  let storefrontSyncError: string | null = null;
+  try { await ensureStorefrontSnapshot(admin, session.shop); } catch (error) { storefrontSyncError = `Initial storefront display could not be synced: ${error instanceof Error ? error.message : "Please reopen the app to retry."}`; }
 
   return {
     shop: session.shop,
+    storefrontSyncError,
     host: new URL(request.url).searchParams.get("host"),
     apiKey:
       process.env.SHOPIFY_API_KEY || "",
@@ -41,7 +45,7 @@ export const loader = async ({
 
 export default function App() {
   const appUrl = useEmbeddedAppUrl();
-  const { apiKey } =
+  const { apiKey, storefrontSyncError } =
     useLoaderData<typeof loader>();
 
   return (
@@ -66,6 +70,7 @@ export default function App() {
         </Link>
       </NavMenu>
 
+      {storefrontSyncError && <div style={{ padding: 20 }}><s-banner tone="warning">{storefrontSyncError}</s-banner></div>}
       <Outlet />
     </AppProvider>
   );

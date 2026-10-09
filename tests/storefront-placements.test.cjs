@@ -13,15 +13,15 @@ function fixture(html, config = {}, respond = () => ({ html: '<span>Save 10%</sp
   window.eval(readFileSync(base + 'assets/promotion-engine.js', 'utf8'));
   window.eval(readFileSync(base + 'assets/promotion-placements.js', 'utf8'));
   const embed = window.document.createElement('promotion-engine-embed');
-  Object.assign(embed.dataset, { headerEnabled: 'true', badgesEnabled: 'true', root: '/fr/', ...config });
+  Object.assign(embed.dataset, { badgesEnabled: 'true', root: '/fr/', ...config });
   window.document.body.append(embed);
   return { dom, window, embed, calls };
 }
-test('Dawn places one announcement and resolves card products through localized Ajax URLs', async () => {
+test('Dawn resolves card products through localized Ajax URLs without inserting a header', async () => {
   const f = fixture('<div class="section-header"><header></header></div><div class="card-wrapper"><div class="card__inner"><a href="/fr/products/hat">Hat</a></div></div>');
   try {
     await wait(30);
-    assert.equal(f.window.document.querySelectorAll('[data-pe-auto="header"]').length, 1);
+    assert.equal(f.window.document.querySelectorAll('[data-pe-auto="header"]').length, 0);
     const badge = f.window.document.querySelector('[data-pe-auto="badge"]');
     assert.equal(badge.dataset.productId, '42');
     assert.equal(badge.parentElement.className, 'card__inner');
@@ -58,10 +58,10 @@ test('Explicit placements take precedence and invalid custom selectors are harml
   finally { invalid.dom.window.close(); }
 });
 test('Empty promotions stay hidden, including inside the shadow stylesheet', async () => {
-  const f = fixture('<header role="banner"></header>', {}, () => ({ html: '', css: '' }));
+  const f = fixture('<promotion-engine data-placement="header"></promotion-engine>', {}, () => ({ html: '', css: '' }));
   try {
     await wait(20);
-    const header = f.window.document.querySelector('[data-pe-auto="header"]');
+    const header = f.window.document.querySelector('promotion-engine[data-placement="header"]');
     assert.equal(header.hidden, true);
     assert.match(header.shadowRoot.querySelector('style').textContent, /:host\(\[hidden\]\)/);
   } finally { f.dom.window.close(); }
@@ -122,10 +122,10 @@ test('Cards wait until near the viewport and a removed embed cannot mount a dela
   } finally { window.close(); }
 });
 test('A failed promotion request clears stale content rather than breaking the page', async () => {
-  const f = fixture('<header role="banner"></header>');
+  const f = fixture('<promotion-engine data-placement="header"></promotion-engine>');
   try {
     await wait(20);
-    const header = f.window.document.querySelector('[data-pe-auto="header"]');
+    const header = f.window.document.querySelector('promotion-engine[data-placement="header"]');
     f.window.fetch = async () => ({ ok: false });
     await header.load();
     assert.equal(header.hidden, true);
@@ -134,10 +134,10 @@ test('A failed promotion request clears stale content rather than breaking the p
 });
 test('Returning to the storefront refreshes the selected header and records its saved priority', async () => {
   let priority = 0;
-  const f = fixture('<header role="banner"></header>', {}, () => ({ html: `<span>Priority ${priority}</span>`, css: '', promotionId: `discount-${priority}`, priority, revision: `revision-${priority}` }));
+  const f = fixture('<promotion-engine data-placement="header"></promotion-engine>', {}, () => ({ html: `<span>Priority ${priority}</span>`, css: '', promotionId: `discount-${priority}`, priority, revision: `revision-${priority}` }));
   try {
     await wait(20);
-    const header = f.window.document.querySelector('[data-pe-auto="header"]');
+    const header = f.window.document.querySelector('promotion-engine[data-placement="header"]');
     assert.match(header.shadowRoot.textContent, /Priority 0/);
     priority = 100;
     f.window.Date.now = () => Date.now() + 5000;
@@ -180,5 +180,20 @@ test('Collection width modes measure both page edges and retain theme gutters in
     banner.dataset.widthMode = 'full';
     f.window.dispatchEvent(new f.window.Event('resize'));
     assert.equal(banner.style.width, '');
+  } finally { f.dom.window.close(); }
+});
+test('loader never creates a header, even with historical header settings or after an explicit block is removed', async () => {
+  const f = fixture('<header role="banner"></header>', { headerEnabled: 'true' });
+  try {
+    await wait(30);
+    assert.equal(f.window.document.querySelector('promotion-engine[data-placement="header"]'), null);
+    assert.ok(!f.calls.some(url => url.searchParams.get('placement') === 'header'));
+    const header = f.window.document.createElement('promotion-engine');
+    header.dataset.placement = 'header';
+    f.window.document.body.append(header);
+    await wait(20);
+    header.remove();
+    await wait(160);
+    assert.equal(f.window.document.querySelector('promotion-engine[data-placement="header"]'), null);
   } finally { f.dom.window.close(); }
 });

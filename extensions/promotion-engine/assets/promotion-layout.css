@@ -1,6 +1,8 @@
 /* The Shopify wrapper must span the row too; sizing only the custom element
    leaves it trapped in a shrink-to-fit flex item in themes such as Horizon. */
 .pe-collection-app-block,
+.pe-header-app-block,
+.pe-promotion-app-block:has(> promotion-engine[data-placement="header"]),
 .pe-promotion-app-block:has(> promotion-engine[data-placement="collection"]) {
   display: block;
   box-sizing: border-box;
