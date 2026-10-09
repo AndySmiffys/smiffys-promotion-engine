@@ -1,0 +1,121 @@
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const { readFileSync } = require('node:fs');
+const { JSDOM } = require('jsdom');
+const base = 'extensions/promotion-engine/';
+const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+function fixture(html, config = {}, respond = () => ({ html: '<span>Save 10%</span>', css: '' })) {
+  const dom = new JSDOM(html, { url: 'https://shop.example/fr/collections/offers', runScripts: 'outside-only' });
+  const { window } = dom;
+  const calls = [];
+  window.matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {} });
+  window.fetch = async url => { calls.push(new URL(url)); return { ok: true, json: async () => String(url).endsWith('.js') ? { id: 42 } : respond(url) }; };
+  window.eval(readFileSync(base + 'assets/promotion-engine.js', 'utf8'));
+  window.eval(readFileSync(base + 'assets/promotion-placements.js', 'utf8'));
+  const embed = window.document.createElement('promotion-engine-embed');
+  Object.assign(embed.dataset, { headerEnabled: 'true', badgesEnabled: 'true', root: '/fr/', ...config });
+  window.document.body.append(embed);
+  return { dom, window, embed, calls };
+}
+test('Dawn places one announcement and resolves card products through localized Ajax URLs', async () => {
+  const f = fixture('<div class="section-header"><header></header></div><div class="card-wrapper"><div class="card__inner"><a href="/fr/products/hat">Hat</a></div></div>');
+  try {
+    await wait(30);
+    assert.equal(f.window.document.querySelectorAll('[data-pe-auto="header"]').length, 1);
+    const badge = f.window.document.querySelector('[data-pe-auto="badge"]');
+    assert.equal(badge.dataset.productId, '42');
+    assert.equal(badge.parentElement.className, 'card__inner');
+    assert.ok(f.calls.some(url => url.pathname === '/fr/products/hat.js'));
+    assert.equal(badge.hidden, false);
+    assert.match(badge.shadowRoot.textContent, /Save 10%/);
+  } finally { f.dom.window.close(); }
+});
+test('Horizon handles nested cards and newly inserted collection results without duplicate badges', async () => {
+  const f = fixture('<div id="header-group"></div><div class="product-card-wrapper"><product-card data-product-id="8"><div class="card-gallery"><a href="/products/hat"></a></div></product-card></div>');
+  try {
+    await wait(20);
+    assert.equal(f.window.document.querySelectorAll('[data-pe-auto="badge"]').length, 1);
+    assert.ok(!f.calls.some(url => url.pathname.endsWith('.js')));
+    f.window.document.body.insertAdjacentHTML('beforeend', '<product-card data-product-id="9"><div class="card-gallery"><a href="/products/shirt"></a></div></product-card>');
+    await wait(160);
+    assert.equal(f.window.document.querySelectorAll('[data-pe-auto="badge"]').length, 2);
+    const card = f.window.document.querySelector('product-card');
+    card.dataset.productId = '10';
+    card.querySelector('a').href = '/products/new';
+    await wait(160);
+    assert.equal(card.querySelector('[data-pe-auto="badge"]').dataset.productId, '10');
+    f.embed.remove();
+    assert.equal(f.window.document.querySelectorAll('[data-pe-auto]').length, 0);
+    assert.equal(card.querySelector('.card-gallery').style.position, '');
+  } finally { f.dom.window.close(); }
+});
+test('Explicit placements take precedence and invalid custom selectors are harmless', async () => {
+  const f = fixture('<header role="banner"></header><promotion-engine data-placement="header"></promotion-engine><product-card data-product-id="8"><a href="/products/a"></a><promotion-engine data-placement="badge" data-product-id="8"></promotion-engine></product-card>');
+  try { await wait(20); assert.equal(f.window.document.querySelectorAll('[data-pe-auto]').length, 0); }
+  finally { f.dom.window.close(); }
+  const invalid = fixture('<header role="banner"></header>', { headerSelector: '[', cardSelector: '[' });
+  try { await wait(20); assert.equal(invalid.window.document.querySelectorAll('[data-pe-auto]').length, 0); }
+  finally { invalid.dom.window.close(); }
+});
+test('Empty promotions stay hidden, including inside the shadow stylesheet', async () => {
+  const f = fixture('<header role="banner"></header>', {}, () => ({ html: '', css: '' }));
+  try {
+    await wait(20);
+    const header = f.window.document.querySelector('[data-pe-auto="header"]');
+    assert.equal(header.hidden, true);
+    assert.match(header.shadowRoot.querySelector('style').textContent, /:host\(\[hidden\]\)/);
+  } finally { f.dom.window.close(); }
+});
+test('Changing a product form does not change badges or offers in other sections', async () => {
+  const f = fixture('<section class="shopify-section" id="one"><form><input name="id" value="11"></form><promotion-engine data-placement="product" data-product-id="1" data-variant-id="10"></promotion-engine></section><section class="shopify-section" id="two"><promotion-engine data-placement="product" data-product-id="2" data-variant-id="20"></promotion-engine></section><promotion-engine data-placement="badge" data-product-id="1"></promotion-engine>', { headerEnabled: 'false', badgesEnabled: 'false' });
+  try {
+    f.window.document.querySelector('input').dispatchEvent(new f.window.Event('change', { bubbles: true }));
+    await wait(180);
+    assert.equal(f.window.document.querySelector('#one promotion-engine').dataset.variantId, '11');
+    assert.equal(f.window.document.querySelector('#two promotion-engine').dataset.variantId, '20');
+    assert.equal(f.window.document.querySelector('[data-placement="badge"]').dataset.variantId, undefined);
+  } finally { f.dom.window.close(); }
+});
+test('Liquid schemas remain valid and expose placement controls', () => {
+  for (const name of ['promotion', 'promotion-loader']) {
+    const source = readFileSync(base + `blocks/${name}.liquid`, 'utf8');
+    const schema = JSON.parse(source.match(/{% schema %}([\s\S]*?){% endschema %}/)[1]);
+    assert.equal(schema.javascript, 'promotion-engine.js');
+    const ids = schema.settings.filter(setting => setting.id).map(setting => setting.id);
+    assert.equal(new Set(ids).size, ids.length);
+    if (name === 'promotion-loader') assert.ok(ids.includes('card_selector'));
+    else { assert.ok(ids.includes('spacing')); assert.match(source, /closest.product/); }
+  }
+});
+test('Cards wait until near the viewport and a removed embed cannot mount a delayed badge', async () => {
+  const dom = new JSDOM('<product-card><a href="/products/hat"></a></product-card>', { url: 'https://shop.example/', runScripts: 'outside-only' });
+  const { window } = dom;
+  let notify, finish;
+  let requests = 0;
+  window.IntersectionObserver = class { constructor(callback) { notify = callback; } observe() {} unobserve() {} disconnect() {} };
+  window.fetch = () => { requests++; return new Promise(resolve => { finish = () => resolve({ ok: true, json: async () => ({ id: 42 }) }); }); };
+  window.eval(readFileSync(base + 'assets/promotion-placements.js', 'utf8'));
+  const embed = window.document.createElement('promotion-engine-embed');
+  Object.assign(embed.dataset, { headerEnabled: 'false', badgesEnabled: 'true' });
+  try {
+    window.document.body.append(embed);
+    assert.equal(requests, 0);
+    notify([{ target: window.document.querySelector('product-card'), isIntersecting: true }]);
+    assert.equal(requests, 1);
+    embed.remove();
+    finish();
+    await wait(20);
+    assert.equal(window.document.querySelectorAll('[data-pe-auto]').length, 0);
+  } finally { window.close(); }
+});
+test('A failed promotion request clears stale content rather than breaking the page', async () => {
+  const f = fixture('<header role="banner"></header>');
+  try {
+    await wait(20);
+    const header = f.window.document.querySelector('[data-pe-auto="header"]');
+    f.window.fetch = async () => ({ ok: false });
+    await header.load();
+    assert.equal(header.hidden, true);
+    assert.equal(header.shadowRoot.childNodes.length, 0);
+  } finally { f.dom.window.close(); }
+});

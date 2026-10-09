@@ -1,10 +1,13 @@
 <script src="{{ 'promotion-ui.js' | asset_url }}" defer></script>
 {% assign placement = block.settings.placement %}
-{% assign preview_product = block.settings.product | default: product %}
+{% assign preview_product = block.settings.product | default: closest.product | default: product %}
+{% assign preview_collection = closest.collection | default: collection %}
 <promotion-engine
+  hidden
+  style="width:100%;max-width:{{ block.settings.max_width | default: 1200 }}px;margin-inline:auto;padding-block:{{ block.settings.spacing | default: 0 }}px"
   data-placement="{{ placement | escape }}"
   data-product-id="{{ preview_product.id }}"
-  data-collection-id="{{ collection.id }}"
+  data-collection-id="{{ preview_collection.id }}"
   data-variant-id="{{ preview_product.selected_or_first_available_variant.id }}"
   data-proxy-path="{{ block.settings.proxy_path | escape }}"
   {{ block.shopify_attributes }}
@@ -17,6 +20,8 @@
   "settings": [
     {"type":"select","id":"placement","label":"Placement","default":"product","options":[{"value":"header","label":"Header announcement"},{"value":"collection","label":"Collection banner"},{"value":"product","label":"Product offer"},{"value":"badge","label":"Product badge"}]},
     {"type":"product","id":"product","label":"Product (optional)","info":"Leave blank to use the current product."},
+    {"type":"range","id":"max_width","label":"Maximum width","min":320,"max":1600,"step":40,"unit":"px","default":1200},
+    {"type":"range","id":"spacing","label":"Space above and below","min":0,"max":64,"step":4,"unit":"px","default":0},
     {"type":"text","id":"proxy_path","label":"Promotion URL","default":"/apps/promotion-engine","info":"Update only if the app proxy URL was customised."}
   ]
 }

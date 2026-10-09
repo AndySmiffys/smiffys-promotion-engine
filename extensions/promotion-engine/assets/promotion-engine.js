@@ -1,29 +1,61 @@
 (() => {
   if (customElements.get('promotion-engine')) return;
   const pending = new Map();
+  const queue = [];
+  let active = 0;
+  const drain = () => {
+    while (active < 4 && queue.length) {
+      const { url, resolve, reject } = queue.shift();
+      active++;
+      fetch(url, { credentials: 'same-origin', cache: 'no-store' })
+        .then(response => { if (!response.ok) throw new Error('Promotion request failed'); return response.json(); })
+        .then(resolve, reject).finally(() => { active--; drain(); });
+    }
+  };
+  const request = url => new Promise((resolve, reject) => { queue.push({ url, resolve, reject }); drain(); });
   class PromotionEngine extends HTMLElement {
     connectedCallback() {
       if (!this.shadowRoot) this.attachShadow({ mode: 'open' });
+      this.hidden = true;
       this.uiReady = () => { this.cleanupUI?.(); this.cleanupUI = window.SmiffysPromotionUI?.mount(this.shadowRoot); };
       window.addEventListener('promotion-ui:ready', this.uiReady);
       this.media = matchMedia('(max-width:600px)');
       this.refresh = () => this.load();
       this.variantChanged = event => {
+        if (this.dataset.placement !== 'product' || !this.ownsEvent(event)) return;
         const id = event.detail?.variant?.id ?? event.detail?.variantId;
         if (id) { this.dataset.variantId = String(id); this.load(); }
       };
       this.media.addEventListener('change', this.refresh);
       document.addEventListener('variant:change', this.variantChanged);
       document.addEventListener('variant-change', this.variantChanged);
-      this.formChanged = event => { const form = event.target.closest('form'); if (this.dataset.placement !== 'product' || !form?.querySelector('input[name="id"]')) return; setTimeout(() => { const input = form.querySelector('input[name="id"]'); if (input?.value) { this.dataset.variantId = input.value; this.load(); } }, 150); };
+      this.formChanged = event => {
+        if (this.dataset.placement !== 'product' || !this.ownsEvent(event)) return;
+        const form = event.target.closest?.('form');
+        if (!form?.querySelector('[name="id"]')) return;
+        clearTimeout(this.formTimer);
+        this.formTimer = setTimeout(() => {
+          const input = form.querySelector('[name="id"]');
+          if (this.isConnected && input?.value) { this.dataset.variantId = input.value; this.load(); }
+        }, 150);
+      };
       document.addEventListener('change', this.formChanged);
       this.timer = setInterval(this.refresh, 60000);
       this.load();
+    }
+    ownsEvent(event) {
+      const productId = event.detail?.productId ?? event.detail?.product?.id;
+      if (productId) return String(productId) === this.dataset.productId;
+      const card = event.target.closest?.('product-card, .product-card-wrapper, .card-wrapper');
+      if (card && !card.contains(this)) return false;
+      const section = this.closest('.shopify-section');
+      return Boolean(section && event.target instanceof Element && section.contains(event.target));
     }
     disconnectedCallback() {
       this.cleanupUI?.();
       window.removeEventListener('promotion-ui:ready', this.uiReady);
       clearInterval(this.timer);
+      clearTimeout(this.formTimer);
       clearTimeout(this.expiryTimer);
       this.media?.removeEventListener('change', this.refresh);
       document.removeEventListener('variant:change', this.variantChanged);
@@ -43,11 +75,11 @@
       url.searchParams.set('mobile', this.media.matches ? '1' : '0');
       const key = url.toString();
       try {
-        if (!pending.has(key)) pending.set(key, fetch(key, { credentials: 'same-origin', cache: 'no-store' }).then(response => { if (!response.ok) throw new Error('Promotion request failed'); return response.json(); }).finally(() => pending.delete(key)));
+        if (!pending.has(key)) pending.set(key, request(key).finally(() => pending.delete(key)));
         const result = await pending.get(key);
         if (!this.isConnected || version !== this.requestVersion) return;
         const style = document.createElement('style');
-        style.textContent = ':host{display:block;font-family:inherit;position:relative}' + result.css;
+        style.textContent = ':host{display:block;font-family:inherit;position:relative;min-width:0}:host([hidden]){display:none}' + result.css;
         const content = document.createElement('div');
         content.innerHTML = result.html || '';
         // Badge positioning belongs to the product card, not the shadow DOM.
@@ -59,7 +91,7 @@
         clearTimeout(this.expiryTimer);
         const delay = result.endsAt ? Date.parse(result.endsAt) - Date.now() : 0;
         if (delay > 0 && delay <= 2147483647) this.expiryTimer = setTimeout(() => { this.hidden = true; this.cleanupUI?.(); this.shadowRoot.replaceChildren(); }, delay);
-      } catch { if (version === this.requestVersion) { this.cleanupUI?.(); this.shadowRoot.replaceChildren(); this.hidden = true; } }
+      } catch { if (this.isConnected && version === this.requestVersion) { this.cleanupUI?.(); this.shadowRoot.replaceChildren(); this.hidden = true; } }
     }
   }
   customElements.define('promotion-engine', PromotionEngine);
